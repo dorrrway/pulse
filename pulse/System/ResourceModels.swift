@@ -242,3 +242,16 @@ nonisolated enum ResourceFormatters {
         byteString(bytes: Int64(max(bytesPerSecond, 0))) + "/s"
     }
 }
+
+nonisolated enum ResourceScales {
+    private static let networkMaximumBytesPerSecond = 100.0 * 1024.0 * 1024.0
+    private static let networkKneeBytesPerSecond = 256.0 * 1024.0
+
+    static func networkActivityProgress(bytesPerSecond: Double) -> Double {
+        let rate = min(max(bytesPerSecond, 0), networkMaximumBytesPerSecond)
+        let numerator = log1p(rate / networkKneeBytesPerSecond)
+        let denominator = log1p(networkMaximumBytesPerSecond / networkKneeBytesPerSecond)
+
+        return numerator / denominator
+    }
+}

@@ -47,7 +47,7 @@ The app is signed with Developer ID and notarized by Apple.
 
 ## System Requirements
 
-- macOS 26.4 or later, as currently configured by the project.
+- macOS 26.0 or later, as currently configured by the project.
 - Apple Silicon and Intel Macs are supported.
 
 ## Privacy

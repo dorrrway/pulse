@@ -48,7 +48,7 @@ SHA-256：
 
 ## 系统要求
 
-- 当前工程配置要求 macOS 26.4 或更高版本。
+- 当前工程配置要求 macOS 26.0 或更高版本。
 - 支持 Apple Silicon 和 Intel Mac。
 
 ## 隐私

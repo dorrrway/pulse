@@ -32,6 +32,21 @@ final class ResourceFormattingTests: XCTestCase {
         XCTAssertEqual(usage.totalSentBytes, 2_500)
     }
 
+    func testNetworkActivityProgressUsesLogarithmicScale() {
+        XCTAssertEqual(ResourceScales.networkActivityProgress(bytesPerSecond: -1), 0)
+        XCTAssertEqual(ResourceScales.networkActivityProgress(bytesPerSecond: 0), 0)
+
+        let fiveMegabytes = ResourceScales.networkActivityProgress(bytesPerSecond: 5 * 1024 * 1024)
+        let fiftyMegabytes = ResourceScales.networkActivityProgress(bytesPerSecond: 50 * 1024 * 1024)
+        let maximum = ResourceScales.networkActivityProgress(bytesPerSecond: 100 * 1024 * 1024)
+        let beyondMaximum = ResourceScales.networkActivityProgress(bytesPerSecond: 250 * 1024 * 1024)
+
+        XCTAssertEqual(fiveMegabytes, 0.51, accuracy: 0.01)
+        XCTAssertEqual(fiftyMegabytes, 0.88, accuracy: 0.01)
+        XCTAssertEqual(maximum, 1, accuracy: 0.0001)
+        XCTAssertEqual(beyondMaximum, 1, accuracy: 0.0001)
+    }
+
     func testDiskIOCounterDeltaUsesElapsedInterval() {
         let previous = DiskIOCounters(readBytes: 10_000, writtenBytes: 20_000)
         let current = DiskIOCounters(readBytes: 14_000, writtenBytes: 21_000)

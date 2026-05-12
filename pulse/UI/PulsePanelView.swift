@@ -104,7 +104,9 @@ struct PulsePanelView: View {
                     rate: ResourceFormatters.byteRate(bytesPerSecond: store.snapshot.network.outgoingBytesPerSecond)
                 ),
                 tint: .indigo,
-                progress: min((store.snapshot.network.incomingBytesPerSecond + store.snapshot.network.outgoingBytesPerSecond) / 5_000_000, 1)
+                progress: ResourceScales.networkActivityProgress(
+                    bytesPerSecond: store.snapshot.network.incomingBytesPerSecond + store.snapshot.network.outgoingBytesPerSecond
+                )
             )
 
             MetricRow(
