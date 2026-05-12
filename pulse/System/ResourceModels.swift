@@ -136,6 +136,8 @@ nonisolated struct ProcessResourceUsage: Equatable, Identifiable, Sendable {
 }
 
 nonisolated struct ProcessResourceSnapshot: Equatable, Sendable {
+    private static let processLimit = 5
+
     var topCPU: [ProcessResourceUsage]
     var topMemory: [ProcessResourceUsage]
 
@@ -154,7 +156,7 @@ nonisolated struct ProcessResourceSnapshot: Equatable, Sendable {
 
                 return lhs.cpuPercentage > rhs.cpuPercentage
             }
-            .prefix(3)
+            .prefix(Self.processLimit)
             .map(\.self)
         self.topMemory = usages
             .filter { $0.memoryBytes > 0 }
@@ -165,7 +167,7 @@ nonisolated struct ProcessResourceSnapshot: Equatable, Sendable {
 
                 return lhs.memoryBytes > rhs.memoryBytes
             }
-            .prefix(3)
+            .prefix(Self.processLimit)
             .map(\.self)
     }
 

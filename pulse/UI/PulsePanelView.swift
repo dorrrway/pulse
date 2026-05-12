@@ -269,6 +269,7 @@ private struct SignalCard: View {
 private struct ProcessUsageSection: View {
     private enum Layout {
         static let chartSide: CGFloat = 62
+        static let visibleRowLimit = 3
         static let titleLineHeight: CGFloat = 14
         static let titleToRowsSpacing: CGFloat = 6
         static let rowHeight: CGFloat = 18
@@ -282,6 +283,8 @@ private struct ProcessUsageSection: View {
     var share: (ProcessResourceUsage) -> Double
 
     var body: some View {
+        let visibleEntries = Array(entries.prefix(Layout.visibleRowLimit))
+
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: Layout.titleToRowsSpacing) {
                 Text(title)
@@ -297,7 +300,7 @@ private struct ProcessUsageSection: View {
                         .frame(height: Layout.chartSide, alignment: .topLeading)
                 } else {
                     VStack(spacing: Layout.rowSpacing) {
-                        ForEach(Array(entries.enumerated()), id: \.element.id) { index, usage in
+                        ForEach(Array(visibleEntries.enumerated()), id: \.element.id) { index, usage in
                             ProcessUsageRow(
                                 color: ProcessUsagePalette.color(at: index),
                                 name: usage.name,
@@ -496,8 +499,10 @@ private enum ProcessUsagePalette {
             Color(red: 0.52, green: 0.46, blue: 0.78).opacity(0.92)
         case 3:
             Color(red: 0.86, green: 0.62, blue: 0.28).opacity(0.92)
-        default:
+        case 4:
             Color(red: 0.56, green: 0.58, blue: 0.60).opacity(0.92)
+        default:
+            Color.secondary.opacity(0.72)
         }
     }
 }

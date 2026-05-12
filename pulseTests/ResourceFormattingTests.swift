@@ -104,17 +104,18 @@ final class ResourceFormattingTests: XCTestCase {
         XCTAssertEqual(high.pressureLevel, .high)
     }
 
-    func testProcessSnapshotKeepsTopThreeByCPUAndMemory() {
+    func testProcessSnapshotKeepsTopFiveByCPUAndMemory() {
         let snapshot = ProcessResourceSnapshot(usages: [
             ProcessResourceUsage(identifier: "a", name: "Alpha", cpuPercentage: 0.04, memoryBytes: 400),
             ProcessResourceUsage(identifier: "b", name: "Beta", cpuPercentage: 0.08, memoryBytes: 200),
             ProcessResourceUsage(identifier: "c", name: "Charlie", cpuPercentage: 0.02, memoryBytes: 900),
             ProcessResourceUsage(identifier: "d", name: "Delta", cpuPercentage: 0.12, memoryBytes: 100),
             ProcessResourceUsage(identifier: "e", name: "Echo", cpuPercentage: 0, memoryBytes: 700),
+            ProcessResourceUsage(identifier: "f", name: "Foxtrot", cpuPercentage: 0.03, memoryBytes: 500),
         ])
 
-        XCTAssertEqual(snapshot.topCPU.map(\.name), ["Delta", "Beta", "Alpha"])
-        XCTAssertEqual(snapshot.topMemory.map(\.name), ["Charlie", "Echo", "Alpha"])
+        XCTAssertEqual(snapshot.topCPU.map(\.name), ["Delta", "Beta", "Alpha", "Foxtrot", "Charlie"])
+        XCTAssertEqual(snapshot.topMemory.map(\.name), ["Charlie", "Echo", "Foxtrot", "Alpha", "Beta"])
     }
 
     func testProcessCPUTimebaseConvertsMachTimeToSeconds() {

@@ -65,6 +65,7 @@ See [Privacy Policy](PRIVACY.en.md) for details.
 ### Unreleased
 
 - Added CPU and memory usage rankings for local apps and processes.
+- Expanded CPU and memory usage charts to the top five entries while keeping the visible lists at three entries.
 - Added pixel-style share charts for the ranking breakdown.
 - Updated the privacy wording to clarify that process names and their CPU and memory usage are used only to render the local interface.
 
