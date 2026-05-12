@@ -19,6 +19,10 @@
 
 Pulse 是一款轻量级 macOS 菜单栏应用，用来快速查看本机系统状态。
 
+<p align="center">
+  <img src="docs/assets/pulse-preview-combined.gif" width="640" alt="Pulse 浅色和深色模式菜单栏状态面板预览">
+</p>
+
 ## 下载
 
 最新版本：
