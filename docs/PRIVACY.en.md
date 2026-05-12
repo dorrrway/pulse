@@ -1,8 +1,9 @@
 # Privacy Policy
 
-<p align="right">
-  <a href="PRIVACY.zh-CN.md"><kbd>中文</kbd></a>
-  <a href="PRIVACY.en.md"><kbd>English</kbd></a>
+<p align="center">
+  <a href="PRIVACY.zh-CN.md"><kbd><strong>&nbsp;&nbsp;中文&nbsp;&nbsp;</strong></kbd></a>
+  &nbsp;
+  <a href="PRIVACY.en.md"><kbd><strong>&nbsp;&nbsp;English&nbsp;&nbsp;</strong></kbd></a>
 </p>
 
 [README](README.en.md)

@@ -1,6 +1,7 @@
-<p align="right">
-  <a href="README.md"><kbd>中文</kbd></a>
-  <a href="docs/README.en.md"><kbd>English</kbd></a>
+<p align="center">
+  <a href="README.md"><kbd><strong>&nbsp;&nbsp;中文&nbsp;&nbsp;</strong></kbd></a>
+  &nbsp;
+  <a href="docs/README.en.md"><kbd><strong>&nbsp;&nbsp;English&nbsp;&nbsp;</strong></kbd></a>
 </p>
 
 # Pulse
