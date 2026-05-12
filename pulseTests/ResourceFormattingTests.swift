@@ -8,6 +8,13 @@ final class ResourceFormattingTests: XCTestCase {
         XCTAssertEqual(ResourceFormatters.percentage(-1), "0%")
     }
 
+    func testFormatsProcessPercentagesWithLowUsagePrecision() {
+        XCTAssertEqual(ResourceFormatters.processPercentage(0.004), "0.4%")
+        XCTAssertEqual(ResourceFormatters.processPercentage(0.083), "8.3%")
+        XCTAssertEqual(ResourceFormatters.processPercentage(1.25), "125%")
+        XCTAssertEqual(ResourceFormatters.processPercentage(-1), "0.0%")
+    }
+
     func testFormatsByteValues() {
         XCTAssertEqual(ResourceFormatters.byteString(bytes: 0), "0 B")
         XCTAssertEqual(ResourceFormatters.byteString(bytes: 512), "512 B")
@@ -95,6 +102,25 @@ final class ResourceFormattingTests: XCTestCase {
         XCTAssertEqual(nominal.pressureLevel, .nominal)
         XCTAssertEqual(elevated.pressureLevel, .elevated)
         XCTAssertEqual(high.pressureLevel, .high)
+    }
+
+    func testProcessSnapshotKeepsTopThreeByCPUAndMemory() {
+        let snapshot = ProcessResourceSnapshot(usages: [
+            ProcessResourceUsage(identifier: "a", name: "Alpha", cpuPercentage: 0.04, memoryBytes: 400),
+            ProcessResourceUsage(identifier: "b", name: "Beta", cpuPercentage: 0.08, memoryBytes: 200),
+            ProcessResourceUsage(identifier: "c", name: "Charlie", cpuPercentage: 0.02, memoryBytes: 900),
+            ProcessResourceUsage(identifier: "d", name: "Delta", cpuPercentage: 0.12, memoryBytes: 100),
+            ProcessResourceUsage(identifier: "e", name: "Echo", cpuPercentage: 0, memoryBytes: 700),
+        ])
+
+        XCTAssertEqual(snapshot.topCPU.map(\.name), ["Delta", "Beta", "Alpha"])
+        XCTAssertEqual(snapshot.topMemory.map(\.name), ["Charlie", "Echo", "Alpha"])
+    }
+
+    func testProcessCPUTimebaseConvertsMachTimeToSeconds() {
+        let timebase = ProcessCPUTimebase(numer: 125, denom: 3)
+
+        XCTAssertEqual(timebase.seconds(fromMachAbsoluteTime: 24_000_000), 1, accuracy: 0.0001)
     }
 
 }

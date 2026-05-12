@@ -32,7 +32,8 @@ final class PulseStore {
         userDefaults: UserDefaults = .standard,
         launchAtLoginService: PulseLoginItemService = .live,
         deviceName: String? = nil,
-        reconcileLaunchAtLogin: Bool? = nil
+        reconcileLaunchAtLogin: Bool? = nil,
+        startSamplingImmediately: Bool = false
     ) {
         self.userDefaults = userDefaults
         self.launchAtLoginService = launchAtLoginService
@@ -47,6 +48,10 @@ final class PulseStore {
 
         if reconcileLaunchAtLogin ?? !Self.isRunningUnitTests {
             reconcilePreferredLaunchAtLogin()
+        }
+
+        if startSamplingImmediately {
+            startSampling()
         }
     }
 

@@ -329,6 +329,9 @@ extension PulseStrings {
         case diskIO
         case read
         case write
+        case topCPUProcesses
+        case topMemoryProcesses
+        case collecting
         case language
         case languageDescription
         case startup
@@ -393,6 +396,12 @@ private extension PulseStrings {
             "Read"
         case .write:
             "Write"
+        case .topCPUProcesses:
+            "CPU Usage"
+        case .topMemoryProcesses:
+            "Memory Usage"
+        case .collecting:
+            "Collecting"
         case .language:
             "Language"
         case .languageDescription:
@@ -466,6 +475,12 @@ private extension PulseStrings {
             "读取"
         case .write:
             "写入"
+        case .topCPUProcesses:
+            "CPU 占用"
+        case .topMemoryProcesses:
+            "内存占用"
+        case .collecting:
+            "采集中"
         case .language:
             "语言"
         case .languageDescription:

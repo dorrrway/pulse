@@ -124,6 +124,54 @@ nonisolated struct DiskIOUsage: Equatable, Sendable {
     )
 }
 
+nonisolated struct ProcessResourceUsage: Equatable, Identifiable, Sendable {
+    var identifier: String
+    var name: String
+    var cpuPercentage: Double
+    var memoryBytes: Int64
+
+    var id: String {
+        identifier
+    }
+}
+
+nonisolated struct ProcessResourceSnapshot: Equatable, Sendable {
+    var topCPU: [ProcessResourceUsage]
+    var topMemory: [ProcessResourceUsage]
+
+    init(topCPU: [ProcessResourceUsage], topMemory: [ProcessResourceUsage]) {
+        self.topCPU = topCPU
+        self.topMemory = topMemory
+    }
+
+    init(usages: [ProcessResourceUsage]) {
+        self.topCPU = usages
+            .filter { $0.cpuPercentage > 0 }
+            .sorted { lhs, rhs in
+                if lhs.cpuPercentage == rhs.cpuPercentage {
+                    return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
+                }
+
+                return lhs.cpuPercentage > rhs.cpuPercentage
+            }
+            .prefix(3)
+            .map(\.self)
+        self.topMemory = usages
+            .filter { $0.memoryBytes > 0 }
+            .sorted { lhs, rhs in
+                if lhs.memoryBytes == rhs.memoryBytes {
+                    return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
+                }
+
+                return lhs.memoryBytes > rhs.memoryBytes
+            }
+            .prefix(3)
+            .map(\.self)
+    }
+
+    static let empty = ProcessResourceSnapshot(topCPU: [], topMemory: [])
+}
+
 nonisolated struct ResourceSnapshot: Equatable, Sendable {
     var capturedAt: Date
     var cpu: CPUUsage
@@ -133,6 +181,7 @@ nonisolated struct ResourceSnapshot: Equatable, Sendable {
     var thermal: ThermalUsage
     var power: PowerUsage
     var diskIO: DiskIOUsage
+    var processes: ProcessResourceSnapshot
 
     static let empty = ResourceSnapshot(
         capturedAt: .distantPast,
@@ -142,7 +191,8 @@ nonisolated struct ResourceSnapshot: Equatable, Sendable {
         disk: .empty,
         thermal: .empty,
         power: .empty,
-        diskIO: .empty
+        diskIO: .empty,
+        processes: .empty
     )
 }
 
@@ -209,6 +259,16 @@ nonisolated struct DiskIOCounters: Equatable, Sendable {
 nonisolated enum ResourceFormatters {
     static func percentage(_ value: Double) -> String {
         String(format: "%.0f%%", min(max(value, 0), 1) * 100)
+    }
+
+    static func processPercentage(_ value: Double) -> String {
+        let percentage = max(value, 0) * 100
+
+        if percentage < 10 {
+            return String(format: "%.1f%%", percentage)
+        }
+
+        return String(format: "%.0f%%", percentage)
     }
 
     static func byteString(bytes: Int64) -> String {

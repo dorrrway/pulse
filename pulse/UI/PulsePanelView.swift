@@ -6,7 +6,7 @@ struct PulsePanelView: View {
 
     private enum Layout {
         static let width: CGFloat = 420
-        static let height: CGFloat = 482
+        static let height: CGFloat = 560
     }
 
     var body: some View {
@@ -16,6 +16,7 @@ struct PulsePanelView: View {
             VStack(alignment: .leading, spacing: 14) {
                 header
                 coreMetrics(strings: strings)
+                processLeaders(strings: strings)
                 signalGrid(strings: strings)
                 footer
             }
@@ -161,6 +162,26 @@ struct PulsePanelView: View {
             )
         }
     }
+
+    private func processLeaders(strings: PulseStrings) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ProcessUsageSection(
+                title: strings.text(.topCPUProcesses),
+                entries: store.snapshot.processes.topCPU,
+                emptyText: strings.text(.collecting),
+                value: { ResourceFormatters.processPercentage($0.cpuPercentage) },
+                share: \.cpuPercentage
+            )
+
+            ProcessUsageSection(
+                title: strings.text(.topMemoryProcesses),
+                entries: store.snapshot.processes.topMemory,
+                emptyText: strings.text(.collecting),
+                value: { ResourceFormatters.byteString(bytes: $0.memoryBytes) },
+                share: { Double(max($0.memoryBytes, 0)) }
+            )
+        }
+    }
 }
 
 private struct MetricRow: View {
@@ -242,6 +263,242 @@ private struct SignalCard: View {
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+}
+
+private struct ProcessUsageSection: View {
+    private enum Layout {
+        static let chartSide: CGFloat = 62
+        static let titleLineHeight: CGFloat = 14
+        static let titleToRowsSpacing: CGFloat = 6
+        static let rowHeight: CGFloat = 18
+        static let rowSpacing: CGFloat = 4
+    }
+
+    var title: String
+    var entries: [ProcessResourceUsage]
+    var emptyText: String
+    var value: (ProcessResourceUsage) -> String
+    var share: (ProcessResourceUsage) -> Double
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: Layout.titleToRowsSpacing) {
+                Text(title)
+                    .font(.system(.caption, design: .rounded, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+
+                if entries.isEmpty {
+                    Text(emptyText)
+                        .font(.system(.caption, design: .rounded, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .frame(height: Layout.chartSide, alignment: .topLeading)
+                } else {
+                    VStack(spacing: Layout.rowSpacing) {
+                        ForEach(Array(entries.enumerated()), id: \.element.id) { index, usage in
+                            ProcessUsageRow(
+                                color: ProcessUsagePalette.color(at: index),
+                                name: usage.name,
+                                value: value(usage),
+                                height: Layout.rowHeight
+                            )
+                        }
+                    }
+                    .frame(height: Layout.chartSide, alignment: .center)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            if !entries.isEmpty {
+                ProcessUsageShareChart(entries: entries, share: share)
+                    .frame(width: Layout.chartSide, height: Layout.chartSide)
+                    .padding(.top, Layout.titleLineHeight + Layout.titleToRowsSpacing)
+            }
+        }
+    }
+}
+
+private struct ProcessUsageRow: View {
+    var color: Color
+    var name: String
+    var value: String
+    var height: CGFloat
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Rectangle()
+                .fill(color)
+                .frame(width: 8, height: 8)
+                .accessibilityHidden(true)
+
+            Text(name)
+                .font(.system(.caption, design: .rounded, weight: .semibold))
+                .lineLimit(1)
+                .truncationMode(.middle)
+
+            Spacer(minLength: 8)
+
+            Text(value)
+                .font(.system(.caption, design: .monospaced, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.78)
+        }
+        .frame(height: height)
+    }
+}
+
+private struct ProcessUsageShareChart: View {
+    var entries: [ProcessResourceUsage]
+    var share: (ProcessResourceUsage) -> Double
+
+    private static let gridSize = 11
+    private static let cellSpacing: CGFloat = 1
+
+    private var slices: [ProcessUsageShareSlice] {
+        ProcessUsageShareSlice.make(from: entries, share: share)
+    }
+
+    var body: some View {
+        GeometryReader { proxy in
+            let side = min(proxy.size.width, proxy.size.height)
+            let cellSize = (side - CGFloat(Self.gridSize - 1) * Self.cellSpacing) / CGFloat(Self.gridSize)
+
+            VStack(spacing: Self.cellSpacing) {
+                ForEach(0..<Self.gridSize, id: \.self) { row in
+                    HStack(spacing: Self.cellSpacing) {
+                        ForEach(0..<Self.gridSize, id: \.self) { column in
+                            Rectangle()
+                                .fill(color(row: row, column: column))
+                                .frame(width: cellSize, height: cellSize)
+                                .opacity(isInsideDisc(row: row, column: column) ? 1 : 0)
+                        }
+                    }
+                }
+            }
+            .frame(width: side, height: side)
+        }
+        .help(helpText)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(entries.map(\.name).joined(separator: ", "))
+        .accessibilityValue(helpText)
+    }
+
+    private func isInsideDisc(row: Int, column: Int) -> Bool {
+        let center = (Double(Self.gridSize) - 1) / 2
+        let dx = Double(column) - center
+        let dy = Double(row) - center
+        let radius = Double(Self.gridSize) / 2
+
+        return dx * dx + dy * dy <= radius * radius
+    }
+
+    private func color(row: Int, column: Int) -> Color {
+        guard isInsideDisc(row: row, column: column),
+              let sliceIndex = sliceIndex(row: row, column: column) else {
+            return ProcessUsagePalette.inactive
+        }
+
+        return ProcessUsagePalette.color(at: sliceIndex)
+    }
+
+    private func sliceIndex(row: Int, column: Int) -> Int? {
+        guard !slices.isEmpty else {
+            return nil
+        }
+
+        let center = (Double(Self.gridSize) - 1) / 2
+        let dx = Double(column) - center
+        let dy = Double(row) - center
+        var degrees = atan2(dy, dx) * 180 / .pi
+
+        if degrees < -90 {
+            degrees += 360
+        }
+
+        return slices.firstIndex { slice in
+            degrees >= slice.startDegrees && degrees < slice.endDegrees
+        } ?? slices.indices.last
+    }
+
+    private var helpText: String {
+        guard !slices.isEmpty else {
+            return "No usage"
+        }
+
+        let total = slices.reduce(0) { $0 + $1.value }
+        guard total > 0 else {
+            return "No usage"
+        }
+
+        return slices.map { slice in
+            let percent = slice.value / total * 100
+            return "\(slice.name) \(percent.formatted(.number.precision(.fractionLength(0))))%"
+        }
+        .joined(separator: "\n")
+    }
+}
+
+private struct ProcessUsageShareSlice: Identifiable, Hashable {
+    var id: String { name }
+
+    let name: String
+    let value: Double
+    let startDegrees: Double
+    let endDegrees: Double
+
+    static func make(
+        from entries: [ProcessResourceUsage],
+        share: (ProcessResourceUsage) -> Double
+    ) -> [ProcessUsageShareSlice] {
+        let values = entries
+            .map { entry in
+                (name: entry.name, value: max(share(entry), 0))
+            }
+            .filter { $0.value > 0 }
+
+        let total = values.reduce(0) {
+            $0 + $1.value
+        }
+
+        guard total > 0 else {
+            return []
+        }
+
+        var cursor = -90.0
+        return values.map { value in
+            let angle = value.value / total * 360.0
+            defer { cursor += angle }
+
+            return ProcessUsageShareSlice(
+                name: value.name,
+                value: value.value,
+                startDegrees: cursor,
+                endDegrees: cursor + angle
+            )
+        }
+    }
+}
+
+private enum ProcessUsagePalette {
+    static let inactive = Color.secondary.opacity(0.16)
+
+    static func color(at index: Int) -> Color {
+        switch index {
+        case 0:
+            Color(red: 0.22, green: 0.55, blue: 0.86).opacity(0.92)
+        case 1:
+            Color(red: 0.42, green: 0.62, blue: 0.38).opacity(0.92)
+        case 2:
+            Color(red: 0.52, green: 0.46, blue: 0.78).opacity(0.92)
+        case 3:
+            Color(red: 0.86, green: 0.62, blue: 0.28).opacity(0.92)
+        default:
+            Color(red: 0.56, green: 0.58, blue: 0.60).opacity(0.92)
+        }
     }
 }
 

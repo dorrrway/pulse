@@ -14,7 +14,7 @@ struct PulseApp: App {
         identifier: Bundle.main.bundleIdentifier ?? "com.timelikesilver.pulse"
     )
 
-    @State private var store = PulseStore()
+    @State private var store = PulseStore(startSamplingImmediately: !Self.isRunningUnitTests)
 
     init() {
         guard !Self.isRunningUnitTests else {
@@ -34,9 +34,6 @@ struct PulseApp: App {
         ) {
             PulsePanelView()
                 .environment(store)
-                .task {
-                    store.startSampling()
-                }
         }
         .menuBarExtraStyle(.window)
 
