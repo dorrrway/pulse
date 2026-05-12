@@ -20,7 +20,7 @@
 Pulse is a lightweight macOS menu bar app for watching local system status at a glance.
 
 <p align="center">
-  <img src="assets/pulse-preview-combined.gif" width="411" alt="Pulse menu bar status panel preview in Light and Dark Mode">
+  <img src="assets/pulse-preview-combined.gif" width="640" alt="Pulse menu bar status panel preview in Light and Dark Mode">
 </p>
 
 ## Download
