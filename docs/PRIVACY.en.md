@@ -6,7 +6,7 @@
   <a href="PRIVACY.zh-CN.md">中文</a>
 </h3>
 
-Last updated: May 12, 2026
+Last updated: May 13, 2026
 
 Pulse is a local macOS menu bar utility. It is designed to show system status on the Mac where it is running.
 
@@ -20,6 +20,7 @@ Pulse may read local system metrics including:
 - Network byte counters
 - Battery status
 - Thermal state
+- Names of running processes and their CPU and memory usage
 
 These values are used only to render the app interface.
 

@@ -52,7 +52,7 @@ The app is signed with Developer ID and notarized by Apple.
 
 ## Privacy
 
-Pulse reads local system metrics only, such as CPU, memory, disk, network byte counters, battery, thermal state, and disk I/O.
+Pulse reads local system metrics only, such as CPU, memory, disk, network byte counters, battery, thermal state, and disk I/O. To show usage rankings, Pulse also reads the names of running local processes and their CPU and memory usage.
 
 Pulse does not upload analytics, telemetry, files, personal data, or system data to any server.
 
