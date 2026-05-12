@@ -6,6 +6,7 @@
 <h3 align="center">
   <a href="#download">Download</a> |
   <a href="#installation">Installation</a> |
+  <a href="#changelog">Changelog</a> |
   <a href="PRIVACY.en.md">Privacy Policy</a> |
   <a href="../README.md">中文</a>
 </h3>
@@ -57,6 +58,18 @@ Pulse reads local system metrics only, such as CPU, memory, disk, network byte c
 Pulse does not upload analytics, telemetry, files, personal data, or system data to any server.
 
 See [Privacy Policy](PRIVACY.en.md) for details.
+
+## Changelog
+
+### Unreleased
+
+- Added CPU and memory usage rankings for local apps and processes.
+- Added pixel-style share charts for the ranking breakdown.
+- Updated the privacy wording to clarify that process names and their CPU and memory usage are used only to render the local interface.
+
+### 1.0.0
+
+- Initial release with a menu bar system status panel, CPU, memory, disk, network, battery, thermal state, and disk I/O metrics, Light and Dark Mode support, and launch-at-login settings.
 
 ## Development
 
