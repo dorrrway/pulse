@@ -5,28 +5,48 @@
 //  Created by 韩伟 on 5/2/26.
 //
 
+import Darwin
 import SwiftUI
-import SwiftData
 
 @main
-struct pulseApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+struct PulseApp: App {
+    private static let instanceLock = AppInstanceLock(
+        identifier: Bundle.main.bundleIdentifier ?? "com.timelikesilver.pulse"
+    )
 
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
+    @State private var store = PulseStore()
+
+    init() {
+        guard !Self.isRunningUnitTests else {
+            return
         }
-    }()
+
+        guard Self.instanceLock.acquire() else {
+            Darwin.exit(EXIT_SUCCESS)
+        }
+    }
 
     var body: some Scene {
-        WindowGroup {
-            ContentView()
+        MenuBarExtra(
+            "Pulse",
+            systemImage: "square.grid.3x3.square",
+            isInserted: .constant(!Self.isRunningUnitTests)
+        ) {
+            PulsePanelView()
+                .environment(store)
+                .task {
+                    store.startSampling()
+                }
         }
-        .modelContainer(sharedModelContainer)
+        .menuBarExtraStyle(.window)
+
+        Settings {
+            PulseSettingsView()
+                .environment(store)
+        }
+    }
+
+    private static var isRunningUnitTests: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
 }
