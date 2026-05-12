@@ -7,6 +7,7 @@
   <a href="#download">Download</a> |
   <a href="#installation">Installation</a> |
   <a href="#changelog">Changelog</a> |
+  <a href="RELEASE_RULES.md">Release Rules</a> |
   <a href="PRIVACY.en.md">Privacy Policy</a> |
   <a href="../README.md">中文</a>
 </h3>

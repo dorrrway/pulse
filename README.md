@@ -7,6 +7,7 @@
   <a href="#下载">下载</a> |
   <a href="#安装">安装</a> |
   <a href="#更新日志">更新日志</a> |
+  <a href="docs/RELEASE_RULES.md">发布规则</a> |
   <a href="docs/PRIVACY.zh-CN.md">隐私政策</a> |
   <a href="docs/README.en.md">English</a>
 </h3>
