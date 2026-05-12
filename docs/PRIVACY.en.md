@@ -1,12 +1,10 @@
 # Privacy Policy
 
-<p align="center">
-  <a href="PRIVACY.zh-CN.md"><kbd><strong>&nbsp;&nbsp;中文&nbsp;&nbsp;</strong></kbd></a>
-  &nbsp;
-  <a href="PRIVACY.en.md"><kbd><strong>&nbsp;&nbsp;English&nbsp;&nbsp;</strong></kbd></a>
-</p>
-
-[README](README.en.md)
+<h3 align="center">
+  <a href="README.en.md">README</a> |
+  <a href="PRIVACY.en.md">English</a> |
+  <a href="PRIVACY.zh-CN.md">中文</a>
+</h3>
 
 Last updated: May 12, 2026
 

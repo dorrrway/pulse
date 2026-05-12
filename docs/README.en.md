@@ -1,9 +1,20 @@
-# Pulse
+<h1 align="center">
+  <img src="../pulse/pulse-icon.icon/Assets/Alienmonster-Theme=Flat.svg" width="72" alt="Pulse icon"><br>
+  Pulse
+</h1>
+
+<h3 align="center">
+  <a href="#download">Download</a> |
+  <a href="#installation">Installation</a> |
+  <a href="PRIVACY.en.md">Privacy Policy</a> |
+  <a href="../README.md">中文</a>
+</h3>
 
 <p align="center">
-  <a href="../README.md"><kbd><strong>&nbsp;&nbsp;中文&nbsp;&nbsp;</strong></kbd></a>
-  &nbsp;
-  <a href="README.en.md"><kbd><strong>&nbsp;&nbsp;English&nbsp;&nbsp;</strong></kbd></a>
+  <img alt="release" src="https://img.shields.io/badge/release-v1.0.0-0A84FF">
+  <img alt="platform" src="https://img.shields.io/badge/platform-macOS-147EFB">
+  <img alt="Swift" src="https://img.shields.io/badge/Swift-5-FA7343">
+  <img alt="notarized" src="https://img.shields.io/badge/Developer%20ID-notarized-34C759">
 </p>
 
 Pulse is a lightweight macOS menu bar app for watching local system status at a glance.
