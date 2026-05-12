@@ -21,8 +21,9 @@ Pulse may read local system metrics including:
 - Battery status
 - Thermal state
 - Names of running processes and their CPU and memory usage
+- Local app bundle paths used to display app icons
 
-These values are used only to render the app interface.
+These values are used only to render the app interface. They are not uploaded or used for persistent tracking.
 
 ## Data Pulse Does Not Collect
 

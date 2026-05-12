@@ -304,6 +304,7 @@ private struct ProcessUsageSection: View {
                             ProcessUsageRow(
                                 color: ProcessUsagePalette.color(at: index),
                                 name: usage.name,
+                                appBundlePath: usage.appBundlePath,
                                 value: value(usage),
                                 height: Layout.rowHeight
                             )
@@ -326,15 +327,13 @@ private struct ProcessUsageSection: View {
 private struct ProcessUsageRow: View {
     var color: Color
     var name: String
+    var appBundlePath: String?
     var value: String
     var height: CGFloat
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Rectangle()
-                .fill(color)
-                .frame(width: 8, height: 8)
-                .accessibilityHidden(true)
+        HStack(alignment: .center, spacing: 8) {
+            ProcessUsageLeadingIcon(color: color, appBundlePath: appBundlePath)
 
             Text(name)
                 .font(.system(.caption, design: .rounded, weight: .semibold))
@@ -351,6 +350,55 @@ private struct ProcessUsageRow: View {
                 .minimumScaleFactor(0.78)
         }
         .frame(height: height)
+    }
+}
+
+private struct ProcessUsageLeadingIcon: View {
+    var color: Color
+    var appBundlePath: String?
+
+    var body: some View {
+        Group {
+            if let icon = ProcessIconCache.shared.icon(forBundlePath: appBundlePath) {
+                Image(nsImage: icon)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 14, height: 14)
+                    .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
+            } else {
+                Rectangle()
+                    .fill(color)
+                    .frame(width: 8, height: 8)
+            }
+        }
+        .frame(width: 14, height: 14)
+        .accessibilityHidden(true)
+    }
+}
+
+@MainActor
+private final class ProcessIconCache {
+    static let shared = ProcessIconCache()
+
+    private let cache = NSCache<NSString, NSImage>()
+
+    private init() {
+        cache.countLimit = 64
+    }
+
+    func icon(forBundlePath appBundlePath: String?) -> NSImage? {
+        guard let appBundlePath else {
+            return nil
+        }
+
+        let key = appBundlePath as NSString
+        if let icon = cache.object(forKey: key) {
+            return icon
+        }
+
+        let icon = NSWorkspace.shared.icon(forFile: appBundlePath)
+        cache.setObject(icon, forKey: key)
+        return icon
     }
 }
 

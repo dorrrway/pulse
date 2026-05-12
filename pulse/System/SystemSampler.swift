@@ -363,7 +363,8 @@ actor SystemSampler {
 
                 accumulators[sample.groupIdentifier, default: ProcessResourceAccumulator(
                     identifier: sample.groupIdentifier,
-                    name: sample.displayName
+                    name: sample.displayName,
+                    appBundlePath: sample.appBundlePath
                 )].add(cpuPercentage: cpuPercentage, memoryBytes: sample.residentBytes)
             }
             .values
@@ -437,6 +438,7 @@ actor SystemSampler {
             identity: identity,
             groupIdentifier: appIdentity.identifier,
             displayName: appIdentity.name,
+            appBundlePath: appIdentity.appBundlePath,
             cpuTime: cpuTime.overflow ? taskInfo.pti_total_user : cpuTime.partialValue,
             residentBytes: Int64(clamping: taskInfo.pti_resident_size)
         )
@@ -474,7 +476,7 @@ actor SystemSampler {
             let appURL = appBundleURL(containing: path),
             let bundle = Bundle(url: appURL)
         else {
-            return ProcessAppIdentity(identifier: "process:\(fallbackName)", name: fallbackName)
+            return ProcessAppIdentity(identifier: "process:\(fallbackName)", name: fallbackName, appBundlePath: nil)
         }
 
         let identifier = bundle.bundleIdentifier ?? appURL.path
@@ -482,7 +484,11 @@ actor SystemSampler {
             ?? (bundle.object(forInfoDictionaryKey: "CFBundleName") as? String)?.nonEmpty
             ?? appURL.deletingPathExtension().lastPathComponent
 
-        return ProcessAppIdentity(identifier: "bundle:\(identifier)", name: name)
+        return ProcessAppIdentity(
+            identifier: "bundle:\(identifier)",
+            name: name,
+            appBundlePath: appURL.standardizedFileURL.path
+        )
     }
 
     private func appBundleURL(containing processPath: String) -> URL? {
@@ -532,12 +538,14 @@ private nonisolated struct ProcessIdentity: Hashable {
 private nonisolated struct ProcessAppIdentity {
     var identifier: String
     var name: String
+    var appBundlePath: String?
 }
 
 private nonisolated struct ProcessSample {
     var identity: ProcessIdentity
     var groupIdentifier: String
     var displayName: String
+    var appBundlePath: String?
     var cpuTime: UInt64
     var residentBytes: Int64
 }
@@ -565,6 +573,7 @@ nonisolated struct ProcessCPUTimebase: Equatable, Sendable {
 private nonisolated struct ProcessResourceAccumulator {
     var identifier: String
     var name: String
+    var appBundlePath: String?
     var cpuPercentage: Double = 0
     var memoryBytes: Int64 = 0
 
@@ -577,6 +586,7 @@ private nonisolated struct ProcessResourceAccumulator {
         ProcessResourceUsage(
             identifier: identifier,
             name: name,
+            appBundlePath: appBundlePath,
             cpuPercentage: cpuPercentage,
             memoryBytes: memoryBytes
         )

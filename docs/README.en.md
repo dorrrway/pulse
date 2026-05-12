@@ -54,7 +54,7 @@ The app is signed with Developer ID and notarized by Apple.
 
 ## Privacy
 
-Pulse reads local system metrics only, such as CPU, memory, disk, network byte counters, battery, thermal state, and disk I/O. To show usage rankings, Pulse also reads the names of running local processes and their CPU and memory usage.
+Pulse reads local system metrics only, such as CPU, memory, disk, network byte counters, battery, thermal state, and disk I/O. To show usage rankings, Pulse also reads the names of running local processes, their CPU and memory usage, and local app bundle paths used to display app icons.
 
 Pulse does not upload analytics, telemetry, files, personal data, or system data to any server.
 
@@ -66,8 +66,9 @@ See [Privacy Policy](PRIVACY.en.md) for details.
 
 - Added CPU and memory usage rankings for local apps and processes.
 - Expanded CPU and memory usage charts to the top five entries while keeping the visible lists at three entries.
+- Added local app icons for the top three visible usage rows.
 - Added pixel-style share charts for the ranking breakdown.
-- Updated the privacy wording to clarify that process names and their CPU and memory usage are used only to render the local interface.
+- Updated the privacy wording to clarify that process names, app bundle paths, and CPU/memory usage are used only to render the local interface.
 
 ### 1.0.0
 

@@ -127,6 +127,7 @@ nonisolated struct DiskIOUsage: Equatable, Sendable {
 nonisolated struct ProcessResourceUsage: Equatable, Identifiable, Sendable {
     var identifier: String
     var name: String
+    var appBundlePath: String?
     var cpuPercentage: Double
     var memoryBytes: Int64
 
