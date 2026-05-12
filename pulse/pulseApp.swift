@@ -29,7 +29,7 @@ struct PulseApp: App {
     var body: some Scene {
         MenuBarExtra(
             "Pulse",
-            systemImage: "square.grid.3x3.square",
+            image: "PulseMenuBarIcon",
             isInserted: .constant(!Self.isRunningUnitTests)
         ) {
             PulsePanelView()

@@ -309,7 +309,7 @@ extension PulseStrings {
         case memory
         case network
         case disk
-        case macResourceSignal
+        case thisMac
         case monitorOnly
         case settings
         case settingsHelp
@@ -353,8 +353,8 @@ private extension PulseStrings {
             "Network"
         case .disk:
             "Disk"
-        case .macResourceSignal:
-            "Mac resource signal"
+        case .thisMac:
+            "This Mac"
         case .monitorOnly:
             "Monitoring only"
         case .settings:
@@ -426,8 +426,8 @@ private extension PulseStrings {
             "网络"
         case .disk:
             "磁盘"
-        case .macResourceSignal:
-            "Mac 资源信号"
+        case .thisMac:
+            "这台 Mac"
         case .monitorOnly:
             "仅监控"
         case .settings:

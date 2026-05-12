@@ -5,6 +5,7 @@ import Observation
 @Observable
 final class PulseStore {
     var snapshot: ResourceSnapshot = .empty
+    var deviceName: String?
     var languagePreference: PulseLanguagePreference {
         didSet {
             userDefaults.set(languagePreference.rawValue, forKey: Self.languagePreferenceKey)
@@ -30,10 +31,12 @@ final class PulseStore {
     init(
         userDefaults: UserDefaults = .standard,
         launchAtLoginService: PulseLoginItemService = .live,
+        deviceName: String? = nil,
         reconcileLaunchAtLogin: Bool? = nil
     ) {
         self.userDefaults = userDefaults
         self.launchAtLoginService = launchAtLoginService
+        self.deviceName = Self.normalizedDeviceName(deviceName) ?? Self.currentDeviceName()
         self.languagePreference = Self.loadLanguagePreference(from: userDefaults, key: Self.languagePreferenceKey)
         self.launchAtLogin = Self.loadLaunchAtLogin(
             from: userDefaults,
@@ -115,6 +118,19 @@ final class PulseStore {
         userDefaults.set(true, forKey: key)
         userDefaults.set(true, forKey: defaultAppliedKey)
         return userDefaults.object(forKey: key) as? Bool ?? true
+    }
+
+    private static func currentDeviceName() -> String? {
+        normalizedDeviceName(Host.current().localizedName)
+            ?? normalizedDeviceName(ProcessInfo.processInfo.hostName)
+    }
+
+    private static func normalizedDeviceName(_ name: String?) -> String? {
+        guard let trimmed = name?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else {
+            return nil
+        }
+
+        return trimmed
     }
 
     private static var isRunningUnitTests: Bool {

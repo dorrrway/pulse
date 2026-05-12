@@ -37,7 +37,7 @@ struct PulsePanelView: View {
                 Text("Pulse")
                     .font(.system(.title3, design: .rounded, weight: .semibold))
 
-                Text(strings.text(.macResourceSignal))
+                Text(store.deviceName ?? strings.text(.thisMac))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

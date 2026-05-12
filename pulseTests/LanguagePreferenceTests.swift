@@ -14,6 +14,18 @@ final class LanguagePreferenceTests: XCTestCase {
         XCTAssertEqual(store.languagePreference, .system)
     }
 
+    func testTrimsConfiguredDeviceName() {
+        let defaults = makeUserDefaults()
+        let store = PulseStore(
+            userDefaults: defaults,
+            launchAtLoginService: makeLoginItemService(),
+            deviceName: "  Studio Mac  ",
+            reconcileLaunchAtLogin: false
+        )
+
+        XCTAssertEqual(store.deviceName, "Studio Mac")
+    }
+
     func testPersistsSelectedLanguagePreference() {
         let defaults = makeUserDefaults()
         let store = PulseStore(
@@ -95,6 +107,8 @@ final class LanguagePreferenceTests: XCTestCase {
     func testLanguageStringsResolveEnglishAndChineseText() {
         XCTAssertEqual(PulseStrings(language: .english).text(.language), "Language")
         XCTAssertEqual(PulseStrings(language: .chinese).text(.language), "语言")
+        XCTAssertEqual(PulseStrings(language: .english).text(.thisMac), "This Mac")
+        XCTAssertEqual(PulseStrings(language: .chinese).text(.thisMac), "这台 Mac")
         XCTAssertEqual(PulseStrings(language: .english).text(.monitorOnly), "Monitoring only")
         XCTAssertEqual(PulseStrings(language: .chinese).text(.monitorOnly), "仅监控")
         XCTAssertEqual(PulseStrings(language: .chinese).memoryDetail(used: "17 GB", total: "24 GB"), "17 GB / 共 24 GB")
