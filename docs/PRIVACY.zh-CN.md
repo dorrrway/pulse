@@ -1,6 +1,11 @@
 # 隐私政策
 
-[English](PRIVACY.en.md) | [README](README.zh-CN.md)
+<p align="right">
+  <a href="PRIVACY.zh-CN.md"><kbd>中文</kbd></a>
+  <a href="PRIVACY.en.md"><kbd>English</kbd></a>
+</p>
+
+[README](../README.md)
 
 最后更新：2026 年 5 月 12 日
 

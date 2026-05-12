@@ -1,6 +1,9 @@
 # Pulse
 
-[中文](README.zh-CN.md) | [Privacy Policy](PRIVACY.en.md)
+<p align="right">
+  <a href="../README.md"><kbd>中文</kbd></a>
+  <a href="README.en.md"><kbd>English</kbd></a>
+</p>
 
 Pulse is a lightweight macOS menu bar app for watching local system status at a glance.
 
@@ -37,7 +40,7 @@ Pulse reads local system metrics only, such as CPU, memory, disk, network byte c
 
 Pulse does not upload analytics, telemetry, files, personal data, or system data to any server.
 
-See [PRIVACY.en.md](PRIVACY.en.md) for details.
+See [Privacy Policy](PRIVACY.en.md) for details.
 
 ## Development
 

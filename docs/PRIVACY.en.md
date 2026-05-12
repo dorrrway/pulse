@@ -1,6 +1,11 @@
 # Privacy Policy
 
-[中文](PRIVACY.zh-CN.md) | [README](README.en.md)
+<p align="right">
+  <a href="PRIVACY.zh-CN.md"><kbd>中文</kbd></a>
+  <a href="PRIVACY.en.md"><kbd>English</kbd></a>
+</p>
+
+[README](README.en.md)
 
 Last updated: May 12, 2026
 
