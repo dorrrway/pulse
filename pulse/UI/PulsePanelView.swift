@@ -6,23 +6,21 @@ struct PulsePanelView: View {
 
     private enum Layout {
         static let width: CGFloat = 420
-        static let height: CGFloat = 560
+        static let height: CGFloat = 660
     }
 
     var body: some View {
         let strings = store.strings
 
-        ScrollView(.vertical, showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 14) {
-                header
-                coreMetrics(strings: strings)
-                processLeaders(strings: strings)
-                signalGrid(strings: strings)
-                footer
-            }
-            .padding(16)
+        VStack(alignment: .leading, spacing: 14) {
+            header
+            coreMetrics(strings: strings)
+            processLeaders(strings: strings)
+            signalGrid(strings: strings)
+            footer
         }
-        .frame(width: Layout.width, height: Layout.height)
+        .padding(16)
+        .frame(width: Layout.width, height: Layout.height, alignment: .top)
         .background(.regularMaterial)
     }
 

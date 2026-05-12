@@ -68,6 +68,7 @@ See [Privacy Policy](PRIVACY.en.md) for details.
 - Expanded CPU and memory usage charts to the top five entries while keeping the visible lists at three entries.
 - Added local app icons for the top three visible usage rows.
 - Added pixel-style share charts for the ranking breakdown.
+- Set a fixed menu bar panel height for the current status layout and removed internal scrolling.
 - Updated the privacy wording to clarify that process names, app bundle paths, and CPU/memory usage are used only to render the local interface.
 
 ### 1.0.0

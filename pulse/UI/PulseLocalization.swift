@@ -397,7 +397,7 @@ private extension PulseStrings {
         case .write:
             "Write"
         case .topCPUProcesses:
-            "CPU Usage"
+            "CPU Usage (Multi-core)"
         case .topMemoryProcesses:
             "Memory Usage"
         case .collecting:
@@ -476,7 +476,7 @@ private extension PulseStrings {
         case .write:
             "写入"
         case .topCPUProcesses:
-            "CPU 占用"
+            "CPU 占用（多核）"
         case .topMemoryProcesses:
             "内存占用"
         case .collecting:
