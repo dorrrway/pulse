@@ -70,6 +70,7 @@ See [Privacy Policy](PRIVACY.en.md) for details.
 - Added pixel-style share charts for the ranking breakdown.
 - Set a fixed menu bar panel height for the current status layout and removed internal scrolling.
 - Added a pin button that detaches the menu bar panel into a draggable floating panel.
+- Added a minimal floating-panel mode that shrinks the full panel into a compact CPU, memory, network, and disk view.
 - Refined the menu bar and floating panel layout with a fixed height budget that prevents status text from shrinking under compression.
 - Updated the privacy wording to clarify that process names, app bundle paths, and CPU/memory usage are used only to render the local interface.
 

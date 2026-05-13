@@ -313,6 +313,8 @@ extension PulseStrings {
         case monitorOnly
         case pinPanel
         case unpinPanel
+        case minimalPanel
+        case expandPanel
         case settings
         case settingsHelp
         case quit
@@ -366,6 +368,10 @@ private extension PulseStrings {
             "Pin panel"
         case .unpinPanel:
             "Unpin panel"
+        case .minimalPanel:
+            "Minimal panel"
+        case .expandPanel:
+            "Expand panel"
         case .settings:
             "Settings"
         case .settingsHelp:
@@ -449,6 +455,10 @@ private extension PulseStrings {
             "固定面板"
         case .unpinPanel:
             "取消固定面板"
+        case .minimalPanel:
+            "极简面板"
+        case .expandPanel:
+            "展开面板"
         case .settings:
             "设置"
         case .settingsHelp:

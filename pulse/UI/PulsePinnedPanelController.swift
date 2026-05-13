@@ -28,6 +28,25 @@ enum PulsePanelLayout {
         + footerHeight
         + sectionSpacing * 4
     static let contentSize = CGSize(width: contentWidth, height: contentHeight)
+
+    static let minimalMetricGraphWidth: CGFloat = 106
+    static let minimalContentWidth = minimalMetricGraphWidth + outerPadding * 2
+    static let minimalContentHeight = coreMetricsHeight + outerPadding * 2
+    static let minimalContentSize = CGSize(width: minimalContentWidth, height: minimalContentHeight)
+
+    static func contentSize(for style: PulsePanelStyle) -> CGSize {
+        switch style {
+        case .full:
+            contentSize
+        case .minimal:
+            minimalContentSize
+        }
+    }
+}
+
+enum PulsePanelStyle {
+    case full
+    case minimal
 }
 
 @MainActor
@@ -36,6 +55,7 @@ final class PulsePinnedPanelController {
     private(set) var isPresented = false
 
     @ObservationIgnored private var panel: NSPanel?
+    @ObservationIgnored private var style: PulsePanelStyle = .full
 
     func toggle(store: PulseStore) {
         if isPresented {
@@ -46,11 +66,17 @@ final class PulsePinnedPanelController {
     }
 
     func present(store: PulseStore) {
+        style = .full
+
         let panel = panel ?? makePanel(store: store)
         self.panel = panel
+        configure(panel, for: style)
+        installRootView(in: panel, store: store)
 
         if panel.frame.isEmpty {
-            panel.setFrame(defaultFrame(), display: false)
+            panel.setFrame(defaultFrame(for: style), display: false)
+        } else {
+            resize(panel, to: style, animated: false)
         }
 
         panel.orderFrontRegardless()
@@ -59,12 +85,35 @@ final class PulsePinnedPanelController {
 
     func dismiss() {
         panel?.orderOut(nil)
+        style = .full
         isPresented = false
+    }
+
+    private func collapse(store: PulseStore) {
+        setStyle(.minimal, store: store)
+    }
+
+    private func expand(store: PulseStore) {
+        setStyle(.full, store: store)
+    }
+
+    private func setStyle(_ newStyle: PulsePanelStyle, store: PulseStore) {
+        style = newStyle
+
+        guard let panel else {
+            return
+        }
+
+        configure(panel, for: newStyle)
+        installRootView(in: panel, store: store)
+        resize(panel, to: newStyle, animated: true)
+        panel.orderFrontRegardless()
+        isPresented = true
     }
 
     private func makePanel(store: PulseStore) -> NSPanel {
         let panel = NSPanel(
-            contentRect: defaultFrame(),
+            contentRect: defaultFrame(for: style),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -78,10 +127,22 @@ final class PulsePinnedPanelController {
         panel.backgroundColor = .clear
         panel.isOpaque = false
         panel.hasShadow = true
-        panel.contentMinSize = PulsePanelLayout.contentSize
-        panel.contentMaxSize = PulsePanelLayout.contentSize
+        configure(panel, for: style)
+        installRootView(in: panel, store: store)
 
-        let rootView = PulsePanelView()
+        return panel
+    }
+
+    private func installRootView(in panel: NSPanel, store: PulseStore) {
+        let rootView = PulsePanelView(
+            style: style,
+            collapseAction: { [weak self] in
+                self?.collapse(store: store)
+            },
+            expandAction: { [weak self] in
+                self?.expand(store: store)
+            }
+        )
             .environment(store)
             .environment(\.pulsePanelPresentation, .pinned)
             .environment(\.pulsePanelIsPinned, true)
@@ -90,11 +151,25 @@ final class PulsePinnedPanelController {
             }
 
         panel.contentViewController = NSHostingController(rootView: rootView)
-        return panel
     }
 
-    private func defaultFrame() -> CGRect {
-        let contentSize = PulsePanelLayout.contentSize
+    private func configure(_ panel: NSPanel, for style: PulsePanelStyle) {
+        let contentSize = PulsePanelLayout.contentSize(for: style)
+        panel.contentMinSize = contentSize
+        panel.contentMaxSize = contentSize
+    }
+
+    private func resize(_ panel: NSPanel, to style: PulsePanelStyle, animated: Bool) {
+        let frame = frame(
+            preservingTopLeftOf: panel.frame,
+            size: PulsePanelLayout.contentSize(for: style),
+            screen: panel.screen
+        )
+        panel.setFrame(frame, display: true, animate: animated)
+    }
+
+    private func defaultFrame(for style: PulsePanelStyle) -> CGRect {
+        let contentSize = PulsePanelLayout.contentSize(for: style)
         let visibleFrame = NSScreen.main?.visibleFrame ?? .init(origin: .zero, size: contentSize)
         let origin = CGPoint(
             x: visibleFrame.midX - contentSize.width / 2,
@@ -102,5 +177,23 @@ final class PulsePinnedPanelController {
         )
 
         return CGRect(origin: origin, size: contentSize)
+    }
+
+    private func frame(preservingTopLeftOf currentFrame: CGRect, size: CGSize, screen: NSScreen?) -> CGRect {
+        guard !currentFrame.isEmpty else {
+            return defaultFrame(for: style)
+        }
+
+        let visibleFrame = screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? .init(origin: .zero, size: size)
+        let proposedOrigin = CGPoint(
+            x: currentFrame.minX,
+            y: currentFrame.maxY - size.height
+        )
+        let clampedOrigin = CGPoint(
+            x: min(max(proposedOrigin.x, visibleFrame.minX), visibleFrame.maxX - size.width),
+            y: min(max(proposedOrigin.y, visibleFrame.minY), visibleFrame.maxY - size.height)
+        )
+
+        return CGRect(origin: clampedOrigin, size: size)
     }
 }

@@ -56,6 +56,10 @@ private struct PulsePanelWindowReader: NSViewRepresentable {
 }
 
 struct PulsePanelView: View {
+    var style: PulsePanelStyle = .full
+    var collapseAction: () -> Void = {}
+    var expandAction: () -> Void = {}
+
     @Environment(PulseStore.self) private var store
     @Environment(\.pulsePanelPresentation) private var presentation
     @Environment(\.pulsePanelIsPinned) private var isPinned
@@ -65,6 +69,36 @@ struct PulsePanelView: View {
     var body: some View {
         let strings = store.strings
 
+        panelContent(strings: strings)
+            .background(.regularMaterial)
+            .clipShape(panelShape)
+            .background {
+                PulsePanelWindowReader { window in
+                    hostingWindow = window
+                }
+            }
+            .overlay(alignment: .top) {
+                if presentation == .pinned && style == .full {
+                    Color.clear
+                        .frame(height: PulsePanelLayout.dragRegionHeight)
+                        .contentShape(Rectangle())
+                        .gesture(WindowDragGesture())
+                        .allowsWindowActivationEvents(true)
+                }
+            }
+    }
+
+    @ViewBuilder
+    private func panelContent(strings: PulseStrings) -> some View {
+        switch style {
+        case .full:
+            fullPanel(strings: strings)
+        case .minimal:
+            minimalPanel(strings: strings)
+        }
+    }
+
+    private func fullPanel(strings: PulseStrings) -> some View {
         VStack(alignment: .leading, spacing: PulsePanelLayout.sectionSpacing) {
             header
             coreMetrics(strings: strings)
@@ -78,22 +112,59 @@ struct PulsePanelView: View {
             height: PulsePanelLayout.contentHeight,
             alignment: .top
         )
-        .background(.regularMaterial)
-        .clipShape(panelShape)
-        .background {
-            PulsePanelWindowReader { window in
-                hostingWindow = window
-            }
+    }
+
+    private func minimalPanel(strings: PulseStrings) -> some View {
+        VStack(alignment: .leading, spacing: PulsePanelLayout.metricRowSpacing) {
+            MetricGraphBlock(
+                title: strings.text(.cpu),
+                tint: .cyan,
+                progress: store.snapshot.cpu.percentage,
+                accessibilityValue: ResourceFormatters.percentage(store.snapshot.cpu.percentage)
+            )
+
+            MetricGraphBlock(
+                title: strings.text(.memory),
+                tint: .green,
+                progress: store.snapshot.memory.percentage,
+                accessibilityValue: ResourceFormatters.percentage(store.snapshot.memory.percentage)
+            )
+
+            MetricGraphBlock(
+                title: strings.text(.network),
+                tint: .indigo,
+                progress: ResourceScales.networkActivityProgress(
+                    bytesPerSecond: store.snapshot.network.incomingBytesPerSecond
+                        + store.snapshot.network.outgoingBytesPerSecond
+                ),
+                accessibilityValue: ResourceFormatters.byteRate(
+                    bytesPerSecond: store.snapshot.network.incomingBytesPerSecond
+                        + store.snapshot.network.outgoingBytesPerSecond
+                )
+            )
+
+            MetricGraphBlock(
+                title: strings.text(.disk),
+                tint: .orange,
+                progress: store.snapshot.disk.percentage,
+                accessibilityValue: ResourceFormatters.percentage(store.snapshot.disk.percentage)
+            )
         }
-        .overlay(alignment: .top) {
-            if presentation == .pinned {
-                Color.clear
-                    .frame(height: PulsePanelLayout.dragRegionHeight)
-                    .contentShape(Rectangle())
-                    .gesture(WindowDragGesture())
-                    .allowsWindowActivationEvents(true)
-            }
+        .padding(PulsePanelLayout.outerPadding)
+        .frame(
+            width: PulsePanelLayout.minimalContentWidth,
+            height: PulsePanelLayout.minimalContentHeight,
+            alignment: .topLeading
+        )
+        .contentShape(Rectangle())
+        .simultaneousGesture(WindowDragGesture())
+        .onTapGesture(count: 2, perform: expandAction)
+        .contextMenu {
+            Button(strings.text(.expandPanel), action: expandAction)
+            Button(strings.text(.unpinPanel), action: pinAction)
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(strings.text(.minimalPanel))
     }
 
     private var panelShape: RoundedRectangle {
@@ -145,6 +216,14 @@ struct PulsePanelView: View {
             }
             .labelStyle(.iconOnly)
             .help(strings.text(isPinned ? .unpinPanel : .pinPanel))
+
+            if presentation == .pinned {
+                Button(action: collapseAction) {
+                    Label(strings.text(.minimalPanel), systemImage: "arrow.down.right.and.arrow.up.left")
+                }
+                .labelStyle(.iconOnly)
+                .help(strings.text(.minimalPanel))
+            }
 
             Text(strings.text(.monitorOnly))
                 .font(.caption2)
@@ -337,6 +416,28 @@ private struct MetricRow: View {
             }
         }
         .frame(height: Layout.rowHeight)
+    }
+}
+
+private struct MetricGraphBlock: View {
+    var title: String
+    var tint: Color
+    var progress: Double
+    var accessibilityValue: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.system(.callout, design: .rounded, weight: .medium))
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+
+            PixelMeter(value: progress, tint: tint)
+        }
+        .frame(width: PulsePanelLayout.minimalMetricGraphWidth, height: PulsePanelLayout.metricRowHeight, alignment: .leading)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(title)
+        .accessibilityValue(accessibilityValue)
     }
 }
 

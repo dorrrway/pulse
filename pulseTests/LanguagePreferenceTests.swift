@@ -111,6 +111,8 @@ final class LanguagePreferenceTests: XCTestCase {
         XCTAssertEqual(PulseStrings(language: .chinese).text(.thisMac), "这台 Mac")
         XCTAssertEqual(PulseStrings(language: .english).text(.monitorOnly), "Monitoring only")
         XCTAssertEqual(PulseStrings(language: .chinese).text(.monitorOnly), "仅监控")
+        XCTAssertEqual(PulseStrings(language: .english).text(.minimalPanel), "Minimal panel")
+        XCTAssertEqual(PulseStrings(language: .chinese).text(.expandPanel), "展开面板")
         XCTAssertEqual(PulseStrings(language: .chinese).memoryDetail(used: "17 GB", total: "24 GB"), "17 GB / 共 24 GB")
         XCTAssertEqual(PulseStrings(language: .english).pressure(.elevated), "Watch")
         XCTAssertEqual(PulseStrings(language: .chinese).thermal(.serious), "受限")
