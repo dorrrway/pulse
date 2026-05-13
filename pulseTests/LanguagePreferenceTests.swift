@@ -149,10 +149,15 @@ final class LanguagePreferenceTests: XCTestCase {
         XCTAssertEqual(PulseStrings(language: .chinese).text(.monitorOnly), "仅监控")
         XCTAssertEqual(PulseStrings(language: .english).text(.minimalPanel), "Minimal panel")
         XCTAssertEqual(PulseStrings(language: .chinese).text(.expandPanel), "展开面板")
+        XCTAssertEqual(PulseStrings(language: .english).text(.systemRuntime), "System Runtime")
+        XCTAssertEqual(PulseStrings(language: .chinese).text(.systemRuntime), "开机时长")
         XCTAssertEqual(PulseStrings(language: .chinese).memoryDetail(used: "17 GB", total: "24 GB"), "17 GB / 共 24 GB")
         XCTAssertEqual(PulseStrings(language: .english).pressure(.elevated), "Watch")
         XCTAssertEqual(PulseStrings(language: .chinese).pressure(.elevated), "偏高")
         XCTAssertEqual(PulseStrings(language: .chinese).pressure(.high), "高")
+        XCTAssertEqual(PulseStrings(language: .english).thermal(.nominal), "Normal")
+        XCTAssertEqual(PulseStrings(language: .english).thermal(.serious), "Hot")
+        XCTAssertEqual(PulseStrings(language: .english).thermal(.critical), "Very Hot")
         XCTAssertEqual(PulseStrings(language: .chinese).thermal(.nominal), "正常")
         XCTAssertEqual(PulseStrings(language: .chinese).thermal(.fair), "偏热")
         XCTAssertEqual(PulseStrings(language: .chinese).thermal(.serious), "高温")
@@ -173,7 +178,13 @@ final class LanguagePreferenceTests: XCTestCase {
             PulseStrings(language: .english).thermalDetail(
                 ThermalUsage(condition: .fair, stateDuration: 4)
             ),
-            "Just warm"
+            "Body warm"
+        )
+        XCTAssertEqual(
+            PulseStrings(language: .english).thermalDetail(
+                ThermalUsage(condition: .critical, stateDuration: 45)
+            ),
+            "Very hot for 45 sec"
         )
         XCTAssertEqual(
             PulseStrings(language: .chinese).thermalDetail(
@@ -190,8 +201,15 @@ final class LanguagePreferenceTests: XCTestCase {
             swapTotalBytes: 2_000_000_000
         )
         XCTAssertEqual(PulseStrings(language: .chinese).pressureDetail(memory), "Swap 572 MB · 压缩 1.2 KB")
+        XCTAssertEqual(PulseStrings(language: .english).pressureDetail(memory), "Swap 572 MB · Comp 1.2 KB")
         XCTAssertEqual(PulseStrings(language: .english).pressureExplanation(memory), "Watch: 85% used, swap 572 MB, compressed 1.2 KB.")
         XCTAssertEqual(PulseStrings(language: .chinese).pressureExplanation(memory), "偏高：已用 85%，Swap 572 MB，压缩 1.2 KB。")
+        XCTAssertEqual(
+            PulseStrings(language: .english).thermalExplanation(
+                ThermalUsage(condition: .critical, stateDuration: 45)
+            ),
+            "Very Hot: Very hot for 45 sec."
+        )
         XCTAssertEqual(
             PulseStrings(language: .english).powerDetail(
                 PowerUsage(
@@ -203,6 +221,18 @@ final class LanguagePreferenceTests: XCTestCase {
                 )
             ),
             "2h 10m left"
+        )
+        XCTAssertEqual(
+            PulseStrings(language: .english).powerExplanation(
+                PowerUsage(
+                    hasBattery: true,
+                    batteryPercentage: 0.5,
+                    isPluggedIn: false,
+                    isCharging: false,
+                    timeRemaining: 7_800
+                )
+            ),
+            "On battery: 50%, 2h 10m left."
         )
         XCTAssertEqual(
             PulseStrings(language: .chinese).powerDetail(
@@ -217,6 +247,25 @@ final class LanguagePreferenceTests: XCTestCase {
             "外接电源"
         )
         XCTAssertEqual(PulseStrings(language: .english).text(.pluggedIn), "External power")
+        let diskIO = DiskIOUsage(
+            readBytesPerSecond: 52_000,
+            writeBytesPerSecond: 249_000,
+            totalReadBytes: 0,
+            totalWrittenBytes: 0
+        )
+        XCTAssertEqual(PulseStrings(language: .chinese).diskIOExplanation(diskIO), "磁盘 I/O：读取 51 KB/s，写入 243 KB/s。")
+    }
+
+    func testRuntimeSummaryUsesBootElapsedTime() {
+        let runtime = SystemRuntimeUsage(
+            bootedAt: Date(timeIntervalSince1970: 1_777_777_777),
+            elapsedTime: 93_900
+        )
+
+        XCTAssertTrue(PulseStrings(language: .english).runtimeSummary(runtime).hasPrefix("Running 1d 2h · Last boot: "))
+        XCTAssertTrue(PulseStrings(language: .chinese).runtimeSummary(runtime).hasPrefix("持续运行：1天2小时 · 上次开机："))
+        XCTAssertEqual(PulseStrings(language: .english).runtimeSummary(.empty), "Runtime unavailable")
+        XCTAssertEqual(PulseStrings(language: .chinese).runtimeSummary(.empty), "开机时长暂不可用")
     }
 
     func testLaunchAtLoginStringsResolveEnglishAndChineseText() {

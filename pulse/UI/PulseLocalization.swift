@@ -99,7 +99,7 @@ nonisolated struct PulseStrings: Sendable {
 
         switch language {
         case .english:
-            return "\(text(.swap)) \(swap) · \(text(.compressed)) \(compressed)"
+            return "\(text(.swap)) \(swap) · Comp \(compressed)"
         case .chinese:
             return "\(text(.swap)) \(swap) · \(text(.compressed)) \(compressed)"
         }
@@ -129,13 +129,13 @@ nonisolated struct PulseStrings: Sendable {
     func thermal(_ condition: ThermalCondition) -> String {
         switch (language, condition) {
         case (.english, .nominal):
-            "Cool"
+            "Normal"
         case (.english, .fair):
             "Warm"
         case (.english, .serious):
-            "Limited"
+            "Hot"
         case (.english, .critical):
-            "Critical"
+            "Very Hot"
         case (.chinese, .nominal):
             "正常"
         case (.chinese, .fair):
@@ -152,13 +152,13 @@ nonisolated struct PulseStrings: Sendable {
 
         switch (language, thermal.condition, duration < 10) {
         case (.english, .nominal, true):
-            return "Just stable"
+            return "Temperature stable"
         case (.english, .fair, true):
-            return "Just warm"
+            return "Body warm"
         case (.english, .serious, true):
-            return "Just limited"
+            return "Temperature high"
         case (.english, .critical, true):
-            return "Just critically limited"
+            return "Temperature too high"
         case (.chinese, .nominal, true):
             return "温度稳定"
         case (.chinese, .fair, true):
@@ -172,9 +172,9 @@ nonisolated struct PulseStrings: Sendable {
         case (.english, .fair, false):
             return "Warm for \(compactDuration(duration))"
         case (.english, .serious, false):
-            return "Limited for \(compactDuration(duration))"
+            return "Hot for \(compactDuration(duration))"
         case (.english, .critical, false):
-            return "Critically limited for \(compactDuration(duration))"
+            return "Very hot for \(compactDuration(duration))"
         case (.chinese, .nominal, false):
             return "持续稳定 \(compactDuration(duration))"
         case (.chinese, .fair, false):
@@ -183,6 +183,15 @@ nonisolated struct PulseStrings: Sendable {
             return "持续高温 \(compactDuration(duration))"
         case (.chinese, .critical, false):
             return "持续严重高温 \(compactDuration(duration))"
+        }
+    }
+
+    func thermalExplanation(_ thermal: ThermalUsage) -> String {
+        switch language {
+        case .english:
+            return "\(self.thermal(thermal.condition)): \(thermalDetail(thermal))."
+        case .chinese:
+            return "\(self.thermal(thermal.condition))：\(thermalDetail(thermal))。"
         }
     }
 
@@ -212,6 +221,82 @@ nonisolated struct PulseStrings: Sendable {
         }
 
         return power.isPluggedIn ? text(.pluggedIn) : text(.onBattery)
+    }
+
+    func powerExplanation(_ power: PowerUsage) -> String {
+        guard power.hasBattery else {
+            switch language {
+            case .english:
+                return "Desktop power: this Mac has no internal battery."
+            case .chinese:
+                return "桌面电源：这台 Mac 没有内置电池。"
+            }
+        }
+
+        let percentage = power.batteryPercentage.map(ResourceFormatters.percentage)
+
+        switch (language, power.isPluggedIn, power.isCharging, percentage, power.timeRemaining) {
+        case (.english, true, true, let percentage?, _):
+            return "Charging: battery \(percentage), external power connected."
+        case (.english, true, true, nil, _):
+            return "Charging: external power connected."
+        case (.english, true, false, let percentage?, _):
+            return "External power: battery \(percentage), not charging."
+        case (.english, true, false, nil, _):
+            return "External power connected."
+        case (.english, false, _, let percentage?, let timeRemaining?):
+            return "On battery: \(percentage), \(remainingPowerTime(timeRemaining))."
+        case (.english, false, _, let percentage?, nil):
+            return "On battery: \(percentage) remaining."
+        case (.english, false, _, nil, _):
+            return "On battery: remaining time unavailable."
+        case (.chinese, true, true, let percentage?, _):
+            return "充电中：电量 \(percentage)，已连接外接电源。"
+        case (.chinese, true, true, nil, _):
+            return "充电中：已连接外接电源。"
+        case (.chinese, true, false, let percentage?, _):
+            return "外接电源：电量 \(percentage)，当前未充电。"
+        case (.chinese, true, false, nil, _):
+            return "外接电源：已连接外接电源。"
+        case (.chinese, false, _, let percentage?, let timeRemaining?):
+            return "使用电池：电量 \(percentage)，\(remainingPowerTime(timeRemaining))。"
+        case (.chinese, false, _, let percentage?, nil):
+            return "使用电池：剩余电量 \(percentage)。"
+        case (.chinese, false, _, nil, _):
+            return "使用电池：系统暂未提供剩余电量或时间。"
+        }
+    }
+
+    func diskIOExplanation(_ diskIO: DiskIOUsage) -> String {
+        let read = ResourceFormatters.byteRate(bytesPerSecond: diskIO.readBytesPerSecond)
+        let write = ResourceFormatters.byteRate(bytesPerSecond: diskIO.writeBytesPerSecond)
+
+        switch language {
+        case .english:
+            return "Disk I/O: read \(read), write \(write)."
+        case .chinese:
+            return "磁盘 I/O：读取 \(read)，写入 \(write)。"
+        }
+    }
+
+    func runtimeSummary(_ runtime: SystemRuntimeUsage) -> String {
+        let duration = longDuration(runtime.elapsedTime)
+
+        guard let bootedAt = runtime.bootedAt else {
+            switch language {
+            case .english:
+                return "Runtime unavailable"
+            case .chinese:
+                return "开机时长暂不可用"
+            }
+        }
+
+        switch language {
+        case .english:
+            return "Running \(duration) · Last boot: \(formattedBootDate(bootedAt))"
+        case .chinese:
+            return "持续运行：\(duration) · 上次开机：\(formattedBootDate(bootedAt))"
+        }
     }
 
     func loginItemStatus(_ status: PulseLoginItemStatus) -> String {
@@ -319,6 +404,43 @@ nonisolated struct PulseStrings: Sendable {
             return "\(hours) 小时"
         }
     }
+
+    private func longDuration(_ duration: TimeInterval) -> String {
+        let totalMinutes = max(Int(duration.rounded(.down)) / 60, 0)
+        let days = totalMinutes / (24 * 60)
+        let hours = (totalMinutes / 60) % 24
+        let minutes = totalMinutes % 60
+
+        switch language {
+        case .english:
+            if days > 0 {
+                return "\(days)d \(hours)h"
+            }
+
+            if hours > 0 {
+                return "\(hours)h \(minutes)m"
+            }
+
+            return "\(max(minutes, 1))m"
+        case .chinese:
+            if days > 0 {
+                return "\(days)天\(hours)小时"
+            }
+
+            if hours > 0 {
+                return "\(hours)小时\(minutes)分"
+            }
+
+            return "\(max(minutes, 1))分钟"
+        }
+    }
+
+    private func formattedBootDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: language == .english ? "en_US" : "zh_CN")
+        formatter.dateFormat = language == .english ? "MMM d, HH:mm" : "M月d日 HH:mm"
+        return formatter.string(from: date)
+    }
 }
 
 extension PulseStrings {
@@ -351,6 +473,7 @@ extension PulseStrings {
         case diskIO
         case read
         case write
+        case systemRuntime
         case topCPUProcesses
         case topMemoryProcesses
         case collecting
@@ -431,6 +554,8 @@ private extension PulseStrings {
             "Read"
         case .write:
             "Write"
+        case .systemRuntime:
+            "System Runtime"
         case .topCPUProcesses:
             "CPU Usage (Multi-core)"
         case .topMemoryProcesses:
@@ -528,6 +653,8 @@ private extension PulseStrings {
             "读取"
         case .write:
             "写入"
+        case .systemRuntime:
+            "开机时长"
         case .topCPUProcesses:
             "CPU 占用（多核）"
         case .topMemoryProcesses:

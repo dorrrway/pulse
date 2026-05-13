@@ -161,14 +161,24 @@ struct PulsePanelView: View {
     }
 
     private func fullPanel(strings: PulseStrings) -> some View {
-        VStack(alignment: .leading, spacing: PulsePanelLayout.sectionSpacing) {
+        VStack(alignment: .leading, spacing: 0) {
             header
+
             coreMetrics(strings: strings)
+                .padding(.top, PulsePanelLayout.sectionSpacing)
+
             processLeaders(strings: strings)
+                .padding(.top, PulsePanelLayout.sectionSpacing)
+
             signalGrid(strings: strings)
+                .padding(.top, PulsePanelLayout.sectionSpacing)
+
             footer
+                .padding(.top, PulsePanelLayout.footerTopSpacing)
         }
-        .padding(PulsePanelLayout.outerPadding)
+        .padding(.horizontal, PulsePanelLayout.outerPadding)
+        .padding(.top, PulsePanelLayout.outerPadding)
+        .padding(.bottom, PulsePanelLayout.footerBottomPadding)
         .frame(
             width: PulsePanelLayout.contentWidth,
             height: PulsePanelLayout.contentHeight,
@@ -405,6 +415,7 @@ struct PulsePanelView: View {
                     title: strings.text(.memoryPressure),
                     value: strings.pressure(snapshot.memory.pressureLevel),
                     detail: strings.pressureDetail(snapshot.memory),
+                    helpText: strings.pressureExplanation(snapshot.memory),
                     tint: memoryPressureColor
                 )
 
@@ -412,6 +423,7 @@ struct PulsePanelView: View {
                     title: strings.text(.thermal),
                     value: strings.thermal(snapshot.thermal.condition),
                     detail: strings.thermalDetail(snapshot.thermal),
+                    helpText: strings.thermalExplanation(snapshot.thermal),
                     tint: thermalColor
                 )
             }
@@ -422,6 +434,7 @@ struct PulsePanelView: View {
                     title: strings.text(.power),
                     value: strings.powerTitle(snapshot.power),
                     detail: strings.powerDetail(snapshot.power),
+                    helpText: strings.powerExplanation(snapshot.power),
                     tint: powerColor,
                     isTintBreathing: SignalStatusColor.powerIsBreathing(snapshot.power)
                 )
@@ -430,11 +443,18 @@ struct PulsePanelView: View {
                     title: strings.text(.diskIO),
                     value: "\(strings.text(.read)) \(ResourceFormatters.byteRate(bytesPerSecond: snapshot.diskIO.readBytesPerSecond))",
                     detail: "\(strings.text(.write)) \(ResourceFormatters.byteRate(bytesPerSecond: snapshot.diskIO.writeBytesPerSecond))",
+                    helpText: strings.diskIOExplanation(snapshot.diskIO),
                     tint: diskIOColor
                 )
             }
             .frame(height: PulsePanelLayout.signalCardHeight)
 
+            RuntimeSummaryRow(
+                title: strings.text(.systemRuntime),
+                text: strings.runtimeSummary(snapshot.runtime),
+                tint: .cyan
+            )
+            .frame(height: PulsePanelLayout.runtimeRowHeight)
         }
         .frame(height: PulsePanelLayout.signalGridHeight)
     }
@@ -534,6 +554,7 @@ private struct SignalCard: View {
     var title: String
     var value: String
     var detail: String
+    var helpText: String
     var tint: Color
     var isTintBreathing = false
 
@@ -564,6 +585,37 @@ private struct SignalCard: View {
         .padding(10)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .help(helpText)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(title)
+        .accessibilityValue(helpText)
+    }
+}
+
+private struct RuntimeSummaryRow: View {
+    var title: String
+    var text: String
+    var tint: Color
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 8) {
+            PixelLegendMarker(tint: tint)
+
+            Text(text)
+                .font(.system(.callout, design: .monospaced, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.quaternary.opacity(0.28), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(title)
+        .accessibilityValue(text)
     }
 }
 

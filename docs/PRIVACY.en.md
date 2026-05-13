@@ -6,7 +6,7 @@
   <a href="PRIVACY.zh-CN.md">中文</a>
 </h3>
 
-Last updated: May 13, 2026
+Last updated: May 14, 2026
 
 Pulse is a local macOS menu bar utility. It is designed to show system status on the Mac where it is running.
 
@@ -20,6 +20,7 @@ Pulse may read local system metrics including:
 - Network byte counters
 - Battery status
 - Thermal state
+- The system's last boot time, used to calculate system runtime
 - Names of running processes and their CPU and memory usage
 - Local app bundle paths used to display app icons
 
@@ -39,7 +40,7 @@ Pulse does not collect, store, or transmit:
 
 Pulse requests the GitHub-hosted appcast over HTTPS to check whether a new version is available. When the user clicks Update, Pulse downloads the matching release archive and Sparkle verifies its signature before installation.
 
-Pulse does not send app analytics, telemetry, system metrics, or Sparkle system profiling data to any server. Update checks do not attach CPU, memory, device model, process list, app bundle paths, or other local monitoring data.
+Pulse does not send app analytics, telemetry, system metrics, or Sparkle system profiling data to any server. Update checks do not attach CPU, memory, device model, system boot time, process list, app bundle paths, or other local monitoring data.
 
 ## Local Preferences
 

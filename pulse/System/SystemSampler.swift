@@ -18,6 +18,7 @@ actor SystemSampler {
     private var latestProcessSnapshot: ProcessResourceSnapshot = .empty
     private var previousThermalCondition: ThermalCondition?
     private var thermalConditionStartedAt: Date?
+    private var cachedSystemBootDate: Date?
 
     func sample() -> ResourceSnapshot {
         let now = Date()
@@ -41,6 +42,7 @@ actor SystemSampler {
             thermal: currentThermalUsage(at: now),
             power: currentPowerUsage(),
             diskIO: diskIO,
+            runtime: currentSystemRuntimeUsage(at: now),
             processes: processes
         )
     }
@@ -293,6 +295,36 @@ actor SystemSampler {
         }
 
         return DiskIOCounters(readBytes: readBytes, writtenBytes: writtenBytes)
+    }
+
+    private func currentSystemRuntimeUsage(at date: Date) -> SystemRuntimeUsage {
+        guard let bootDate = currentSystemBootDate() else {
+            return .empty
+        }
+
+        return SystemRuntimeUsage(
+            bootedAt: bootDate,
+            elapsedTime: max(date.timeIntervalSince(bootDate), 0)
+        )
+    }
+
+    private func currentSystemBootDate() -> Date? {
+        if let cachedSystemBootDate {
+            return cachedSystemBootDate
+        }
+
+        var bootTime = timeval()
+        var size = MemoryLayout<timeval>.stride
+
+        guard sysctlbyname("kern.boottime", &bootTime, &size, nil, 0) == 0, bootTime.tv_sec > 0 else {
+            return nil
+        }
+
+        let bootDate = Date(
+            timeIntervalSince1970: TimeInterval(bootTime.tv_sec) + TimeInterval(bootTime.tv_usec) / 1_000_000
+        )
+        cachedSystemBootDate = bootDate
+        return bootDate
     }
 
     private func currentProcessUsageIfNeeded(at date: Date) -> ProcessResourceSnapshot {

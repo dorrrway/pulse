@@ -124,6 +124,13 @@ nonisolated struct DiskIOUsage: Equatable, Sendable {
     )
 }
 
+nonisolated struct SystemRuntimeUsage: Equatable, Sendable {
+    var bootedAt: Date?
+    var elapsedTime: TimeInterval
+
+    static let empty = SystemRuntimeUsage(bootedAt: nil, elapsedTime: 0)
+}
+
 nonisolated struct ProcessResourceUsage: Equatable, Identifiable, Sendable {
     var identifier: String
     var name: String
@@ -184,6 +191,7 @@ nonisolated struct ResourceSnapshot: Equatable, Sendable {
     var thermal: ThermalUsage
     var power: PowerUsage
     var diskIO: DiskIOUsage
+    var runtime: SystemRuntimeUsage
     var processes: ProcessResourceSnapshot
 
     static let empty = ResourceSnapshot(
@@ -195,6 +203,7 @@ nonisolated struct ResourceSnapshot: Equatable, Sendable {
         thermal: .empty,
         power: .empty,
         diskIO: .empty,
+        runtime: .empty,
         processes: .empty
     )
 }

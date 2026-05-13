@@ -56,7 +56,7 @@ Future versions that include the updater check for updates in the background. Wh
 
 ## Privacy
 
-Pulse reads local system metrics only, such as CPU, memory, disk, network byte counters, battery, thermal state, and disk I/O. To show usage rankings, Pulse also reads the names of running local processes, their CPU and memory usage, and local app bundle paths used to display app icons.
+Pulse reads local system metrics only, such as CPU, memory, disk, network byte counters, battery, thermal state, disk I/O, and the system's last boot time. To show usage rankings, Pulse also reads the names of running local processes, their CPU and memory usage, and local app bundle paths used to display app icons.
 
 Pulse requests the GitHub-hosted appcast to check for new versions and downloads a release archive when the user clicks Update. Pulse does not upload analytics, telemetry, files, personal data, system metrics, or Sparkle system profiling data to any server.
 
@@ -66,7 +66,10 @@ See [Privacy Policy](PRIVACY.en.md) for details.
 
 ### Unreleased
 
-- Refined full-panel status cards: memory pressure, thermal state, power, and disk I/O markers now reflect status or activity level; Chinese thermal and power wording was updated, and high CPU process rows now use warning colors.
+- Added a System Runtime strip below the full-panel status cards, using the system's last boot time to show how long the current boot session has lasted.
+- Tightened the full-panel footer spacing so the bottom controls sit in a more compact area.
+- Full-panel status cards now expose full descriptions through hover help and accessibility, and the English memory-pressure detail uses shorter wording to reduce truncation.
+- Refined full-panel status cards: memory pressure, thermal state, power, and disk I/O markers now reflect status or activity level; thermal and power wording was updated, and high CPU process rows now use warning colors.
 - Added an Appearance setting below Language with System, Light, and Dark options; System remains the default.
 - Fixed open menu panels, floating panels, and settings windows not updating when the Appearance setting changes.
 - Updated the two pin states to the pinned-series 18 pt custom PDF template icons, kept the minimize, expand, settings, and quit buttons on matching custom icons, and preserved the existing button sizes and semantics.

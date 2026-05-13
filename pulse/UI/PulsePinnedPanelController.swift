@@ -14,18 +14,23 @@ enum PulsePanelLayout {
     static let processSectionSpacing: CGFloat = 12
     static let processLeadersHeight = processSectionHeight * 2 + processSectionSpacing
     static let signalCardHeight: CGFloat = 68
+    static let runtimeRowHeight: CGFloat = 34
     static let signalSpacing: CGFloat = 8
-    static let signalGridHeight = signalCardHeight * 2 + signalSpacing
+    static let signalGridHeight = signalCardHeight * 2 + runtimeRowHeight + signalSpacing * 2
     static let footerHeight: CGFloat = 36
+    static let footerTopSpacing: CGFloat = 8
+    static let footerBottomPadding: CGFloat = 8
     static let panelCornerRadius: CGFloat = 16
     static let dragRegionHeight: CGFloat = 86
-    static let contentHeight = outerPadding * 2
+    static let contentHeight = outerPadding
+        + footerBottomPadding
         + headerHeight
         + coreMetricsHeight
         + processLeadersHeight
         + signalGridHeight
         + footerHeight
-        + sectionSpacing * 4
+        + sectionSpacing * 3
+        + footerTopSpacing
     static let contentSize = CGSize(width: contentWidth, height: contentHeight)
 
     static let minimalMetricGraphWidth: CGFloat = 106
