@@ -157,6 +157,8 @@ final class PulsePinnedPanelController {
         let contentSize = PulsePanelLayout.contentSize(for: style)
         panel.contentMinSize = contentSize
         panel.contentMaxSize = contentSize
+        panel.hasShadow = style == .full
+        panel.invalidateShadow()
     }
 
     private func resize(_ panel: NSPanel, to style: PulsePanelStyle, animated: Bool) {

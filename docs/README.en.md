@@ -68,6 +68,7 @@ See [Privacy Policy](PRIVACY.en.md) for details.
 - Expanded CPU and memory usage charts to the top five entries while keeping the visible lists at three entries.
 - Added local app icons for the top three visible usage rows.
 - Added pixel-style share charts for the ranking breakdown.
+- Added click-to-open detail popovers for the pixel-style share charts.
 - Set a fixed menu bar panel height for the current status layout and removed internal scrolling.
 - Added a pin button that detaches the menu bar panel into a draggable floating panel.
 - Added a minimal floating-panel mode that shrinks the full panel into a compact CPU, memory, network, and disk view.

@@ -529,7 +529,7 @@ private struct ProcessUsageSection: View {
             .frame(maxWidth: .infinity, alignment: .leading)
 
             if !entries.isEmpty {
-                ProcessUsageShareChart(entries: entries, share: share)
+                ProcessUsageShareChart(title: title, entries: entries, share: share, emptyText: emptyText)
                     .frame(width: Layout.chartSide, height: Layout.chartSide)
                     .padding(.top, Layout.titleLineHeight + Layout.titleToRowsSpacing)
             }
@@ -617,39 +617,52 @@ private final class ProcessIconCache {
 }
 
 private struct ProcessUsageShareChart: View {
+    var title: String
     var entries: [ProcessResourceUsage]
     var share: (ProcessResourceUsage) -> Double
+    var emptyText: String
 
     private static let gridSize = 11
     private static let cellSpacing: CGFloat = 1
+    @State private var isDetailPresented = false
 
     private var slices: [ProcessUsageShareSlice] {
         ProcessUsageShareSlice.make(from: entries, share: share)
     }
 
     var body: some View {
-        GeometryReader { proxy in
-            let side = min(proxy.size.width, proxy.size.height)
-            let cellSize = (side - CGFloat(Self.gridSize - 1) * Self.cellSpacing) / CGFloat(Self.gridSize)
+        Button {
+            isDetailPresented.toggle()
+        } label: {
+            GeometryReader { proxy in
+                let side = min(proxy.size.width, proxy.size.height)
+                let cellSize = (side - CGFloat(Self.gridSize - 1) * Self.cellSpacing) / CGFloat(Self.gridSize)
 
-            VStack(spacing: Self.cellSpacing) {
-                ForEach(0..<Self.gridSize, id: \.self) { row in
-                    HStack(spacing: Self.cellSpacing) {
-                        ForEach(0..<Self.gridSize, id: \.self) { column in
-                            Rectangle()
-                                .fill(color(row: row, column: column))
-                                .frame(width: cellSize, height: cellSize)
-                                .opacity(isInsideDisc(row: row, column: column) ? 1 : 0)
+                VStack(spacing: Self.cellSpacing) {
+                    ForEach(0..<Self.gridSize, id: \.self) { row in
+                        HStack(spacing: Self.cellSpacing) {
+                            ForEach(0..<Self.gridSize, id: \.self) { column in
+                                Rectangle()
+                                    .fill(color(row: row, column: column))
+                                    .frame(width: cellSize, height: cellSize)
+                                    .opacity(isInsideDisc(row: row, column: column) ? 1 : 0)
+                            }
                         }
                     }
                 }
+                .frame(width: side, height: side)
             }
-            .frame(width: side, height: side)
         }
+        .buttonStyle(.plain)
+        .contentShape(Rectangle())
         .help(helpText)
+        .popover(isPresented: $isDetailPresented, arrowEdge: .trailing) {
+            ProcessUsageShareDetailPopover(title: title, slices: slices, emptyText: emptyText)
+        }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(entries.map(\.name).joined(separator: ", "))
         .accessibilityValue(helpText)
+        .accessibilityAddTraits(.isButton)
     }
 
     private func isInsideDisc(row: Int, column: Int) -> Bool {
@@ -691,12 +704,12 @@ private struct ProcessUsageShareChart: View {
 
     private var helpText: String {
         guard !slices.isEmpty else {
-            return "No usage"
+            return emptyText
         }
 
         let total = slices.reduce(0) { $0 + $1.value }
         guard total > 0 else {
-            return "No usage"
+            return emptyText
         }
 
         return slices.map { slice in
@@ -708,8 +721,7 @@ private struct ProcessUsageShareChart: View {
 }
 
 private struct ProcessUsageShareSlice: Identifiable, Hashable {
-    var id: String { name }
-
+    let id: Int
     let name: String
     let value: Double
     let startDegrees: Double
@@ -719,9 +731,9 @@ private struct ProcessUsageShareSlice: Identifiable, Hashable {
         from entries: [ProcessResourceUsage],
         share: (ProcessResourceUsage) -> Double
     ) -> [ProcessUsageShareSlice] {
-        let values = entries
-            .map { entry in
-                (name: entry.name, value: max(share(entry), 0))
+        let values = entries.enumerated()
+            .map { index, entry in
+                (id: index, name: entry.name, value: max(share(entry), 0))
             }
             .filter { $0.value > 0 }
 
@@ -739,12 +751,74 @@ private struct ProcessUsageShareSlice: Identifiable, Hashable {
             defer { cursor += angle }
 
             return ProcessUsageShareSlice(
+                id: value.id,
                 name: value.name,
                 value: value.value,
                 startDegrees: cursor,
                 endDegrees: cursor + angle
             )
         }
+    }
+}
+
+private struct ProcessUsageShareDetailPopover: View {
+    var title: String
+    var slices: [ProcessUsageShareSlice]
+    var emptyText: String
+
+    private var total: Double {
+        slices.reduce(0) { $0 + $1.value }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title)
+                .font(.system(.caption, design: .rounded, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+
+            if slices.isEmpty {
+                Text(emptyText)
+                    .font(.system(.caption, design: .rounded, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(Array(slices.enumerated()), id: \.element.id) { index, slice in
+                        HStack(spacing: 8) {
+                            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                                .fill(ProcessUsagePalette.color(at: index))
+                                .frame(width: 10, height: 10)
+                                .accessibilityHidden(true)
+
+                            Text(slice.name)
+                                .font(.system(.caption, design: .rounded, weight: .medium))
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+
+                            Spacer(minLength: 12)
+
+                            Text(percentText(for: slice))
+                                .font(.system(.caption, design: .monospaced, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                                .lineLimit(1)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(12)
+        .frame(width: 220, alignment: .leading)
+    }
+
+    private func percentText(for slice: ProcessUsageShareSlice) -> String {
+        guard total > 0 else {
+            return "0%"
+        }
+
+        let percent = slice.value / total * 100
+        return "\(percent.formatted(.number.precision(.fractionLength(0))))%"
     }
 }
 
