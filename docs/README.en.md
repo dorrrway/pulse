@@ -66,33 +66,13 @@ See [Privacy Policy](PRIVACY.en.md) for details.
 
 ### Unreleased
 
-- Added a System Runtime strip below the full-panel status cards, using the system's last boot time to show how long the current boot session has lasted.
-- Tightened the full-panel footer spacing so the bottom controls sit in a more compact area.
-- Full-panel status cards now expose full descriptions through hover help and accessibility, and the English memory-pressure detail uses shorter wording to reduce truncation.
-- Refined full-panel status cards: memory pressure, thermal state, power, and disk I/O markers now reflect status or activity level; thermal and power wording was updated, and high CPU process rows now use warning colors.
-- Added an Appearance setting below Language with System, Light, and Dark options; System remains the default.
-- Fixed open menu panels, floating panels, and settings windows not updating when the Appearance setting changes.
-- Updated the two pin states to the pinned-series 18 pt custom PDF template icons, kept the minimize, expand, settings, and quit buttons on matching custom icons, and preserved the existing button sizes and semantics.
-- Changed the full panel summary-card markers from dots to pixel blocks, and removed the bottom memory note that duplicated the memory-pressure card.
-- Updated the Chinese settings label from “Open at login” to “开机启动”.
-- Fixed settings window being sent behind frontmost windows when opened from the menu bar interface.
-- Simplified the startup and language settings sections by removing redundant section titles and helper copy, keeping an inline language label, and showing login item status only when attention is needed.
-- Added a new Contact row below language settings with an icon link to the Pulse website.
-- Changed the main resource panel refresh interval from 2 seconds to 1 second for more responsive network rate, CPU, memory, and disk I/O feedback; process usage rankings still refresh less frequently to limit always-on overhead.
-- Added Sparkle updates: when a new version is available, the full panel footer shows an Update button that downloads, verifies, and installs the update.
-- Moved the Update button next to the pin button as a text-only blue button, and removed the footer's monitoring-only status label.
-- Fixed a crash that could occur when clicking the pin button because the floating panel was missing the update-state environment.
-- Added CPU and memory usage rankings for local apps and processes.
-- Expanded CPU and memory usage charts to the top five entries while keeping the visible lists at three entries.
-- Added local app icons for the top three visible usage rows.
-- Added pixel-style share charts for the ranking breakdown.
-- Added click-to-open detail popovers for the pixel-style share charts.
-- Set a fixed menu bar panel height for the current status layout and removed internal scrolling.
-- Added a pin button that detaches the menu bar panel into a draggable floating panel.
-- Added a minimal floating-panel mode that shrinks the full panel into a compact CPU, memory, network, and disk view.
-- Added a hover-only restore button that expands the minimal floating panel back to the full panel.
-- Refined the menu bar and floating panel layout with a fixed height budget that prevents status text from shrinking under compression.
-- Updated the privacy wording to clarify that process names, app bundle paths, and CPU/memory usage are used only to render the local interface, and that update checks request only the appcast without uploading system metrics or profiling data.
+- Added a pinnable floating panel and minimal mode for switching between the full status panel and a compact metrics view.
+- Added CPU and memory usage rankings with local app/process usage, app icons, pixel share charts, and detail popovers.
+- Refined full-panel status feedback with System Runtime, status-colored memory, thermal, power, and disk I/O cards, and warning colors for high CPU usage.
+- Added Sparkle updates, allowing new versions to be downloaded, verified, and installed from the panel.
+- Added Appearance and Contact settings, and simplified the startup and language settings.
+- Improved menu bar and floating panel layout, made metric feedback more responsive, and fixed theme syncing, settings-window focus, and floating-panel stability issues.
+- Updated the privacy wording to clarify local use of process names, app bundle paths, resource usage, and update checks without uploading system metrics or profiling data.
 
 ### 1.0.0
 
