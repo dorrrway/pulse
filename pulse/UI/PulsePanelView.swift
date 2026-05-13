@@ -242,6 +242,17 @@ struct PulsePanelView: View {
             .labelStyle(.iconOnly)
             .help(strings.text(isPinned ? .unpinPanel : .pinPanel))
 
+            if let update = updateController.availableUpdate {
+                Button {
+                    updateController.installAvailableUpdate()
+                } label: {
+                    Text(strings.updateButtonTitle())
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(!updateController.canCheckForUpdates)
+                .help(strings.updateButtonHelp(version: update.version))
+            }
+
             if presentation == .pinned {
                 Button(action: collapseAction) {
                     Label(strings.text(.minimalPanel), systemImage: "arrow.down.right.and.arrow.up.left")
@@ -250,28 +261,7 @@ struct PulsePanelView: View {
                 .help(strings.text(.minimalPanel))
             }
 
-            Text(strings.text(.monitorOnly))
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .fixedSize(horizontal: true, vertical: false)
-
             Spacer()
-
-            if let update = updateController.availableUpdate {
-                Button {
-                    updateController.installAvailableUpdate()
-                } label: {
-                    Label(
-                        strings.updateButtonTitle(version: update.version),
-                        systemImage: "arrow.down.circle.fill"
-                    )
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-                .disabled(!updateController.canCheckForUpdates)
-                .help(strings.updateButtonHelp(version: update.version))
-            }
 
             SettingsLink {
                 Label(strings.text(.settings), systemImage: "gearshape")

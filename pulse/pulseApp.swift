@@ -39,7 +39,7 @@ struct PulseApp: App {
                 .environment(updateController)
                 .environment(\.pulsePanelIsPinned, pinnedPanelController.isPresented)
                 .environment(\.pulsePanelPinAction) {
-                    pinnedPanelController.toggle(store: store)
+                    pinnedPanelController.toggle(store: store, updateController: updateController)
                 }
         }
         .menuBarExtraStyle(.window)

@@ -250,12 +250,12 @@ nonisolated struct PulseStrings: Sendable {
         }
     }
 
-    func updateButtonTitle(version: String) -> String {
+    func updateButtonTitle() -> String {
         switch language {
         case .english:
-            "Update \(version)"
+            "Update"
         case .chinese:
-            "更新 \(version)"
+            "更新"
         }
     }
 

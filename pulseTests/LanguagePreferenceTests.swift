@@ -169,8 +169,8 @@ final class LanguagePreferenceTests: XCTestCase {
         XCTAssertEqual(PulseStrings(language: .chinese).text(.launchAtLogin), "登录时打开")
         XCTAssertEqual(PulseStrings(language: .english).loginItemStatus(.requiresApproval), "Requires approval")
         XCTAssertEqual(PulseStrings(language: .chinese).loginItemStatus(.enabled), "已开启")
-        XCTAssertEqual(PulseStrings(language: .english).updateButtonTitle(version: "1.1.0"), "Update 1.1.0")
-        XCTAssertEqual(PulseStrings(language: .chinese).updateButtonTitle(version: "1.1.0"), "更新 1.1.0")
+        XCTAssertEqual(PulseStrings(language: .english).updateButtonTitle(), "Update")
+        XCTAssertEqual(PulseStrings(language: .chinese).updateButtonTitle(), "更新")
         XCTAssertEqual(
             PulseStrings(language: .english).loginItemError(.requiresInstalledApplication),
             "Install Pulse in /Applications or ~/Applications before enabling launch at login."

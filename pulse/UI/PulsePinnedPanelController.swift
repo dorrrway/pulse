@@ -57,21 +57,21 @@ final class PulsePinnedPanelController {
     @ObservationIgnored private var panel: NSPanel?
     @ObservationIgnored private var style: PulsePanelStyle = .full
 
-    func toggle(store: PulseStore) {
+    func toggle(store: PulseStore, updateController: PulseUpdateController) {
         if isPresented {
             dismiss()
         } else {
-            present(store: store)
+            present(store: store, updateController: updateController)
         }
     }
 
-    func present(store: PulseStore) {
+    func present(store: PulseStore, updateController: PulseUpdateController) {
         style = .full
 
-        let panel = panel ?? makePanel(store: store)
+        let panel = panel ?? makePanel(store: store, updateController: updateController)
         self.panel = panel
         configure(panel, for: style)
-        installRootView(in: panel, store: store)
+        installRootView(in: panel, store: store, updateController: updateController)
 
         if panel.frame.isEmpty {
             panel.setFrame(defaultFrame(for: style), display: false)
@@ -89,15 +89,15 @@ final class PulsePinnedPanelController {
         isPresented = false
     }
 
-    private func collapse(store: PulseStore) {
-        setStyle(.minimal, store: store)
+    private func collapse(store: PulseStore, updateController: PulseUpdateController) {
+        setStyle(.minimal, store: store, updateController: updateController)
     }
 
-    private func expand(store: PulseStore) {
-        setStyle(.full, store: store)
+    private func expand(store: PulseStore, updateController: PulseUpdateController) {
+        setStyle(.full, store: store, updateController: updateController)
     }
 
-    private func setStyle(_ newStyle: PulsePanelStyle, store: PulseStore) {
+    private func setStyle(_ newStyle: PulsePanelStyle, store: PulseStore, updateController: PulseUpdateController) {
         style = newStyle
 
         guard let panel else {
@@ -105,13 +105,13 @@ final class PulsePinnedPanelController {
         }
 
         configure(panel, for: newStyle)
-        installRootView(in: panel, store: store)
+        installRootView(in: panel, store: store, updateController: updateController)
         resize(panel, to: newStyle, animated: true)
         panel.orderFrontRegardless()
         isPresented = true
     }
 
-    private func makePanel(store: PulseStore) -> NSPanel {
+    private func makePanel(store: PulseStore, updateController: PulseUpdateController) -> NSPanel {
         let panel = NSPanel(
             contentRect: defaultFrame(for: style),
             styleMask: [.borderless, .nonactivatingPanel],
@@ -128,22 +128,23 @@ final class PulsePinnedPanelController {
         panel.isOpaque = false
         panel.hasShadow = true
         configure(panel, for: style)
-        installRootView(in: panel, store: store)
+        installRootView(in: panel, store: store, updateController: updateController)
 
         return panel
     }
 
-    private func installRootView(in panel: NSPanel, store: PulseStore) {
+    private func installRootView(in panel: NSPanel, store: PulseStore, updateController: PulseUpdateController) {
         let rootView = PulsePanelView(
             style: style,
             collapseAction: { [weak self] in
-                self?.collapse(store: store)
+                self?.collapse(store: store, updateController: updateController)
             },
             expandAction: { [weak self] in
-                self?.expand(store: store)
+                self?.expand(store: store, updateController: updateController)
             }
         )
             .environment(store)
+            .environment(updateController)
             .environment(\.pulsePanelPresentation, .pinned)
             .environment(\.pulsePanelIsPinned, true)
             .environment(\.pulsePanelPinAction) { [weak self] in

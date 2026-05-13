@@ -67,6 +67,8 @@ See [Privacy Policy](PRIVACY.en.md) for details.
 ### Unreleased
 
 - Added Sparkle updates: when a new version is available, the full panel footer shows an Update button that downloads, verifies, and installs the update.
+- Moved the Update button next to the pin button as a text-only blue button, and removed the footer's monitoring-only status label.
+- Fixed a crash that could occur when clicking the pin button because the floating panel was missing the update-state environment.
 - Added CPU and memory usage rankings for local apps and processes.
 - Expanded CPU and memory usage charts to the top five entries while keeping the visible lists at three entries.
 - Added local app icons for the top three visible usage rows.
