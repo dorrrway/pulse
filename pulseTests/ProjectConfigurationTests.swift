@@ -9,6 +9,21 @@ final class ProjectConfigurationTests: XCTestCase {
         XCTAssertEqual(infoDictionary?["LSMultipleInstancesProhibited"] as? Bool, true)
     }
 
+    func testHostAppInfoPlistConfiguresSignedSparkleUpdatesWithoutSystemProfiling() {
+        let infoDictionary = Bundle.main.infoDictionary
+
+        XCTAssertEqual(
+            infoDictionary?["SUFeedURL"] as? String,
+            "https://raw.githubusercontent.com/dorrrway/pulse/main/appcast.xml"
+        )
+        XCTAssertEqual(
+            infoDictionary?["SUPublicEDKey"] as? String,
+            "jEAIxFtZ7Pa6nn7C/qM3JQVkz8b/8GNjMJVr7q2qTzM="
+        )
+        XCTAssertEqual(infoDictionary?["SUEnableAutomaticChecks"] as? Bool, false)
+        XCTAssertEqual(infoDictionary?["SUEnableSystemProfiling"] as? Bool, false)
+    }
+
     func testInfoPlistIsNotCopiedAsRuntimeResource() {
         let copiedResourceURL = Bundle.main.bundleURL
             .appendingPathComponent("Contents", isDirectory: true)

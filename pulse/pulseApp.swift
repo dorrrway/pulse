@@ -16,6 +16,7 @@ struct PulseApp: App {
 
     @State private var store = PulseStore(startSamplingImmediately: !Self.isRunningUnitTests)
     @State private var pinnedPanelController = PulsePinnedPanelController()
+    @State private var updateController = PulseUpdateController(startingUpdater: !Self.isRunningUnitTests)
 
     init() {
         guard !Self.isRunningUnitTests else {
@@ -35,6 +36,7 @@ struct PulseApp: App {
         ) {
             PulsePanelView()
                 .environment(store)
+                .environment(updateController)
                 .environment(\.pulsePanelIsPinned, pinnedPanelController.isPresented)
                 .environment(\.pulsePanelPinAction) {
                     pinnedPanelController.toggle(store: store)
@@ -45,6 +47,7 @@ struct PulseApp: App {
         Settings {
             PulseSettingsView()
                 .environment(store)
+                .environment(updateController)
         }
     }
 

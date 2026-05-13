@@ -64,6 +64,7 @@ struct PulsePanelView: View {
     @Environment(\.pulsePanelPresentation) private var presentation
     @Environment(\.pulsePanelIsPinned) private var isPinned
     @Environment(\.pulsePanelPinAction) private var pinAction
+    @Environment(PulseUpdateController.self) private var updateController
     @State private var hostingWindow: NSWindow?
     @State private var isMinimalRestoreVisible = false
 
@@ -256,6 +257,21 @@ struct PulsePanelView: View {
                 .fixedSize(horizontal: true, vertical: false)
 
             Spacer()
+
+            if let update = updateController.availableUpdate {
+                Button {
+                    updateController.installAvailableUpdate()
+                } label: {
+                    Label(
+                        strings.updateButtonTitle(version: update.version),
+                        systemImage: "arrow.down.circle.fill"
+                    )
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .disabled(!updateController.canCheckForUpdates)
+                .help(strings.updateButtonHelp(version: update.version))
+            }
 
             SettingsLink {
                 Label(strings.text(.settings), systemImage: "gearshape")
@@ -908,4 +924,5 @@ private struct PressureExplanationRow: View {
 #Preview {
     PulsePanelView()
         .environment(PulseStore())
+        .environment(PulseUpdateController(startingUpdater: false))
 }

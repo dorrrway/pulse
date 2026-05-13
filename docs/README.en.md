@@ -47,6 +47,8 @@ SHA-256:
 
 The app is signed with Developer ID and notarized by Apple.
 
+Future versions that include the updater check for updates in the background. When a new version is available, the full panel shows an Update button in the footer; clicking it lets Sparkle download, verify, and install the update. `1.0.0` itself does not include the updater, so moving from `1.0.0` to the first updater-enabled build still requires one manual download and install.
+
 ## System Requirements
 
 - macOS 26.0 or later, as currently configured by the project.
@@ -56,7 +58,7 @@ The app is signed with Developer ID and notarized by Apple.
 
 Pulse reads local system metrics only, such as CPU, memory, disk, network byte counters, battery, thermal state, and disk I/O. To show usage rankings, Pulse also reads the names of running local processes, their CPU and memory usage, and local app bundle paths used to display app icons.
 
-Pulse does not upload analytics, telemetry, files, personal data, or system data to any server.
+Pulse requests the GitHub-hosted appcast to check for new versions and downloads a release archive when the user clicks Update. Pulse does not upload analytics, telemetry, files, personal data, system metrics, or Sparkle system profiling data to any server.
 
 See [Privacy Policy](PRIVACY.en.md) for details.
 
@@ -64,6 +66,7 @@ See [Privacy Policy](PRIVACY.en.md) for details.
 
 ### Unreleased
 
+- Added Sparkle updates: when a new version is available, the full panel footer shows an Update button that downloads, verifies, and installs the update.
 - Added CPU and memory usage rankings for local apps and processes.
 - Expanded CPU and memory usage charts to the top five entries while keeping the visible lists at three entries.
 - Added local app icons for the top three visible usage rows.
@@ -74,7 +77,7 @@ See [Privacy Policy](PRIVACY.en.md) for details.
 - Added a minimal floating-panel mode that shrinks the full panel into a compact CPU, memory, network, and disk view.
 - Added a hover-only restore button that expands the minimal floating panel back to the full panel.
 - Refined the menu bar and floating panel layout with a fixed height budget that prevents status text from shrinking under compression.
-- Updated the privacy wording to clarify that process names, app bundle paths, and CPU/memory usage are used only to render the local interface.
+- Updated the privacy wording to clarify that process names, app bundle paths, and CPU/memory usage are used only to render the local interface, and that update checks request only the appcast without uploading system metrics or profiling data.
 
 ### 1.0.0
 
@@ -101,3 +104,5 @@ xcodebuild \
   -destination 'platform=macOS' \
   build
 ```
+
+When publishing a new version, sign the release archive with the Sparkle EdDSA private key and append the signed item to `appcast.xml`. Never commit the private key.

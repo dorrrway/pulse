@@ -37,7 +37,9 @@ Pulse does not collect, store, or transmit:
 
 ## Network Usage
 
-Pulse does not send app analytics, telemetry, or system metrics to any server.
+Pulse requests the GitHub-hosted appcast over HTTPS to check whether a new version is available. When the user clicks Update, Pulse downloads the matching release archive and Sparkle verifies its signature before installation.
+
+Pulse does not send app analytics, telemetry, system metrics, or Sparkle system profiling data to any server. Update checks do not attach CPU, memory, device model, process list, app bundle paths, or other local monitoring data.
 
 ## Local Preferences
 

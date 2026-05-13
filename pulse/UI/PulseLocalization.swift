@@ -250,6 +250,24 @@ nonisolated struct PulseStrings: Sendable {
         }
     }
 
+    func updateButtonTitle(version: String) -> String {
+        switch language {
+        case .english:
+            "Update \(version)"
+        case .chinese:
+            "更新 \(version)"
+        }
+    }
+
+    func updateButtonHelp(version: String) -> String {
+        switch language {
+        case .english:
+            "Install Pulse \(version)"
+        case .chinese:
+            "安装 Pulse \(version)"
+        }
+    }
+
     private func remainingPowerTime(_ timeRemaining: TimeInterval) -> String {
         let totalMinutes = max(Int(timeRemaining.rounded(.down)) / 60, 1)
         let hours = totalMinutes / 60
