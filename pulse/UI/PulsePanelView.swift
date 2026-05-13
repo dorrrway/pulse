@@ -65,6 +65,7 @@ struct PulsePanelView: View {
     @Environment(\.pulsePanelIsPinned) private var isPinned
     @Environment(\.pulsePanelPinAction) private var pinAction
     @State private var hostingWindow: NSWindow?
+    @State private var isMinimalRestoreVisible = false
 
     var body: some View {
         let strings = store.strings
@@ -156,9 +157,32 @@ struct PulsePanelView: View {
             height: PulsePanelLayout.minimalContentHeight,
             alignment: .topLeading
         )
+        .overlay(alignment: .bottomTrailing) {
+            if isMinimalRestoreVisible {
+                Button(action: expandAction) {
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .frame(width: 26, height: 26)
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.primary)
+                .background(.regularMaterial, in: Circle())
+                .shadow(color: .black.opacity(0.16), radius: 6, x: 0, y: 2)
+                .padding(8)
+                .help(strings.text(.expandPanel))
+                .accessibilityLabel(strings.text(.expandPanel))
+                .transition(.opacity.combined(with: .scale(scale: 0.94, anchor: .bottomTrailing)))
+            }
+        }
         .contentShape(Rectangle())
         .simultaneousGesture(WindowDragGesture())
         .onTapGesture(count: 2, perform: expandAction)
+        .onHover { isHovering in
+            withAnimation(.easeOut(duration: 0.14)) {
+                isMinimalRestoreVisible = isHovering
+            }
+        }
         .contextMenu {
             Button(strings.text(.expandPanel), action: expandAction)
             Button(strings.text(.unpinPanel), action: pinAction)
