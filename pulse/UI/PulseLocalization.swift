@@ -311,6 +311,8 @@ extension PulseStrings {
         case disk
         case thisMac
         case monitorOnly
+        case pinPanel
+        case unpinPanel
         case settings
         case settingsHelp
         case quit
@@ -360,6 +362,10 @@ private extension PulseStrings {
             "This Mac"
         case .monitorOnly:
             "Monitoring only"
+        case .pinPanel:
+            "Pin panel"
+        case .unpinPanel:
+            "Unpin panel"
         case .settings:
             "Settings"
         case .settingsHelp:
@@ -439,6 +445,10 @@ private extension PulseStrings {
             "这台 Mac"
         case .monitorOnly:
             "仅监控"
+        case .pinPanel:
+            "固定面板"
+        case .unpinPanel:
+            "取消固定面板"
         case .settings:
             "设置"
         case .settingsHelp:

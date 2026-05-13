@@ -1,13 +1,66 @@
 import AppKit
 import SwiftUI
 
+enum PulsePanelPresentation {
+    case menuBar
+    case pinned
+}
+
+private struct PulsePanelPresentationKey: EnvironmentKey {
+    static let defaultValue: PulsePanelPresentation = .menuBar
+}
+
+private struct PulsePanelIsPinnedKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+private struct PulsePanelPinActionKey: EnvironmentKey {
+    static let defaultValue: () -> Void = {}
+}
+
+extension EnvironmentValues {
+    var pulsePanelPresentation: PulsePanelPresentation {
+        get { self[PulsePanelPresentationKey.self] }
+        set { self[PulsePanelPresentationKey.self] = newValue }
+    }
+
+    var pulsePanelIsPinned: Bool {
+        get { self[PulsePanelIsPinnedKey.self] }
+        set { self[PulsePanelIsPinnedKey.self] = newValue }
+    }
+
+    var pulsePanelPinAction: () -> Void {
+        get { self[PulsePanelPinActionKey.self] }
+        set { self[PulsePanelPinActionKey.self] = newValue }
+    }
+}
+
+private struct PulsePanelWindowReader: NSViewRepresentable {
+    var onResolve: (NSWindow?) -> Void
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        resolveWindow(for: view)
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        resolveWindow(for: nsView)
+    }
+
+    private func resolveWindow(for view: NSView) {
+        DispatchQueue.main.async {
+            onResolve(view.window)
+        }
+    }
+}
+
 struct PulsePanelView: View {
     @Environment(PulseStore.self) private var store
-
-    private enum Layout {
-        static let width: CGFloat = 420
-        static let height: CGFloat = 660
-    }
+    @Environment(\.pulsePanelPresentation) private var presentation
+    @Environment(\.pulsePanelIsPinned) private var isPinned
+    @Environment(\.pulsePanelPinAction) private var pinAction
+    @State private var hostingWindow: NSWindow?
 
     var body: some View {
         let strings = store.strings
@@ -20,8 +73,22 @@ struct PulsePanelView: View {
             footer
         }
         .padding(16)
-        .frame(width: Layout.width, height: Layout.height, alignment: .top)
+        .frame(width: PulsePanelLayout.width, height: PulsePanelLayout.height, alignment: .top)
         .background(.regularMaterial)
+        .background {
+            PulsePanelWindowReader { window in
+                hostingWindow = window
+            }
+        }
+        .overlay(alignment: .top) {
+            if presentation == .pinned {
+                Color.clear
+                    .frame(height: 86)
+                    .contentShape(Rectangle())
+                    .gesture(WindowDragGesture())
+                    .allowsWindowActivationEvents(true)
+            }
+        }
     }
 
     private var header: some View {
@@ -53,6 +120,15 @@ struct PulsePanelView: View {
         let strings = store.strings
 
         return HStack {
+            Button(action: togglePinnedPanel) {
+                Label(
+                    strings.text(isPinned ? .unpinPanel : .pinPanel),
+                    systemImage: isPinned ? "pin.fill" : "pin"
+                )
+            }
+            .labelStyle(.iconOnly)
+            .help(strings.text(isPinned ? .unpinPanel : .pinPanel))
+
             Text(strings.text(.monitorOnly))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
@@ -72,6 +148,16 @@ struct PulsePanelView: View {
             }
             .labelStyle(.iconOnly)
             .help(strings.text(.quitHelp))
+        }
+    }
+
+    private func togglePinnedPanel() {
+        let sourceWindow = hostingWindow
+        pinAction()
+
+        if presentation == .menuBar {
+            sourceWindow?.resignKey()
+            sourceWindow?.orderOut(nil)
         }
     }
 

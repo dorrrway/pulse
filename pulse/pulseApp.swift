@@ -15,6 +15,7 @@ struct PulseApp: App {
     )
 
     @State private var store = PulseStore(startSamplingImmediately: !Self.isRunningUnitTests)
+    @State private var pinnedPanelController = PulsePinnedPanelController()
 
     init() {
         guard !Self.isRunningUnitTests else {
@@ -34,6 +35,10 @@ struct PulseApp: App {
         ) {
             PulsePanelView()
                 .environment(store)
+                .environment(\.pulsePanelIsPinned, pinnedPanelController.isPresented)
+                .environment(\.pulsePanelPinAction) {
+                    pinnedPanelController.toggle(store: store)
+                }
         }
         .menuBarExtraStyle(.window)
 
