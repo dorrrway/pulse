@@ -65,16 +65,21 @@ struct PulsePanelView: View {
     var body: some View {
         let strings = store.strings
 
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: PulsePanelLayout.sectionSpacing) {
             header
             coreMetrics(strings: strings)
             processLeaders(strings: strings)
             signalGrid(strings: strings)
             footer
         }
-        .padding(16)
-        .frame(width: PulsePanelLayout.width, height: PulsePanelLayout.height, alignment: .top)
+        .padding(PulsePanelLayout.outerPadding)
+        .frame(
+            width: PulsePanelLayout.contentWidth,
+            height: PulsePanelLayout.contentHeight,
+            alignment: .top
+        )
         .background(.regularMaterial)
+        .clipShape(panelShape)
         .background {
             PulsePanelWindowReader { window in
                 hostingWindow = window
@@ -83,12 +88,19 @@ struct PulsePanelView: View {
         .overlay(alignment: .top) {
             if presentation == .pinned {
                 Color.clear
-                    .frame(height: 86)
+                    .frame(height: PulsePanelLayout.dragRegionHeight)
                     .contentShape(Rectangle())
                     .gesture(WindowDragGesture())
                     .allowsWindowActivationEvents(true)
             }
         }
+    }
+
+    private var panelShape: RoundedRectangle {
+        RoundedRectangle(
+            cornerRadius: presentation == .pinned ? PulsePanelLayout.panelCornerRadius : 0,
+            style: .continuous
+        )
     }
 
     private var header: some View {
@@ -102,18 +114,23 @@ struct PulsePanelView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Pulse")
                     .font(.system(.title3, design: .rounded, weight: .semibold))
+                    .lineLimit(1)
 
                 Text(store.deviceName ?? strings.text(.thisMac))
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
             }
-
-            Spacer()
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Text(store.snapshot.capturedAt, style: .time)
                 .font(.system(.caption, design: .monospaced))
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
         }
+        .frame(height: PulsePanelLayout.headerHeight)
     }
 
     private var footer: some View {
@@ -132,6 +149,8 @@ struct PulsePanelView: View {
             Text(strings.text(.monitorOnly))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
 
             Spacer()
 
@@ -149,6 +168,7 @@ struct PulsePanelView: View {
             .labelStyle(.iconOnly)
             .help(strings.text(.quitHelp))
         }
+        .frame(height: PulsePanelLayout.footerHeight, alignment: .center)
     }
 
     private func togglePinnedPanel() {
@@ -162,7 +182,7 @@ struct PulsePanelView: View {
     }
 
     private func coreMetrics(strings: PulseStrings) -> some View {
-        VStack(spacing: 10) {
+        VStack(spacing: PulsePanelLayout.metricRowSpacing) {
             MetricRow(
                 title: strings.text(.cpu),
                 value: ResourceFormatters.percentage(store.snapshot.cpu.percentage),
@@ -202,13 +222,14 @@ struct PulsePanelView: View {
                 progress: store.snapshot.disk.percentage
             )
         }
+        .frame(height: PulsePanelLayout.coreMetricsHeight)
     }
 
     private func signalGrid(strings: PulseStrings) -> some View {
         let snapshot = store.snapshot
 
-        return VStack(spacing: 8) {
-            HStack(spacing: 8) {
+        return VStack(spacing: PulsePanelLayout.signalSpacing) {
+            HStack(spacing: PulsePanelLayout.signalSpacing) {
                 SignalCard(
                     title: strings.text(.memoryPressure),
                     value: strings.pressure(snapshot.memory.pressureLevel),
@@ -223,8 +244,9 @@ struct PulsePanelView: View {
                     tint: .red
                 )
             }
+            .frame(height: PulsePanelLayout.signalCardHeight)
 
-            HStack(spacing: 8) {
+            HStack(spacing: PulsePanelLayout.signalSpacing) {
                 SignalCard(
                     title: strings.text(.power),
                     value: strings.powerTitle(snapshot.power),
@@ -239,16 +261,19 @@ struct PulsePanelView: View {
                     tint: .orange
                 )
             }
+            .frame(height: PulsePanelLayout.signalCardHeight)
 
             PressureExplanationRow(
                 text: strings.pressureExplanation(snapshot.memory),
                 level: snapshot.memory.pressureLevel
             )
+            .frame(height: PulsePanelLayout.pressureRowHeight)
         }
+        .frame(height: PulsePanelLayout.signalGridHeight)
     }
 
     private func processLeaders(strings: PulseStrings) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: PulsePanelLayout.processSectionSpacing) {
             ProcessUsageSection(
                 title: strings.text(.topCPUProcesses),
                 entries: store.snapshot.processes.topCPU,
@@ -265,12 +290,14 @@ struct PulsePanelView: View {
                 share: { Double(max($0.memoryBytes, 0)) }
             )
         }
+        .frame(height: PulsePanelLayout.processLeadersHeight)
     }
 }
 
 private struct MetricRow: View {
     private enum Layout {
-        static let valueColumnWidth: CGFloat = 86
+        static let rowHeight: CGFloat = 36
+        static let valueColumnWidth: CGFloat = 104
         static let detailColumnWidth: CGFloat = 128
         static let valueSpacing: CGFloat = 8
         static let groupSpacing: CGFloat = 12
@@ -298,18 +325,18 @@ private struct MetricRow: View {
                 Text(value)
                     .font(.system(.title3, design: .monospaced, weight: .semibold))
                     .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                    .fixedSize(horizontal: true, vertical: false)
                     .frame(width: Layout.valueColumnWidth, alignment: .trailing)
 
                 Text(detail)
                     .font(.system(.callout, design: .monospaced, weight: .semibold))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.82)
-                    .allowsTightening(true)
+                    .fixedSize(horizontal: true, vertical: false)
                     .frame(width: Layout.detailColumnWidth, alignment: .trailing)
             }
         }
+        .frame(height: Layout.rowHeight)
     }
 }
 
@@ -330,22 +357,22 @@ private struct SignalCard: View {
                     .font(.system(.caption, design: .rounded, weight: .medium))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                    .truncationMode(.tail)
             }
 
             Text(value)
                 .font(.system(.callout, design: .monospaced, weight: .semibold))
                 .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .truncationMode(.tail)
 
             Text(detail)
                 .font(.system(.caption2, design: .monospaced, weight: .medium))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
-                .minimumScaleFactor(0.75)
+                .truncationMode(.tail)
         }
         .padding(10)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }
@@ -375,6 +402,7 @@ private struct ProcessUsageSection: View {
                     .font(.system(.caption, design: .rounded, weight: .semibold))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 if entries.isEmpty {
                     Text(emptyText)
@@ -405,6 +433,7 @@ private struct ProcessUsageSection: View {
                     .padding(.top, Layout.titleLineHeight + Layout.titleToRowsSpacing)
             }
         }
+        .frame(height: Layout.chartSide + Layout.titleLineHeight + Layout.titleToRowsSpacing)
     }
 }
 
@@ -431,7 +460,7 @@ private struct ProcessUsageRow: View {
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
                 .lineLimit(1)
-                .minimumScaleFactor(0.78)
+                .fixedSize(horizontal: true, vertical: false)
         }
         .frame(height: height)
     }
@@ -653,8 +682,8 @@ private struct PressureExplanationRow: View {
             Text(text)
                 .font(.system(.caption, design: .rounded, weight: .medium))
                 .foregroundStyle(.secondary)
-                .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
+                .lineLimit(1)
+                .truncationMode(.tail)
 
             Spacer(minLength: 0)
         }
