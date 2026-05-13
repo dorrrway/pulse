@@ -14,7 +14,7 @@ final class ProjectConfigurationTests: XCTestCase {
 
         XCTAssertEqual(
             infoDictionary?["SUFeedURL"] as? String,
-            "https://raw.githubusercontent.com/dorrrway/pulse/main/appcast.xml"
+            "https://github.com/dorrrway/pulse/raw/refs/heads/main/appcast.xml"
         )
         XCTAssertEqual(
             infoDictionary?["SUPublicEDKey"] as? String,
