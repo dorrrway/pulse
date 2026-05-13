@@ -5,7 +5,7 @@ import SwiftUI
 enum PulsePanelLayout {
     static let contentWidth: CGFloat = 420
     static let outerPadding: CGFloat = 16
-    static let sectionSpacing: CGFloat = 10
+    static let sectionSpacing: CGFloat = 16
     static let headerHeight: CGFloat = 36
     static let metricRowHeight: CGFloat = 36
     static let metricRowSpacing: CGFloat = 10
