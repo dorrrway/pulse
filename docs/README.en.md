@@ -13,7 +13,7 @@
 </h3>
 
 <p align="center">
-  <img alt="release" src="https://img.shields.io/badge/release-v1.0.0-0A84FF">
+  <img alt="release" src="https://img.shields.io/badge/release-v1.1.0-0A84FF">
   <img alt="platform" src="https://img.shields.io/badge/platform-macOS-147EFB">
   <img alt="Swift" src="https://img.shields.io/badge/Swift-5-FA7343">
   <img alt="notarized" src="https://img.shields.io/badge/Developer%20ID-notarized-34C759">
@@ -29,25 +29,25 @@ Pulse is a lightweight macOS menu bar app for watching local system status at a 
 
 Latest release:
 
-- [Pulse 1.0.0](https://github.com/dorrrway/pulse/releases/tag/v1.0.0)
-- DMG: [Pulse-1.0.dmg](https://github.com/dorrrway/pulse/releases/download/v1.0.0/Pulse-1.0.dmg)
+- [Pulse 1.1.0](https://github.com/dorrrway/pulse/releases/tag/v1.1.0)
+- DMG: [Pulse-1.1.0.dmg](https://github.com/dorrrway/pulse/releases/download/v1.1.0/Pulse-1.1.0.dmg)
 
 SHA-256:
 
 ```text
-3997d96332a23c674af77383f6391f3ba72cd151b8fe5c070facfebc1e7c250d  Pulse-1.0.dmg
+2471325f129688fb0174b5644233b7a8b697dd9c3c31a8dbe0cff6e274aa1cf0  Pulse-1.1.0.dmg
 ```
 
 ## Installation
 
-1. Download `Pulse-1.0.dmg`.
+1. Download `Pulse-1.1.0.dmg`.
 2. Open the DMG.
 3. Drag `Pulse.app` to Applications.
 4. Launch Pulse from Applications.
 
 The app is signed with Developer ID and notarized by Apple.
 
-Future versions that include the updater check for updates in the background. When a new version is available, the full panel shows an Update button in the footer; clicking it lets Sparkle download, verify, and install the update. `1.0.0` itself does not include the updater, so moving from `1.0.0` to the first updater-enabled build still requires one manual download and install.
+This version includes the updater and checks for updates in the background. When a new version is available, the full panel shows an Update button in the footer; clicking it lets Sparkle download, verify, and install the update. `1.0.0` itself does not include the updater, so moving from `1.0.0` to `1.1.0` still requires one manual download and install.
 
 ## System Requirements
 
@@ -64,7 +64,7 @@ See [Privacy Policy](PRIVACY.en.md) for details.
 
 ## Changelog
 
-### Unreleased
+### 1.1.0 - 2026-05-14
 
 - Added a pinnable floating panel and minimal mode for switching between the full status panel and a compact metrics view.
 - Added CPU and memory usage rankings with local app/process usage, app icons, pixel share charts, and detail popovers.

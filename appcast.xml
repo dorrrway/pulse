@@ -1,9 +1,22 @@
-<?xml version="1.0" encoding="utf-8"?>
-<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
     <channel>
-        <title>Pulse Updates</title>
-        <link>https://github.com/dorrrway/pulse/releases</link>
-        <description>Signed Pulse updates for Sparkle.</description>
-        <language>en</language>
+        <title>Pulse</title>
+        <item>
+            <title>1.1.0</title>
+            <pubDate>Thu, 14 May 2026 03:23:33 +0800</pubDate>
+            <sparkle:version>2</sparkle:version>
+            <sparkle:shortVersionString>1.1.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[# Pulse 1.1.0
+
+- Added a pinnable floating panel and compact minimal mode.
+- Added CPU and memory process rankings with app icons, pixel share charts, and detail popovers.
+- Refined full-panel status cards with System Runtime and stronger status feedback.
+- Added Sparkle update checks and in-panel update installation.
+- Added Appearance and Contact settings, and improved menu bar and floating panel layout.
+]]></description>
+            <enclosure url="https://github.com/dorrrway/pulse/releases/download/v1.1.0/Pulse-1.1.0.dmg" length="3151942" type="application/octet-stream" sparkle:edSignature="bfu2echckxGEuVu6l8Mvs8BuNnBM7n8KtUmmReI5KjyeVjF+fhVlv2BTc5xz/Eu/xd1stuuyqrDxe04tu1xqBw=="/>
+        </item>
     </channel>
 </rss>

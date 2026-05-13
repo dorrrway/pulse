@@ -62,6 +62,7 @@ private enum PanelControlIcon {
     static let power = "PanelPowerIcon"
     static let expand = "PanelExpandIcon"
     static let minimize = "PanelMinimizeIcon"
+    static let runtimePulse = "RuntimePulseIcon"
 }
 
 private struct PanelControlIconImage: View {
@@ -593,13 +594,18 @@ private struct SignalCard: View {
 }
 
 private struct RuntimeSummaryRow: View {
+    private enum Layout {
+        static let iconSide: CGFloat = 14
+    }
+
     var title: String
     var text: String
     var tint: Color
 
     var body: some View {
         HStack(alignment: .center, spacing: 8) {
-            PixelLegendMarker(tint: tint)
+            PanelControlIconImage(name: PanelControlIcon.runtimePulse, side: Layout.iconSide)
+                .foregroundStyle(tint)
 
             Text(text)
                 .font(.system(.callout, design: .monospaced, weight: .semibold))
