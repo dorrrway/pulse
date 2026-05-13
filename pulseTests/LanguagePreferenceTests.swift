@@ -151,7 +151,12 @@ final class LanguagePreferenceTests: XCTestCase {
         XCTAssertEqual(PulseStrings(language: .chinese).text(.expandPanel), "展开面板")
         XCTAssertEqual(PulseStrings(language: .chinese).memoryDetail(used: "17 GB", total: "24 GB"), "17 GB / 共 24 GB")
         XCTAssertEqual(PulseStrings(language: .english).pressure(.elevated), "Watch")
-        XCTAssertEqual(PulseStrings(language: .chinese).thermal(.serious), "受限")
+        XCTAssertEqual(PulseStrings(language: .chinese).pressure(.elevated), "偏高")
+        XCTAssertEqual(PulseStrings(language: .chinese).pressure(.high), "高")
+        XCTAssertEqual(PulseStrings(language: .chinese).thermal(.nominal), "正常")
+        XCTAssertEqual(PulseStrings(language: .chinese).thermal(.fair), "偏热")
+        XCTAssertEqual(PulseStrings(language: .chinese).thermal(.serious), "高温")
+        XCTAssertEqual(PulseStrings(language: .chinese).thermal(.critical), "严重高温")
         XCTAssertEqual(
             PulseStrings(language: .chinese).thermalDetail(
                 ThermalUsage(condition: .nominal, stateDuration: 780)
@@ -162,7 +167,7 @@ final class LanguagePreferenceTests: XCTestCase {
             PulseStrings(language: .chinese).thermalDetail(
                 ThermalUsage(condition: .critical, stateDuration: 45)
             ),
-            "严重受限 45 秒"
+            "持续严重高温 45 秒"
         )
         XCTAssertEqual(
             PulseStrings(language: .english).thermalDetail(
@@ -174,7 +179,7 @@ final class LanguagePreferenceTests: XCTestCase {
             PulseStrings(language: .chinese).thermalDetail(
                 ThermalUsage(condition: .serious, stateDuration: 4)
             ),
-            "受限中"
+            "温度较高"
         )
         let memory = MemoryUsage(
             totalBytes: 10_000,
@@ -186,6 +191,7 @@ final class LanguagePreferenceTests: XCTestCase {
         )
         XCTAssertEqual(PulseStrings(language: .chinese).pressureDetail(memory), "Swap 572 MB · 压缩 1.2 KB")
         XCTAssertEqual(PulseStrings(language: .english).pressureExplanation(memory), "Watch: 85% used, swap 572 MB, compressed 1.2 KB.")
+        XCTAssertEqual(PulseStrings(language: .chinese).pressureExplanation(memory), "偏高：已用 85%，Swap 572 MB，压缩 1.2 KB。")
         XCTAssertEqual(
             PulseStrings(language: .english).powerDetail(
                 PowerUsage(
@@ -198,6 +204,19 @@ final class LanguagePreferenceTests: XCTestCase {
             ),
             "2h 10m left"
         )
+        XCTAssertEqual(
+            PulseStrings(language: .chinese).powerDetail(
+                PowerUsage(
+                    hasBattery: true,
+                    batteryPercentage: 1,
+                    isPluggedIn: true,
+                    isCharging: false,
+                    timeRemaining: nil
+                )
+            ),
+            "外接电源"
+        )
+        XCTAssertEqual(PulseStrings(language: .english).text(.pluggedIn), "External power")
     }
 
     func testLaunchAtLoginStringsResolveEnglishAndChineseText() {

@@ -78,6 +78,42 @@ private struct PanelControlIconImage: View {
     }
 }
 
+private struct PanelIconButton: View {
+    private enum Layout {
+        static let side: CGFloat = 28
+        static let iconFrameSide: CGFloat = 20
+        static let iconSide: CGFloat = 18
+        static let cornerRadius: CGFloat = 8
+    }
+
+    var iconName: String
+    var action: () -> Void
+
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: action) {
+            ZStack {
+                if isHovering {
+                    RoundedRectangle(cornerRadius: Layout.cornerRadius, style: .continuous)
+                        .fill(.primary.opacity(0.10))
+                }
+
+                PanelControlIconImage(name: iconName, side: Layout.iconSide)
+                    .frame(width: Layout.iconFrameSide, height: Layout.iconFrameSide)
+            }
+            .frame(width: Layout.side, height: Layout.side)
+            .contentShape(RoundedRectangle(cornerRadius: Layout.cornerRadius, style: .continuous))
+            .animation(.easeOut(duration: 0.12), value: isHovering)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.primary)
+        .onHover { hovering in
+            isHovering = hovering
+        }
+    }
+}
+
 struct PulsePanelView: View {
     var style: PulsePanelStyle = .full
     var collapseAction: () -> Void = {}
@@ -256,13 +292,10 @@ struct PulsePanelView: View {
         let strings = store.strings
 
         return HStack {
-            Button(action: togglePinnedPanel) {
-                PanelControlIconImage(
-                    name: isPinned ? PanelControlIcon.pinFilled : PanelControlIcon.pin,
-                    side: 18
-                )
-                .frame(width: 20, height: 20)
-            }
+            PanelIconButton(
+                iconName: isPinned ? PanelControlIcon.pinFilled : PanelControlIcon.pin,
+                action: togglePinnedPanel
+            )
             .labelStyle(.iconOnly)
             .help(strings.text(isPinned ? .unpinPanel : .pinPanel))
             .accessibilityLabel(strings.text(isPinned ? .unpinPanel : .pinPanel))
@@ -279,10 +312,7 @@ struct PulsePanelView: View {
             }
 
             if presentation == .pinned {
-                Button(action: collapseAction) {
-                    PanelControlIconImage(name: PanelControlIcon.minimize, side: 18)
-                        .frame(width: 20, height: 20)
-                }
+                PanelIconButton(iconName: PanelControlIcon.minimize, action: collapseAction)
                 .labelStyle(.iconOnly)
                 .help(strings.text(.minimalPanel))
                 .accessibilityLabel(strings.text(.minimalPanel))
@@ -290,22 +320,16 @@ struct PulsePanelView: View {
 
             Spacer()
 
-            Button {
+            PanelIconButton(iconName: PanelControlIcon.settings) {
                 NSApplication.shared.activate(ignoringOtherApps: true)
                 openSettings()
-            } label: {
-                PanelControlIconImage(name: PanelControlIcon.settings, side: 18)
-                    .frame(width: 20, height: 20)
             }
             .labelStyle(.iconOnly)
             .help(strings.text(.settingsHelp))
             .accessibilityLabel(strings.text(.settings))
 
-            Button {
+            PanelIconButton(iconName: PanelControlIcon.power) {
                 NSApplication.shared.terminate(nil)
-            } label: {
-                PanelControlIconImage(name: PanelControlIcon.power, side: 18)
-                    .frame(width: 20, height: 20)
             }
             .labelStyle(.iconOnly)
             .help(strings.text(.quitHelp))
@@ -370,6 +394,10 @@ struct PulsePanelView: View {
 
     private func signalGrid(strings: PulseStrings) -> some View {
         let snapshot = store.snapshot
+        let memoryPressureColor = SignalStatusColor.memoryPressure(snapshot.memory.pressureLevel)
+        let thermalColor = SignalStatusColor.thermal(snapshot.thermal.condition)
+        let powerColor = SignalStatusColor.power(snapshot.power)
+        let diskIOColor = SignalStatusColor.diskIO(snapshot.diskIO)
 
         return VStack(spacing: PulsePanelLayout.signalSpacing) {
             HStack(spacing: PulsePanelLayout.signalSpacing) {
@@ -377,14 +405,14 @@ struct PulsePanelView: View {
                     title: strings.text(.memoryPressure),
                     value: strings.pressure(snapshot.memory.pressureLevel),
                     detail: strings.pressureDetail(snapshot.memory),
-                    tint: .green
+                    tint: memoryPressureColor
                 )
 
                 SignalCard(
                     title: strings.text(.thermal),
                     value: strings.thermal(snapshot.thermal.condition),
                     detail: strings.thermalDetail(snapshot.thermal),
-                    tint: .red
+                    tint: thermalColor
                 )
             }
             .frame(height: PulsePanelLayout.signalCardHeight)
@@ -394,14 +422,15 @@ struct PulsePanelView: View {
                     title: strings.text(.power),
                     value: strings.powerTitle(snapshot.power),
                     detail: strings.powerDetail(snapshot.power),
-                    tint: .yellow
+                    tint: powerColor,
+                    isTintBreathing: SignalStatusColor.powerIsBreathing(snapshot.power)
                 )
 
                 SignalCard(
                     title: strings.text(.diskIO),
                     value: "\(strings.text(.read)) \(ResourceFormatters.byteRate(bytesPerSecond: snapshot.diskIO.readBytesPerSecond))",
                     detail: "\(strings.text(.write)) \(ResourceFormatters.byteRate(bytesPerSecond: snapshot.diskIO.writeBytesPerSecond))",
-                    tint: .orange
+                    tint: diskIOColor
                 )
             }
             .frame(height: PulsePanelLayout.signalCardHeight)
@@ -417,6 +446,7 @@ struct PulsePanelView: View {
                 entries: store.snapshot.processes.topCPU,
                 emptyText: strings.text(.collecting),
                 value: { ResourceFormatters.processPercentage($0.cpuPercentage) },
+                valueColor: { ProcessUsageValueColor.cpu(for: $0.cpuPercentage) },
                 share: \.cpuPercentage
             )
 
@@ -505,11 +535,12 @@ private struct SignalCard: View {
     var value: String
     var detail: String
     var tint: Color
+    var isTintBreathing = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 6) {
-                PixelLegendMarker(tint: tint)
+                PixelLegendMarker(tint: tint, isBreathing: isTintBreathing)
 
                 Text(title)
                     .font(.system(.caption, design: .rounded, weight: .medium))
@@ -520,6 +551,7 @@ private struct SignalCard: View {
 
             Text(value)
                 .font(.system(.callout, design: .monospaced, weight: .semibold))
+                .foregroundStyle(.primary)
                 .lineLimit(1)
                 .truncationMode(.tail)
 
@@ -535,14 +567,110 @@ private struct SignalCard: View {
     }
 }
 
+private enum SignalStatusColor {
+    static func memoryPressure(_ level: PressureLevel) -> Color {
+        switch level {
+        case .nominal:
+            return .green
+        case .elevated:
+            return .yellow
+        case .high:
+            return .orange
+        }
+    }
+
+    static func thermal(_ condition: ThermalCondition) -> Color {
+        switch condition {
+        case .nominal:
+            return .green
+        case .fair:
+            return .yellow
+        case .serious:
+            return .orange
+        case .critical:
+            return .red
+        }
+    }
+
+    static func power(_ usage: PowerUsage) -> Color {
+        guard usage.hasBattery else {
+            return .green
+        }
+
+        guard !usage.isPluggedIn else {
+            return .green
+        }
+
+        guard let percentage = usage.batteryPercentage else {
+            return .green
+        }
+
+        if percentage < 0.1 {
+            return .red
+        }
+
+        if percentage < 0.2 {
+            return .orange
+        }
+
+        if percentage < 0.4 {
+            return .yellow
+        }
+
+        return .green
+    }
+
+    static func powerIsBreathing(_ usage: PowerUsage) -> Bool {
+        usage.hasBattery && usage.isPluggedIn && usage.isCharging
+    }
+
+    static func diskIO(_ usage: DiskIOUsage) -> Color {
+        let totalBytesPerSecond = max(usage.readBytesPerSecond, 0) + max(usage.writeBytesPerSecond, 0)
+        return totalBytesPerSecond >= 5_000_000 ? .purple : .blue
+    }
+}
+
 private struct PixelLegendMarker: View {
     var tint: Color
+    var isBreathing = false
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isBright = true
 
     var body: some View {
         Rectangle()
-            .fill(tint)
+            .fill(tint.opacity(opacity))
             .frame(width: 8, height: 8)
+            .animation(animation, value: isBright)
+            .onAppear(perform: updateBreathing)
+            .onChange(of: isBreathing) { _, _ in
+                updateBreathing()
+            }
+            .onChange(of: reduceMotion) { _, _ in
+                updateBreathing()
+            }
             .accessibilityHidden(true)
+    }
+
+    private var opacity: Double {
+        isBreathing && !reduceMotion && !isBright ? 0.45 : 1
+    }
+
+    private var animation: Animation? {
+        guard isBreathing && !reduceMotion else {
+            return nil
+        }
+
+        return .easeInOut(duration: 1.2).repeatForever(autoreverses: true)
+    }
+
+    private func updateBreathing() {
+        guard isBreathing && !reduceMotion else {
+            isBright = true
+            return
+        }
+
+        isBright = false
     }
 }
 
@@ -560,6 +688,7 @@ private struct ProcessUsageSection: View {
     var entries: [ProcessResourceUsage]
     var emptyText: String
     var value: (ProcessResourceUsage) -> String
+    var valueColor: (ProcessResourceUsage) -> Color = { _ in .secondary }
     var share: (ProcessResourceUsage) -> Double
 
     var body: some View {
@@ -587,6 +716,7 @@ private struct ProcessUsageSection: View {
                                 name: usage.name,
                                 appBundlePath: usage.appBundlePath,
                                 value: value(usage),
+                                valueColor: valueColor(usage),
                                 height: Layout.rowHeight
                             )
                         }
@@ -611,6 +741,7 @@ private struct ProcessUsageRow: View {
     var name: String
     var appBundlePath: String?
     var value: String
+    var valueColor: Color
     var height: CGFloat
 
     var body: some View {
@@ -626,12 +757,29 @@ private struct ProcessUsageRow: View {
 
             Text(value)
                 .font(.system(.caption, design: .monospaced, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(valueColor)
                 .monospacedDigit()
                 .lineLimit(1)
                 .fixedSize(horizontal: true, vertical: false)
         }
         .frame(height: height)
+    }
+}
+
+private enum ProcessUsageValueColor {
+    private static let elevatedCPUThreshold = 1.0
+    private static let highCPUThreshold = 2.0
+
+    static func cpu(for cpuPercentage: Double) -> Color {
+        if cpuPercentage >= highCPUThreshold {
+            return Color(red: 0.86, green: 0.36, blue: 0.16)
+        }
+
+        if cpuPercentage >= elevatedCPUThreshold {
+            return .orange
+        }
+
+        return .secondary
     }
 }
 

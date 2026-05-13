@@ -66,6 +66,7 @@ See [Privacy Policy](PRIVACY.en.md) for details.
 
 ### Unreleased
 
+- Refined full-panel status cards: memory pressure, thermal state, power, and disk I/O markers now reflect status or activity level; Chinese thermal and power wording was updated, and high CPU process rows now use warning colors.
 - Added an Appearance setting below Language with System, Light, and Dark options; System remains the default.
 - Fixed open menu panels, floating panels, and settings windows not updating when the Appearance setting changes.
 - Updated the two pin states to the pinned-series 18 pt custom PDF template icons, kept the minimize, expand, settings, and quit buttons on matching custom icons, and preserved the existing button sizes and semantics.

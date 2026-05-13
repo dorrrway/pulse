@@ -87,9 +87,9 @@ nonisolated struct PulseStrings: Sendable {
         case (.chinese, .nominal):
             "正常"
         case (.chinese, .elevated):
-            "注意"
-        case (.chinese, .high):
             "偏高"
+        case (.chinese, .high):
+            "高"
         }
     }
 
@@ -120,9 +120,9 @@ nonisolated struct PulseStrings: Sendable {
         case (.chinese, .nominal):
             return "正常：已用 \(usage)，Swap 和压缩内存都很低。"
         case (.chinese, .elevated):
-            return "注意：已用 \(usage)，Swap \(swap)，压缩 \(compressed)。"
-        case (.chinese, .high):
             return "偏高：已用 \(usage)，Swap \(swap)，压缩 \(compressed)。"
+        case (.chinese, .high):
+            return "高：已用 \(usage)，Swap \(swap)，压缩 \(compressed)。"
         }
     }
 
@@ -139,11 +139,11 @@ nonisolated struct PulseStrings: Sendable {
         case (.chinese, .nominal):
             "正常"
         case (.chinese, .fair):
-            "变热"
+            "偏热"
         case (.chinese, .serious):
-            "受限"
+            "高温"
         case (.chinese, .critical):
-            "严重"
+            "严重高温"
         }
     }
 
@@ -160,13 +160,13 @@ nonisolated struct PulseStrings: Sendable {
         case (.english, .critical, true):
             return "Just critically limited"
         case (.chinese, .nominal, true):
-            return "稳定中"
+            return "温度稳定"
         case (.chinese, .fair, true):
-            return "变热中"
+            return "机身偏热"
         case (.chinese, .serious, true):
-            return "受限中"
+            return "温度较高"
         case (.chinese, .critical, true):
-            return "严重受限中"
+            return "温度过高"
         case (.english, .nominal, false):
             return "Stable for \(compactDuration(duration))"
         case (.english, .fair, false):
@@ -178,11 +178,11 @@ nonisolated struct PulseStrings: Sendable {
         case (.chinese, .nominal, false):
             return "持续稳定 \(compactDuration(duration))"
         case (.chinese, .fair, false):
-            return "持续变热 \(compactDuration(duration))"
+            return "持续偏热 \(compactDuration(duration))"
         case (.chinese, .serious, false):
-            return "持续受限 \(compactDuration(duration))"
+            return "持续高温 \(compactDuration(duration))"
         case (.chinese, .critical, false):
-            return "严重受限 \(compactDuration(duration))"
+            return "持续严重高温 \(compactDuration(duration))"
         }
     }
 
@@ -422,7 +422,7 @@ private extension PulseStrings {
         case .charging:
             "Charging"
         case .pluggedIn:
-            "Plugged in"
+            "External power"
         case .onBattery:
             "On battery"
         case .diskIO:
@@ -519,7 +519,7 @@ private extension PulseStrings {
         case .charging:
             "充电中"
         case .pluggedIn:
-            "已接电"
+            "外接电源"
         case .onBattery:
             "使用电池"
         case .diskIO:
