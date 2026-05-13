@@ -14,9 +14,8 @@ enum PulsePanelLayout {
     static let processSectionSpacing: CGFloat = 12
     static let processLeadersHeight = processSectionHeight * 2 + processSectionSpacing
     static let signalCardHeight: CGFloat = 68
-    static let pressureRowHeight: CGFloat = 34
     static let signalSpacing: CGFloat = 8
-    static let signalGridHeight = signalCardHeight * 2 + pressureRowHeight + signalSpacing * 2
+    static let signalGridHeight = signalCardHeight * 2 + signalSpacing
     static let footerHeight: CGFloat = 36
     static let panelCornerRadius: CGFloat = 16
     static let dragRegionHeight: CGFloat = 86
@@ -150,6 +149,7 @@ final class PulsePinnedPanelController {
             .environment(\.pulsePanelPinAction) { [weak self] in
                 self?.dismiss()
             }
+            .pulsePreferredAppearance(store)
 
         panel.contentViewController = NSHostingController(rootView: rootView)
     }

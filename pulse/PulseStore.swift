@@ -11,6 +11,11 @@ final class PulseStore {
             userDefaults.set(languagePreference.rawValue, forKey: Self.languagePreferenceKey)
         }
     }
+    var appearancePreference: PulseAppearancePreference {
+        didSet {
+            userDefaults.set(appearancePreference.rawValue, forKey: Self.appearancePreferenceKey)
+        }
+    }
     var launchAtLogin: Bool {
         didSet {
             userDefaults.set(launchAtLogin, forKey: Self.launchAtLoginKey)
@@ -24,7 +29,9 @@ final class PulseStore {
     private let userDefaults: UserDefaults
     private let launchAtLoginService: PulseLoginItemService
 
+    private static let snapshotRefreshInterval: Duration = .seconds(1)
     private static let languagePreferenceKey = "pulse.settings.languagePreference"
+    private static let appearancePreferenceKey = "pulse.settings.appearancePreference"
     private static let launchAtLoginKey = "pulse.settings.launchAtLogin"
     private static let launchAtLoginDefaultAppliedKey = "pulse.settings.launchAtLoginDefaultApplied"
 
@@ -39,6 +46,7 @@ final class PulseStore {
         self.launchAtLoginService = launchAtLoginService
         self.deviceName = Self.normalizedDeviceName(deviceName) ?? Self.currentDeviceName()
         self.languagePreference = Self.loadLanguagePreference(from: userDefaults, key: Self.languagePreferenceKey)
+        self.appearancePreference = Self.loadAppearancePreference(from: userDefaults, key: Self.appearancePreferenceKey)
         self.launchAtLogin = Self.loadLaunchAtLogin(
             from: userDefaults,
             key: Self.launchAtLoginKey,
@@ -69,7 +77,7 @@ final class PulseStore {
                 snapshot = await sampler.sample()
 
                 do {
-                    try await Task.sleep(for: .seconds(2))
+                    try await Task.sleep(for: Self.snapshotRefreshInterval)
                 } catch {
                     return
                 }
@@ -103,6 +111,17 @@ final class PulseStore {
         guard
             let rawValue = userDefaults.string(forKey: key),
             let preference = PulseLanguagePreference(rawValue: rawValue)
+        else {
+            return .system
+        }
+
+        return preference
+    }
+
+    private static func loadAppearancePreference(from userDefaults: UserDefaults, key: String) -> PulseAppearancePreference {
+        guard
+            let rawValue = userDefaults.string(forKey: key),
+            let preference = PulseAppearancePreference(rawValue: rawValue)
         else {
             return .system
         }

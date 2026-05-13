@@ -55,6 +55,29 @@ private struct PulsePanelWindowReader: NSViewRepresentable {
     }
 }
 
+private enum PanelControlIcon {
+    static let pin = "PanelPinIcon"
+    static let pinFilled = "PanelPinFilledIcon"
+    static let settings = "PanelSettingsIcon"
+    static let power = "PanelPowerIcon"
+    static let expand = "PanelExpandIcon"
+    static let minimize = "PanelMinimizeIcon"
+}
+
+private struct PanelControlIconImage: View {
+    var name: String
+    var side: CGFloat
+
+    var body: some View {
+        Image(name)
+            .resizable()
+            .renderingMode(.template)
+            .scaledToFit()
+            .frame(width: side, height: side)
+            .accessibilityHidden(true)
+    }
+}
+
 struct PulsePanelView: View {
     var style: PulsePanelStyle = .full
     var collapseAction: () -> Void = {}
@@ -162,8 +185,7 @@ struct PulsePanelView: View {
         .overlay(alignment: .bottomTrailing) {
             if isMinimalRestoreVisible {
                 Button(action: expandAction) {
-                    Image(systemName: "arrow.up.left.and.arrow.down.right")
-                        .font(.system(size: 12, weight: .semibold))
+                    PanelControlIconImage(name: PanelControlIcon.expand, side: 18)
                         .frame(width: 26, height: 26)
                         .contentShape(Circle())
                 }
@@ -235,15 +257,15 @@ struct PulsePanelView: View {
 
         return HStack {
             Button(action: togglePinnedPanel) {
-                Label(
-                    strings.text(isPinned ? .unpinPanel : .pinPanel),
-                    systemImage: isPinned ? "pin.fill" : "pin"
+                PanelControlIconImage(
+                    name: isPinned ? PanelControlIcon.pinFilled : PanelControlIcon.pin,
+                    side: 18
                 )
-                .font(.system(size: 12, weight: .medium))
                 .frame(width: 20, height: 20)
             }
             .labelStyle(.iconOnly)
             .help(strings.text(isPinned ? .unpinPanel : .pinPanel))
+            .accessibilityLabel(strings.text(isPinned ? .unpinPanel : .pinPanel))
 
             if let update = updateController.availableUpdate {
                 Button {
@@ -258,10 +280,12 @@ struct PulsePanelView: View {
 
             if presentation == .pinned {
                 Button(action: collapseAction) {
-                    Label(strings.text(.minimalPanel), systemImage: "arrow.down.right.and.arrow.up.left")
+                    PanelControlIconImage(name: PanelControlIcon.minimize, side: 18)
+                        .frame(width: 20, height: 20)
                 }
                 .labelStyle(.iconOnly)
                 .help(strings.text(.minimalPanel))
+                .accessibilityLabel(strings.text(.minimalPanel))
             }
 
             Spacer()
@@ -270,22 +294,22 @@ struct PulsePanelView: View {
                 NSApplication.shared.activate(ignoringOtherApps: true)
                 openSettings()
             } label: {
-                Label(strings.text(.settings), systemImage: "gear")
-                    .font(.system(size: 14, weight: .medium))
+                PanelControlIconImage(name: PanelControlIcon.settings, side: 18)
                     .frame(width: 20, height: 20)
             }
             .labelStyle(.iconOnly)
             .help(strings.text(.settingsHelp))
+            .accessibilityLabel(strings.text(.settings))
 
             Button {
                 NSApplication.shared.terminate(nil)
             } label: {
-                Label(strings.text(.quit), systemImage: "power")
-                    .font(.system(size: 14, weight: .medium))
+                PanelControlIconImage(name: PanelControlIcon.power, side: 18)
                     .frame(width: 20, height: 20)
             }
             .labelStyle(.iconOnly)
             .help(strings.text(.quitHelp))
+            .accessibilityLabel(strings.text(.quit))
         }
         .frame(height: PulsePanelLayout.footerHeight, alignment: .center)
     }
@@ -382,11 +406,6 @@ struct PulsePanelView: View {
             }
             .frame(height: PulsePanelLayout.signalCardHeight)
 
-            PressureExplanationRow(
-                text: strings.pressureExplanation(snapshot.memory),
-                level: snapshot.memory.pressureLevel
-            )
-            .frame(height: PulsePanelLayout.pressureRowHeight)
         }
         .frame(height: PulsePanelLayout.signalGridHeight)
     }
@@ -490,9 +509,7 @@ private struct SignalCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 6) {
-                Circle()
-                    .fill(tint)
-                    .frame(width: 6, height: 6)
+                PixelLegendMarker(tint: tint)
 
                 Text(title)
                     .font(.system(.caption, design: .rounded, weight: .medium))
@@ -515,6 +532,17 @@ private struct SignalCard: View {
         .padding(10)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+}
+
+private struct PixelLegendMarker: View {
+    var tint: Color
+
+    var body: some View {
+        Rectangle()
+            .fill(tint)
+            .frame(width: 8, height: 8)
+            .accessibilityHidden(true)
     }
 }
 
@@ -879,44 +907,6 @@ private enum ProcessUsagePalette {
             Color(red: 0.56, green: 0.58, blue: 0.60).opacity(0.92)
         default:
             Color.secondary.opacity(0.72)
-        }
-    }
-}
-
-private struct PressureExplanationRow: View {
-    var text: String
-    var level: PressureLevel
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            Circle()
-                .fill(tint)
-                .frame(width: 6, height: 6)
-                .padding(.top, 5)
-
-            Text(text)
-                .font(.system(.caption, design: .rounded, weight: .medium))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .truncationMode(.tail)
-
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.quaternary.opacity(0.28), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .accessibilityLabel(text)
-    }
-
-    private var tint: Color {
-        switch level {
-        case .nominal:
-            .green
-        case .elevated:
-            .yellow
-        case .high:
-            .orange
         }
     }
 }

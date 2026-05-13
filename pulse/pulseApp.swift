@@ -41,6 +41,7 @@ struct PulseApp: App {
                 .environment(\.pulsePanelPinAction) {
                     pinnedPanelController.toggle(store: store, updateController: updateController)
                 }
+                .pulsePreferredAppearance(store)
         }
         .menuBarExtraStyle(.window)
 
@@ -48,6 +49,7 @@ struct PulseApp: App {
             PulseSettingsView()
                 .environment(store)
                 .environment(updateController)
+                .pulsePreferredAppearance(store)
         }
     }
 

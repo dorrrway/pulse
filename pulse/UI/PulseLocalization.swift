@@ -244,7 +244,7 @@ nonisolated struct PulseStrings: Sendable {
         case (.english, .requiresInstalledApplication):
             "Install Pulse in /Applications or ~/Applications before enabling launch at login."
         case (.chinese, .requiresInstalledApplication):
-            "请先将 Pulse 安装到 /Applications 或 ~/Applications，再开启登录时打开。"
+            "请先将 Pulse 安装到 /Applications 或 ~/Applications，再开启开机启动。"
         case (_, .serviceError(let message)):
             message
         }
@@ -356,6 +356,11 @@ extension PulseStrings {
         case collecting
         case language
         case languageDescription
+        case appearance
+        case lightMode
+        case darkMode
+        case contactUs
+        case pulseWebsite
         case startup
         case launchAtLogin
         case launchAtLoginDescription
@@ -436,6 +441,16 @@ private extension PulseStrings {
             "Language"
         case .languageDescription:
             "Choose the language Pulse uses in its menu and settings."
+        case .appearance:
+            "Appearance"
+        case .lightMode:
+            "Light"
+        case .darkMode:
+            "Dark"
+        case .contactUs:
+            "Contact"
+        case .pulseWebsite:
+            "Pulse Website"
         case .startup:
             "Startup"
         case .launchAtLogin:
@@ -523,10 +538,20 @@ private extension PulseStrings {
             "语言"
         case .languageDescription:
             "选择 Pulse 菜单和设置使用的语言。"
+        case .appearance:
+            "外观"
+        case .lightMode:
+            "浅色模式"
+        case .darkMode:
+            "深色模式"
+        case .contactUs:
+            "联系我们"
+        case .pulseWebsite:
+            "Pulse 官网"
         case .startup:
             "启动"
         case .launchAtLogin:
-            "登录时打开"
+            "开机启动"
         case .launchAtLoginDescription:
             "登录 macOS 后自动保持 Pulse 可用。"
         case .loginItemStatus:

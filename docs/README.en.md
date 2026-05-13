@@ -66,6 +66,15 @@ See [Privacy Policy](PRIVACY.en.md) for details.
 
 ### Unreleased
 
+- Added an Appearance setting below Language with System, Light, and Dark options; System remains the default.
+- Fixed open menu panels, floating panels, and settings windows not updating when the Appearance setting changes.
+- Updated the two pin states to the pinned-series 18 pt custom PDF template icons, kept the minimize, expand, settings, and quit buttons on matching custom icons, and preserved the existing button sizes and semantics.
+- Changed the full panel summary-card markers from dots to pixel blocks, and removed the bottom memory note that duplicated the memory-pressure card.
+- Updated the Chinese settings label from “Open at login” to “开机启动”.
+- Fixed settings window being sent behind frontmost windows when opened from the menu bar interface.
+- Simplified the startup and language settings sections by removing redundant section titles and helper copy, keeping an inline language label, and showing login item status only when attention is needed.
+- Added a new Contact row below language settings with an icon link to the Pulse website.
+- Changed the main resource panel refresh interval from 2 seconds to 1 second for more responsive network rate, CPU, memory, and disk I/O feedback; process usage rankings still refresh less frequently to limit always-on overhead.
 - Added Sparkle updates: when a new version is available, the full panel footer shows an Update button that downloads, verifies, and installs the update.
 - Moved the Update button next to the pin button as a text-only blue button, and removed the footer's monitoring-only status label.
 - Fixed a crash that could occur when clicking the pin button because the floating panel was missing the update-state environment.

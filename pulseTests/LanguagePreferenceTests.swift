@@ -1,3 +1,4 @@
+import SwiftUI
 import XCTest
 @testable import pulse
 
@@ -12,6 +13,18 @@ final class LanguagePreferenceTests: XCTestCase {
         )
 
         XCTAssertEqual(store.languagePreference, .system)
+    }
+
+    func testDefaultsToSystemAppearancePreference() {
+        let defaults = makeUserDefaults()
+        let store = PulseStore(
+            userDefaults: defaults,
+            launchAtLoginService: makeLoginItemService(),
+            reconcileLaunchAtLogin: false
+        )
+
+        XCTAssertEqual(store.appearancePreference, .system)
+        XCTAssertNil(store.appearancePreference.colorScheme)
     }
 
     func testTrimsConfiguredDeviceName() {
@@ -42,6 +55,25 @@ final class LanguagePreferenceTests: XCTestCase {
             reconcileLaunchAtLogin: false
         )
         XCTAssertEqual(reloadedStore.languagePreference, .chinese)
+    }
+
+    func testPersistsSelectedAppearancePreference() {
+        let defaults = makeUserDefaults()
+        let store = PulseStore(
+            userDefaults: defaults,
+            launchAtLoginService: makeLoginItemService(),
+            reconcileLaunchAtLogin: false
+        )
+
+        store.appearancePreference = .dark
+
+        let reloadedStore = PulseStore(
+            userDefaults: defaults,
+            launchAtLoginService: makeLoginItemService(),
+            reconcileLaunchAtLogin: false
+        )
+        XCTAssertEqual(reloadedStore.appearancePreference, .dark)
+        XCTAssertEqual(reloadedStore.appearancePreference.colorScheme, .dark)
     }
 
     func testDefaultsLaunchAtLoginToEnabled() {
@@ -107,6 +139,10 @@ final class LanguagePreferenceTests: XCTestCase {
     func testLanguageStringsResolveEnglishAndChineseText() {
         XCTAssertEqual(PulseStrings(language: .english).text(.language), "Language")
         XCTAssertEqual(PulseStrings(language: .chinese).text(.language), "语言")
+        XCTAssertEqual(PulseStrings(language: .english).text(.appearance), "Appearance")
+        XCTAssertEqual(PulseStrings(language: .chinese).text(.appearance), "外观")
+        XCTAssertEqual(PulseStrings(language: .chinese).text(.lightMode), "浅色模式")
+        XCTAssertEqual(PulseStrings(language: .chinese).text(.darkMode), "深色模式")
         XCTAssertEqual(PulseStrings(language: .english).text(.thisMac), "This Mac")
         XCTAssertEqual(PulseStrings(language: .chinese).text(.thisMac), "这台 Mac")
         XCTAssertEqual(PulseStrings(language: .english).text(.monitorOnly), "Monitoring only")
@@ -166,7 +202,7 @@ final class LanguagePreferenceTests: XCTestCase {
 
     func testLaunchAtLoginStringsResolveEnglishAndChineseText() {
         XCTAssertEqual(PulseStrings(language: .english).text(.launchAtLogin), "Open at login")
-        XCTAssertEqual(PulseStrings(language: .chinese).text(.launchAtLogin), "登录时打开")
+        XCTAssertEqual(PulseStrings(language: .chinese).text(.launchAtLogin), "开机启动")
         XCTAssertEqual(PulseStrings(language: .english).loginItemStatus(.requiresApproval), "Requires approval")
         XCTAssertEqual(PulseStrings(language: .chinese).loginItemStatus(.enabled), "已开启")
         XCTAssertEqual(PulseStrings(language: .english).updateButtonTitle(), "Update")

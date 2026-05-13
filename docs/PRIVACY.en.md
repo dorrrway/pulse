@@ -43,4 +43,4 @@ Pulse does not send app analytics, telemetry, system metrics, or Sparkle system 
 
 ## Local Preferences
 
-Pulse may store local preferences, such as language and launch-at-login settings, using macOS local storage.
+Pulse may store local preferences, such as language, appearance, and launch-at-login settings, using macOS local storage.
