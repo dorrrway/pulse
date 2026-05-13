@@ -61,6 +61,7 @@ struct PulsePanelView: View {
     var expandAction: () -> Void = {}
 
     @Environment(PulseStore.self) private var store
+    @Environment(\.openSettings) private var openSettings
     @Environment(\.pulsePanelPresentation) private var presentation
     @Environment(\.pulsePanelIsPinned) private var isPinned
     @Environment(\.pulsePanelPinAction) private var pinAction
@@ -238,6 +239,8 @@ struct PulsePanelView: View {
                     strings.text(isPinned ? .unpinPanel : .pinPanel),
                     systemImage: isPinned ? "pin.fill" : "pin"
                 )
+                .font(.system(size: 12, weight: .medium))
+                .frame(width: 20, height: 20)
             }
             .labelStyle(.iconOnly)
             .help(strings.text(isPinned ? .unpinPanel : .pinPanel))
@@ -263,8 +266,13 @@ struct PulsePanelView: View {
 
             Spacer()
 
-            SettingsLink {
-                Label(strings.text(.settings), systemImage: "gearshape")
+            Button {
+                NSApplication.shared.activate(ignoringOtherApps: true)
+                openSettings()
+            } label: {
+                Label(strings.text(.settings), systemImage: "gear")
+                    .font(.system(size: 14, weight: .medium))
+                    .frame(width: 20, height: 20)
             }
             .labelStyle(.iconOnly)
             .help(strings.text(.settingsHelp))
@@ -273,6 +281,8 @@ struct PulsePanelView: View {
                 NSApplication.shared.terminate(nil)
             } label: {
                 Label(strings.text(.quit), systemImage: "power")
+                    .font(.system(size: 14, weight: .medium))
+                    .frame(width: 20, height: 20)
             }
             .labelStyle(.iconOnly)
             .help(strings.text(.quitHelp))
