@@ -1,6 +1,6 @@
 # 发布与文档规则
 
-最后更新：2026 年 5 月 13 日
+最后更新：2026 年 5 月 14 日
 
 本文件是 Pulse 的发布前检查规则。以后任何代码、文档、安装包或 GitHub 发布相关工作，都必须先按这里检查。
 
@@ -49,6 +49,24 @@
 - 中文 README 和英文 README 的版本标题、发布日期、变更范围必须保持一致。
 - 发布包生成后，对应版本说明必须补充下载链接和 SHA-256 校验值；GitHub README 上的发布说明也必须使用相同版本号和发布日期。
 - 纯内部重构、测试补充或无用户可见变化的文档维护，可以不写更新日志，但最终说明要说明判断理由。
+
+## 版本号策略
+
+Pulse 使用 `MAJOR.MINOR.PATCH` 作为用户可见版本号，也就是 Xcode 的 `MARKETING_VERSION` 和 appcast 的 `sparkle:shortVersionString`。
+
+- `PATCH`：修复 bug、性能优化、阈值微调、发布脚本修正、文案修正，且不改变主要功能、隐私边界、系统要求或用户对产品行为的理解。例如 `1.1.0` 之后的实时性能优化发布为 `1.1.1`。
+- `MINOR`：新增用户可见能力或完整交互流程，例如新的监控模块、面板模式、设置项、更新能力、安装体验或可见数据口径，但仍保持当前产品模型和兼容性。
+- `MAJOR`：重大产品结构变化、兼容性变化、最低系统要求显著变化、隐私或权限边界明显变化，或需要用户重新理解 Pulse 的核心行为。
+
+每次公开发布都必须递增内部构建号，也就是 Xcode 的 `CURRENT_PROJECT_VERSION` 和 appcast 的 `sparkle:version`。这个数字只用于更新顺序判断，不代表用户可见语义；它必须单调递增，不能回退、复用或跳过已发布产物的值。
+
+发布时必须保持以下值一致：
+
+- `MARKETING_VERSION`
+- `CURRENT_PROJECT_VERSION`
+- `appcast.xml` 中对应条目的 `sparkle:shortVersionString`
+- `appcast.xml` 中对应条目的 `sparkle:version`
+- Git tag、GitHub Release 名称、DMG 文件名、README 下载链接和 SHA-256 说明
 
 ## 发布前验证
 

@@ -518,6 +518,7 @@ private struct ProcessLeadersView: View {
                 emptyText: strings.text(.collecting),
                 value: { ResourceFormatters.processPercentage($0.cpuPercentage) },
                 valueColor: { ProcessUsageValueColor.cpu(for: $0.cpuPercentage) },
+                nameColor: { ProcessUsageValueColor.cpu(for: $0.cpuPercentage) },
                 share: \.cpuPercentage
             )
 
@@ -612,7 +613,7 @@ private struct SignalCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 6) {
-                PixelLegendMarker(tint: tint, isBreathing: isTintBreathing)
+                SignalLegendDot(tint: tint, isBreathing: isTintBreathing)
 
                 Text(title)
                     .font(.system(.caption, design: .rounded, weight: .medium))
@@ -740,7 +741,7 @@ private enum SignalStatusColor {
     }
 }
 
-private struct PixelLegendMarker: View {
+private struct SignalLegendDot: View {
     var tint: Color
     var isBreathing = false
 
@@ -748,7 +749,7 @@ private struct PixelLegendMarker: View {
     @State private var isBright = true
 
     var body: some View {
-        Rectangle()
+        Circle()
             .fill(tint.opacity(opacity))
             .frame(width: 8, height: 8)
             .animation(animation, value: isBright)
@@ -799,6 +800,7 @@ private struct ProcessUsageSection: View {
     var emptyText: String
     var value: (ProcessResourceUsage) -> String
     var valueColor: (ProcessResourceUsage) -> Color = { _ in .secondary }
+    var nameColor: (ProcessResourceUsage) -> Color = { _ in .primary }
     var share: (ProcessResourceUsage) -> Double
 
     var body: some View {
@@ -827,6 +829,7 @@ private struct ProcessUsageSection: View {
                                 appBundlePath: usage.appBundlePath,
                                 value: value(usage),
                                 valueColor: valueColor(usage),
+                                nameColor: nameColor(usage),
                                 height: Layout.rowHeight
                             )
                         }
@@ -852,6 +855,7 @@ private struct ProcessUsageRow: View {
     var appBundlePath: String?
     var value: String
     var valueColor: Color
+    var nameColor: Color
     var height: CGFloat
 
     var body: some View {
@@ -860,6 +864,7 @@ private struct ProcessUsageRow: View {
 
             Text(name)
                 .font(.system(.caption, design: .rounded, weight: .semibold))
+                .foregroundStyle(nameColor)
                 .lineLimit(1)
                 .truncationMode(.middle)
 
@@ -882,11 +887,11 @@ private enum ProcessUsageValueColor {
 
     static func cpu(for cpuPercentage: Double) -> Color {
         if cpuPercentage >= highCPUThreshold {
-            return Color(red: 0.86, green: 0.36, blue: 0.16)
+            return .orange
         }
 
         if cpuPercentage >= elevatedCPUThreshold {
-            return .orange
+            return .yellow
         }
 
         return .secondary

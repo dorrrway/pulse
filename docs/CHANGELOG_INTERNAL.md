@@ -32,11 +32,13 @@ verification notes that would make the public changelog too noisy.
 - Pixel share charts show the ranking composition and can open a detail popover.
 - CPU usage is multi-core aware, so values can exceed 100% when a process uses
   more than one core.
-- High process CPU values use warning colors: orange at 100% and a stronger
-  orange-red at 200%.
+- High process CPU values use the same staged warning colors for the process
+  name and value: yellow at 100% and orange at 200%.
 
 ### Status Cards
 
+- Signal cards now use small circular legend dots instead of square markers,
+  keeping the colored status indicator visually closer to native status dots.
 - Memory pressure marker colors are green for normal, yellow for elevated, and
   orange for high.
 - Memory pressure thresholds combine memory usage, swap, and compression:

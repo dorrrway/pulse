@@ -67,6 +67,7 @@ See [Privacy Policy](PRIVACY.en.md) for details.
 ### Unreleased
 
 - Moved update checks to the TimeLikeSilver-hosted appcast endpoint so update checks can aggregate runtime trends; requests still do not attach system metrics, files, process lists, app bundle paths, persistent tracking identifiers, or Sparkle system profiling data.
+- Refined full-panel status dots and CPU ranking warning colors so high-CPU app names and values use the same staged color feedback.
 
 ### 1.1.1 - 2026-05-14
 
