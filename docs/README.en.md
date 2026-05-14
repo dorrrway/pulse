@@ -58,11 +58,15 @@ This version includes the updater and checks for updates in the background. When
 
 Pulse reads local system metrics only, such as CPU, memory, disk, network byte counters, battery, thermal state, disk I/O, and the system's last boot time. To show usage rankings, Pulse also reads the names of running local processes, their CPU and memory usage, and local app bundle paths used to display app icons.
 
-Pulse requests the GitHub-hosted appcast to check for new versions and downloads a release archive when the user clicks Update. Pulse does not upload analytics, telemetry, files, personal data, system metrics, or Sparkle system profiling data to any server.
+Pulse requests the TimeLikeSilver-hosted appcast to check for new versions and downloads a release archive when the user clicks Update. This update-check request may be used to aggregate runtime trends, but it does not attach files, personal data, system metrics, process lists, app bundle paths, persistent tracking identifiers, or Sparkle system profiling data.
 
 See [Privacy Policy](PRIVACY.en.md) for details.
 
 ## Changelog
+
+### Unreleased
+
+- Moved update checks to the TimeLikeSilver-hosted appcast endpoint so update checks can aggregate runtime trends; requests still do not attach system metrics, files, process lists, app bundle paths, persistent tracking identifiers, or Sparkle system profiling data.
 
 ### 1.1.1 - 2026-05-14
 

@@ -35,7 +35,7 @@
 	<key>SUEnableSystemProfiling</key>
 	<false/>
 	<key>SUFeedURL</key>
-	<string>https://github.com/dorrrway/pulse/raw/refs/heads/main/appcast.xml</string>
+	<string>https://www.timelikesilver.com/apps/pulse/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>jEAIxFtZ7Pa6nn7C/qM3JQVkz8b/8GNjMJVr7q2qTzM=</string>
 </dict>

@@ -33,14 +33,14 @@ Pulse does not collect, store, or transmit:
 - Personal files
 - Contacts, photos, calendars, location, or clipboard data
 - Passwords, credentials, or Keychain contents
-- Analytics or telemetry
+- In-app behavior analytics or feature-usage telemetry
 - Device serial numbers or persistent tracking identifiers
 
 ## Network Usage
 
-Pulse requests the GitHub-hosted appcast over HTTPS to check whether a new version is available. When the user clicks Update, Pulse downloads the matching release archive and Sparkle verifies its signature before installation.
+Pulse requests the TimeLikeSilver-hosted appcast over HTTPS to check whether a new version is available. When the user clicks Update, Pulse downloads the matching release archive and Sparkle verifies its signature before installation.
 
-Pulse does not send app analytics, telemetry, system metrics, or Sparkle system profiling data to any server. Update checks do not attach CPU, memory, device model, system boot time, process list, app bundle paths, or other local monitoring data.
+As with ordinary HTTPS requests, the appcast request may be processed with standard request metadata such as IP address, user agent, request time, and requested path. TimeLikeSilver may use these requests for security, operations, and aggregate update-check counts to understand Pulse runtime trends. Update checks do not attach CPU, memory, device model, system boot time, process list, app bundle paths, file contents, or Sparkle system profiling data.
 
 ## Local Preferences
 
