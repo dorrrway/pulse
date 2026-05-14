@@ -3,6 +3,19 @@
     <channel>
         <title>Pulse</title>
         <item>
+            <title>1.1.2</title>
+            <pubDate>Thu, 14 May 2026 14:13:40 +0800</pubDate>
+            <sparkle:version>4</sparkle:version>
+            <sparkle:shortVersionString>1.1.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[# Pulse 1.1.2
+
+- Moved update checks to the TimeLikeSilver-hosted appcast endpoint.
+- Refined full-panel status dots and CPU ranking warning colors.
+]]></description>
+            <enclosure url="https://github.com/dorrrway/pulse/releases/download/v1.1.2/Pulse-1.1.2.dmg" length="3178256" type="application/octet-stream" sparkle:edSignature="F1irB/MHw6iAiv3Mq5hWLXzPyXTX3oR0VmSbZCJtR/u7DU9/JjwQE/7xIim7eMoyLjwI8RpmpQp65VOD8lYeBQ=="/>
+        </item>
+        <item>
             <title>1.1.1</title>
             <pubDate>Thu, 14 May 2026 12:21:52 +0800</pubDate>
             <sparkle:version>3</sparkle:version>

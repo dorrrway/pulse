@@ -5,6 +5,24 @@ This file is for maintainers. Keep the public changelog in `README.md` and
 implementation context, product decisions, privacy boundaries, thresholds, and
 verification notes that would make the public changelog too noisy.
 
+## 1.1.2 - 2026-05-14
+
+### Updates
+
+- Update checks now use the TimeLikeSilver-hosted appcast endpoint. The request
+  can be counted from website logs to estimate aggregate runtime trends without
+  adding app-side telemetry or Sparkle system profiling.
+
+### Process Rankings
+
+- High process CPU values use the same staged warning colors for the process
+  name and value: yellow at 100% and orange at 200%.
+
+### Status Cards
+
+- Signal cards now use small circular legend dots instead of square markers,
+  keeping the colored status indicator visually closer to native status dots.
+
 ## 1.1.0 - 2026-05-14
 
 ### Floating Panel
@@ -32,13 +50,9 @@ verification notes that would make the public changelog too noisy.
 - Pixel share charts show the ranking composition and can open a detail popover.
 - CPU usage is multi-core aware, so values can exceed 100% when a process uses
   more than one core.
-- High process CPU values use the same staged warning colors for the process
-  name and value: yellow at 100% and orange at 200%.
 
 ### Status Cards
 
-- Signal cards now use small circular legend dots instead of square markers,
-  keeping the colored status indicator visually closer to native status dots.
 - Memory pressure marker colors are green for normal, yellow for elevated, and
   orange for high.
 - Memory pressure thresholds combine memory usage, swap, and compression:

@@ -13,7 +13,7 @@
 </h3>
 
 <p align="center">
-  <img alt="release" src="https://img.shields.io/badge/release-v1.1.1-0A84FF">
+  <img alt="release" src="https://img.shields.io/badge/release-v1.1.2-0A84FF">
   <img alt="platform" src="https://img.shields.io/badge/platform-macOS-147EFB">
   <img alt="Swift" src="https://img.shields.io/badge/Swift-5-FA7343">
   <img alt="notarized" src="https://img.shields.io/badge/Developer%20ID-notarized-34C759">
@@ -29,18 +29,18 @@ Pulse is a lightweight macOS menu bar app for watching local system status at a 
 
 Latest release:
 
-- [Pulse 1.1.1](https://github.com/dorrrway/pulse/releases/tag/v1.1.1)
-- DMG: [Pulse-1.1.1.dmg](https://github.com/dorrrway/pulse/releases/download/v1.1.1/Pulse-1.1.1.dmg)
+- [Pulse 1.1.2](https://github.com/dorrrway/pulse/releases/tag/v1.1.2)
+- DMG: [Pulse-1.1.2.dmg](https://github.com/dorrrway/pulse/releases/download/v1.1.2/Pulse-1.1.2.dmg)
 
 SHA-256:
 
 ```text
-35d5fe1d71f27e810fedc5286dc4625857edad2c6bb91dd99f4ce537816b4e13  Pulse-1.1.1.dmg
+aac8429ff0a48e4f44767e95ca9d42a205e13f9138e31016d9d35dfb9a6b0726  Pulse-1.1.2.dmg
 ```
 
 ## Installation
 
-1. Download `Pulse-1.1.1.dmg`.
+1. Download `Pulse-1.1.2.dmg`.
 2. Open the DMG.
 3. Drag `Pulse.app` to Applications.
 4. Launch Pulse from Applications.
@@ -66,8 +66,11 @@ See [Privacy Policy](PRIVACY.en.md) for details.
 
 ### Unreleased
 
+### 1.1.2 - 2026-05-14
+
 - Moved update checks to the TimeLikeSilver-hosted appcast endpoint so update checks can aggregate runtime trends; requests still do not attach system metrics, files, process lists, app bundle paths, persistent tracking identifiers, or Sparkle system profiling data.
 - Refined full-panel status dots and CPU ranking warning colors so high-CPU app names and values use the same staged color feedback.
+- Release archive: [Pulse-1.1.2.dmg](https://github.com/dorrrway/pulse/releases/download/v1.1.2/Pulse-1.1.2.dmg); SHA-256: `aac8429ff0a48e4f44767e95ca9d42a205e13f9138e31016d9d35dfb9a6b0726`.
 
 ### 1.1.1 - 2026-05-14
 
