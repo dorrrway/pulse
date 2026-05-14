@@ -3,6 +3,19 @@
     <channel>
         <title>Pulse</title>
         <item>
+            <title>1.1.1</title>
+            <pubDate>Thu, 14 May 2026 12:21:52 +0800</pubDate>
+            <sparkle:version>3</sparkle:version>
+            <sparkle:shortVersionString>1.1.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[# Pulse 1.1.1
+
+- Adjusted the high-activity threshold for disk I/O.
+- Reduced Pulse's own refresh overhead without slowing real-time CPU, memory, network, or disk I/O updates.
+]]></description>
+            <enclosure url="https://github.com/dorrrway/pulse/releases/download/v1.1.1/Pulse-1.1.1.dmg" length="3177194" type="application/octet-stream" sparkle:edSignature="NneYd1Kt5PtCQX/zCF2AIvUEQmYyPdXzHSZAeoh9thcKRh03Ij2N5RxaDSHpZHgVYA61YXMT+WOkhVMbfsrRDw=="/>
+        </item>
+        <item>
             <title>1.1.0</title>
             <pubDate>Thu, 14 May 2026 03:23:33 +0800</pubDate>
             <sparkle:version>2</sparkle:version>

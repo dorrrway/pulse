@@ -13,7 +13,7 @@
 </h3>
 
 <p align="center">
-  <img alt="release" src="https://img.shields.io/badge/release-v1.1.0-0A84FF">
+  <img alt="release" src="https://img.shields.io/badge/release-v1.1.1-0A84FF">
   <img alt="platform" src="https://img.shields.io/badge/platform-macOS-147EFB">
   <img alt="Swift" src="https://img.shields.io/badge/Swift-5-FA7343">
   <img alt="notarized" src="https://img.shields.io/badge/Developer%20ID-notarized-34C759">
@@ -29,18 +29,18 @@ Pulse is a lightweight macOS menu bar app for watching local system status at a 
 
 Latest release:
 
-- [Pulse 1.1.0](https://github.com/dorrrway/pulse/releases/tag/v1.1.0)
-- DMG: [Pulse-1.1.0.dmg](https://github.com/dorrrway/pulse/releases/download/v1.1.0/Pulse-1.1.0.dmg)
+- [Pulse 1.1.1](https://github.com/dorrrway/pulse/releases/tag/v1.1.1)
+- DMG: [Pulse-1.1.1.dmg](https://github.com/dorrrway/pulse/releases/download/v1.1.1/Pulse-1.1.1.dmg)
 
 SHA-256:
 
 ```text
-2471325f129688fb0174b5644233b7a8b697dd9c3c31a8dbe0cff6e274aa1cf0  Pulse-1.1.0.dmg
+35d5fe1d71f27e810fedc5286dc4625857edad2c6bb91dd99f4ce537816b4e13  Pulse-1.1.1.dmg
 ```
 
 ## Installation
 
-1. Download `Pulse-1.1.0.dmg`.
+1. Download `Pulse-1.1.1.dmg`.
 2. Open the DMG.
 3. Drag `Pulse.app` to Applications.
 4. Launch Pulse from Applications.
@@ -64,7 +64,7 @@ See [Privacy Policy](PRIVACY.en.md) for details.
 
 ## Changelog
 
-### Unreleased
+### 1.1.1 - 2026-05-14
 
 - Adjusted the high-activity threshold for disk I/O and reduced Pulse's own refresh overhead without slowing real-time CPU, memory, network, or disk I/O updates.
 
