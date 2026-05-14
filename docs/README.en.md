@@ -15,7 +15,7 @@
 <p align="center">
   <img alt="release" src="https://img.shields.io/badge/release-v1.1.2-0A84FF">
   <img alt="platform" src="https://img.shields.io/badge/platform-macOS-147EFB">
-  <img alt="Swift" src="https://img.shields.io/badge/Swift-5-FA7343">
+  <img alt="Swift" src="https://img.shields.io/badge/Swift-6-FA7343">
   <img alt="notarized" src="https://img.shields.io/badge/Developer%20ID-notarized-34C759">
 </p>
 

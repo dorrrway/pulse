@@ -2,8 +2,8 @@ import SwiftUI
 import XCTest
 @testable import pulse
 
-@MainActor
 final class LanguagePreferenceTests: XCTestCase {
+    @MainActor
     func testDefaultsToSystemLanguagePreference() {
         let defaults = makeUserDefaults()
         let store = PulseStore(
@@ -15,6 +15,7 @@ final class LanguagePreferenceTests: XCTestCase {
         XCTAssertEqual(store.languagePreference, .system)
     }
 
+    @MainActor
     func testDefaultsToSystemAppearancePreference() {
         let defaults = makeUserDefaults()
         let store = PulseStore(
@@ -27,6 +28,7 @@ final class LanguagePreferenceTests: XCTestCase {
         XCTAssertNil(store.appearancePreference.colorScheme)
     }
 
+    @MainActor
     func testTrimsConfiguredDeviceName() {
         let defaults = makeUserDefaults()
         let store = PulseStore(
@@ -39,6 +41,7 @@ final class LanguagePreferenceTests: XCTestCase {
         XCTAssertEqual(store.deviceName, "Studio Mac")
     }
 
+    @MainActor
     func testPersistsSelectedLanguagePreference() {
         let defaults = makeUserDefaults()
         let store = PulseStore(
@@ -57,6 +60,7 @@ final class LanguagePreferenceTests: XCTestCase {
         XCTAssertEqual(reloadedStore.languagePreference, .chinese)
     }
 
+    @MainActor
     func testPersistsSelectedAppearancePreference() {
         let defaults = makeUserDefaults()
         let store = PulseStore(
@@ -76,6 +80,7 @@ final class LanguagePreferenceTests: XCTestCase {
         XCTAssertEqual(reloadedStore.appearancePreference.colorScheme, .dark)
     }
 
+    @MainActor
     func testDefaultsLaunchAtLoginToEnabled() {
         let defaults = makeUserDefaults()
         let store = PulseStore(
@@ -87,6 +92,7 @@ final class LanguagePreferenceTests: XCTestCase {
         XCTAssertTrue(store.launchAtLogin)
     }
 
+    @MainActor
     func testPersistsLaunchAtLoginPreferenceAndAppliesServiceState() {
         let defaults = makeUserDefaults()
         var appliedValues: [Bool] = []
@@ -115,6 +121,7 @@ final class LanguagePreferenceTests: XCTestCase {
         XCTAssertNil(store.launchAtLoginError)
     }
 
+    @MainActor
     func testLaunchAtLoginErrorKeepsPreferredStateVisible() {
         let defaults = makeUserDefaults()
         let service = makeLoginItemService(
@@ -136,6 +143,7 @@ final class LanguagePreferenceTests: XCTestCase {
         XCTAssertEqual(store.launchAtLoginError, .requiresInstalledApplication)
     }
 
+    @MainActor
     func testLanguageStringsResolveEnglishAndChineseText() {
         XCTAssertEqual(PulseStrings(language: .english).text(.language), "Language")
         XCTAssertEqual(PulseStrings(language: .chinese).text(.language), "语言")
@@ -256,6 +264,7 @@ final class LanguagePreferenceTests: XCTestCase {
         XCTAssertEqual(PulseStrings(language: .chinese).diskIOExplanation(diskIO), "磁盘 I/O：读取 51 KB/s，写入 243 KB/s。")
     }
 
+    @MainActor
     func testRuntimeSummaryUsesBootElapsedTime() {
         let runtime = SystemRuntimeUsage(
             bootedAt: Date(timeIntervalSince1970: 1_777_777_777),
@@ -268,6 +277,7 @@ final class LanguagePreferenceTests: XCTestCase {
         XCTAssertEqual(PulseStrings(language: .chinese).runtimeSummary(.empty), "开机时长暂不可用")
     }
 
+    @MainActor
     func testLaunchAtLoginStringsResolveEnglishAndChineseText() {
         XCTAssertEqual(PulseStrings(language: .english).text(.launchAtLogin), "Open at login")
         XCTAssertEqual(PulseStrings(language: .chinese).text(.launchAtLogin), "开机启动")
@@ -281,6 +291,7 @@ final class LanguagePreferenceTests: XCTestCase {
         )
     }
 
+    @MainActor
     private func makeUserDefaults() -> UserDefaults {
         let suiteName = "pulse.tests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -288,6 +299,7 @@ final class LanguagePreferenceTests: XCTestCase {
         return defaults
     }
 
+    @MainActor
     private func makeLoginItemService(
         status: PulseLoginItemStatus = .enabled,
         apply: @escaping @MainActor (Bool) throws -> PulseLoginItemStatus = { enabled in

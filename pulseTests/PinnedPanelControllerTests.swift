@@ -1,8 +1,8 @@
 import XCTest
 @testable import pulse
 
-@MainActor
 final class PinnedPanelControllerTests: XCTestCase {
+    @MainActor
     func testPinnedPanelReceivesUpdateControllerEnvironment() {
         let controller = PulsePinnedPanelController()
         let store = PulseStore(
@@ -20,6 +20,7 @@ final class PinnedPanelControllerTests: XCTestCase {
         XCTAssertTrue(controller.isPresented)
     }
 
+    @MainActor
     private func makeUserDefaults() -> UserDefaults {
         let suiteName = "pulse.tests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -27,6 +28,7 @@ final class PinnedPanelControllerTests: XCTestCase {
         return defaults
     }
 
+    @MainActor
     private func makeLoginItemService() -> PulseLoginItemService {
         PulseLoginItemService(
             currentStatus: { .enabled },
