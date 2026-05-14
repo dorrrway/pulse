@@ -6,6 +6,7 @@ import IOKit.ps
 actor SystemSampler {
     private let processPathBufferSize = 4096
     private let processSampleInterval: TimeInterval = 6
+    private let processCandidateLimit = 32
     private let processCPUTimebase = ProcessCPUTimebase.current
 
     private var previousCPUTicks: [UInt64]?
@@ -353,9 +354,13 @@ actor SystemSampler {
         processAppIdentityCache = processAppIdentityCache.filter { identity, _ in
             liveIdentities.contains(identity)
         }
-        latestProcessSnapshot = ProcessResourceSnapshot(
-            topCPU: [],
-            topMemory: processUsages(samples: samples, previousCPUTime: [:], interval: 0).topMemory
+        latestProcessSnapshot = Self.processResourceSnapshot(
+            samples: samples,
+            previousCPUTime: [:],
+            interval: 0,
+            timebase: processCPUTimebase,
+            candidateLimit: processCandidateLimit,
+            identityResolver: processAppIdentity(for:)
         )
     }
 
@@ -371,33 +376,64 @@ actor SystemSampler {
             liveIdentities.contains(identity)
         }
 
-        return processUsages(samples: samples, previousCPUTime: previousCPUTime, interval: interval)
+        return Self.processResourceSnapshot(
+            samples: samples,
+            previousCPUTime: previousCPUTime,
+            interval: interval,
+            timebase: processCPUTimebase,
+            candidateLimit: processCandidateLimit,
+            identityResolver: processAppIdentity(for:)
+        )
     }
 
-    private func processUsages(
+    nonisolated static func processResourceSnapshot(
         samples: [ProcessSample],
         previousCPUTime: [ProcessIdentity: UInt64],
-        interval: TimeInterval
+        interval: TimeInterval,
+        timebase: ProcessCPUTimebase,
+        candidateLimit: Int = 32,
+        identityResolver: (ProcessSample) -> ProcessAppIdentity
     ) -> ProcessResourceSnapshot {
-        let usages = samples
-            .reduce(into: [String: ProcessResourceAccumulator]()) { accumulators, sample in
+        let candidates = samples.map { sample in
                 let cpuPercentage: Double
                 if
                     interval > 0,
                     let previous = previousCPUTime[sample.identity],
                     sample.cpuTime >= previous
                 {
-                    let usedSeconds = processCPUTimebase.seconds(fromMachAbsoluteTime: sample.cpuTime - previous)
+                    let usedSeconds = timebase.seconds(fromMachAbsoluteTime: sample.cpuTime - previous)
                     cpuPercentage = max(usedSeconds / interval, 0)
                 } else {
                     cpuPercentage = 0
                 }
 
-                accumulators[sample.groupIdentifier, default: ProcessResourceAccumulator(
-                    identifier: sample.groupIdentifier,
-                    name: sample.displayName,
-                    appBundlePath: sample.appBundlePath
-                )].add(cpuPercentage: cpuPercentage, memoryBytes: sample.residentBytes)
+                return ProcessUsageCandidate(sample: sample, cpuPercentage: cpuPercentage)
+            }
+
+        let effectiveLimit = max(candidateLimit, ProcessResourceSnapshot.processLimit)
+        let cpuCandidates = candidates
+            .filter { $0.cpuPercentage > 0 }
+            .sorted(by: ProcessUsageCandidate.compareCPU)
+            .prefix(effectiveLimit)
+        let memoryCandidates = candidates
+            .filter { $0.sample.residentBytes > 0 }
+            .sorted(by: ProcessUsageCandidate.compareMemory)
+            .prefix(effectiveLimit)
+        let selectedIdentities = Set((Array(cpuCandidates) + Array(memoryCandidates)).map(\.sample.identity))
+
+        let usages = candidates
+            .filter { selectedIdentities.contains($0.sample.identity) }
+            .reduce(into: [String: ProcessResourceAccumulator]()) { accumulators, candidate in
+                let appIdentity = identityResolver(candidate.sample)
+
+                accumulators[appIdentity.identifier, default: ProcessResourceAccumulator(
+                    identifier: appIdentity.identifier,
+                    name: appIdentity.name,
+                    appBundlePath: appIdentity.appBundlePath
+                )].add(
+                    cpuPercentage: candidate.cpuPercentage,
+                    memoryBytes: candidate.sample.residentBytes
+                )
             }
             .values
             .map(\.usage)
@@ -449,31 +485,32 @@ actor SystemSampler {
             return nil
         }
 
-        let fallbackName = processName(pid: pid) ?? "Process \(pid)"
         let identity = ProcessIdentity(
             pid: pid,
             startSeconds: bsdInfo.pbi_start_tvsec,
             startMicroseconds: bsdInfo.pbi_start_tvusec
         )
-        let appIdentity: ProcessAppIdentity
-
-        if let cachedIdentity = processAppIdentityCache[identity] {
-            appIdentity = cachedIdentity
-        } else {
-            appIdentity = processAppIdentity(path: processPath(pid: pid), fallbackName: fallbackName)
-            processAppIdentityCache[identity] = appIdentity
-        }
-
         let cpuTime = taskInfo.pti_total_user.addingReportingOverflow(taskInfo.pti_total_system)
 
         return ProcessSample(
             identity: identity,
-            groupIdentifier: appIdentity.identifier,
-            displayName: appIdentity.name,
-            appBundlePath: appIdentity.appBundlePath,
+            fallbackName: processName(pid: pid) ?? "Process \(pid)",
             cpuTime: cpuTime.overflow ? taskInfo.pti_total_user : cpuTime.partialValue,
             residentBytes: Int64(clamping: taskInfo.pti_resident_size)
         )
+    }
+
+    private func processAppIdentity(for sample: ProcessSample) -> ProcessAppIdentity {
+        if let cachedIdentity = processAppIdentityCache[sample.identity] {
+            return cachedIdentity
+        }
+
+        let appIdentity = processAppIdentity(
+            path: processPath(pid: sample.identity.pid),
+            fallbackName: sample.fallbackName
+        )
+        processAppIdentityCache[sample.identity] = appIdentity
+        return appIdentity
     }
 
     private func processName(pid: pid_t) -> String? {
@@ -561,25 +598,44 @@ actor SystemSampler {
     }
 }
 
-private nonisolated struct ProcessIdentity: Hashable {
+nonisolated struct ProcessIdentity: Hashable {
     var pid: pid_t
     var startSeconds: UInt64
     var startMicroseconds: UInt64
 }
 
-private nonisolated struct ProcessAppIdentity {
+nonisolated struct ProcessAppIdentity {
     var identifier: String
     var name: String
     var appBundlePath: String?
 }
 
-private nonisolated struct ProcessSample {
+nonisolated struct ProcessSample {
     var identity: ProcessIdentity
-    var groupIdentifier: String
-    var displayName: String
-    var appBundlePath: String?
+    var fallbackName: String
     var cpuTime: UInt64
     var residentBytes: Int64
+}
+
+private nonisolated struct ProcessUsageCandidate {
+    var sample: ProcessSample
+    var cpuPercentage: Double
+
+    static func compareCPU(_ lhs: ProcessUsageCandidate, _ rhs: ProcessUsageCandidate) -> Bool {
+        if lhs.cpuPercentage == rhs.cpuPercentage {
+            return lhs.sample.fallbackName.localizedStandardCompare(rhs.sample.fallbackName) == .orderedAscending
+        }
+
+        return lhs.cpuPercentage > rhs.cpuPercentage
+    }
+
+    static func compareMemory(_ lhs: ProcessUsageCandidate, _ rhs: ProcessUsageCandidate) -> Bool {
+        if lhs.sample.residentBytes == rhs.sample.residentBytes {
+            return lhs.sample.fallbackName.localizedStandardCompare(rhs.sample.fallbackName) == .orderedAscending
+        }
+
+        return lhs.sample.residentBytes > rhs.sample.residentBytes
+    }
 }
 
 nonisolated struct ProcessCPUTimebase: Equatable, Sendable {

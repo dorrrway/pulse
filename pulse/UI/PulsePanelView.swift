@@ -188,41 +188,7 @@ struct PulsePanelView: View {
     }
 
     private func minimalPanel(strings: PulseStrings) -> some View {
-        VStack(alignment: .leading, spacing: PulsePanelLayout.metricRowSpacing) {
-            MetricGraphBlock(
-                title: strings.text(.cpu),
-                tint: .cyan,
-                progress: store.snapshot.cpu.percentage,
-                accessibilityValue: ResourceFormatters.percentage(store.snapshot.cpu.percentage)
-            )
-
-            MetricGraphBlock(
-                title: strings.text(.memory),
-                tint: .green,
-                progress: store.snapshot.memory.percentage,
-                accessibilityValue: ResourceFormatters.percentage(store.snapshot.memory.percentage)
-            )
-
-            MetricGraphBlock(
-                title: strings.text(.network),
-                tint: .indigo,
-                progress: ResourceScales.networkActivityProgress(
-                    bytesPerSecond: store.snapshot.network.incomingBytesPerSecond
-                        + store.snapshot.network.outgoingBytesPerSecond
-                ),
-                accessibilityValue: ResourceFormatters.byteRate(
-                    bytesPerSecond: store.snapshot.network.incomingBytesPerSecond
-                        + store.snapshot.network.outgoingBytesPerSecond
-                )
-            )
-
-            MetricGraphBlock(
-                title: strings.text(.disk),
-                tint: .orange,
-                progress: store.snapshot.disk.percentage,
-                accessibilityValue: ResourceFormatters.percentage(store.snapshot.disk.percentage)
-            )
-        }
+        MinimalMetricsContent(strings: strings)
         .padding(PulsePanelLayout.outerPadding)
         .frame(
             width: PulsePanelLayout.minimalContentWidth,
@@ -270,33 +236,7 @@ struct PulsePanelView: View {
     }
 
     private var header: some View {
-        let strings = store.strings
-
-        return HStack(spacing: 12) {
-            PixelGlyph(level: store.snapshot.cpu.percentage)
-                .frame(width: 36, height: 36)
-                .accessibilityHidden(true)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Pulse")
-                    .font(.system(.title3, design: .rounded, weight: .semibold))
-                    .lineLimit(1)
-
-                Text(store.deviceName ?? strings.text(.thisMac))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            Text(store.snapshot.capturedAt, style: .time)
-                .font(.system(.caption, design: .monospaced))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .fixedSize(horizontal: true, vertical: false)
-        }
-        .frame(height: PulsePanelLayout.headerHeight)
+        PulseHeaderView(strings: store.strings)
     }
 
     private var footer: some View {
@@ -360,71 +300,173 @@ struct PulsePanelView: View {
     }
 
     private func coreMetrics(strings: PulseStrings) -> some View {
+        CoreMetricsSection(strings: strings)
+    }
+
+    private func signalGrid(strings: PulseStrings) -> some View {
+        SignalGridSection(strings: strings)
+    }
+
+    private func processLeaders(strings: PulseStrings) -> some View {
+        ProcessLeadersView(strings: strings)
+    }
+}
+
+private struct PulseHeaderView: View {
+    var strings: PulseStrings
+
+    @Environment(PulseStore.self) private var store
+
+    var body: some View {
+        HStack(spacing: 12) {
+            PixelGlyph(level: store.coreMetrics.cpu.percentage)
+                .frame(width: 36, height: 36)
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Pulse")
+                    .font(.system(.title3, design: .rounded, weight: .semibold))
+                    .lineLimit(1)
+
+                Text(store.deviceName ?? strings.text(.thisMac))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Text(store.capturedAt, style: .time)
+                .font(.system(.caption, design: .monospaced))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+        }
+        .frame(height: PulsePanelLayout.headerHeight)
+    }
+}
+
+private struct MinimalMetricsContent: View {
+    var strings: PulseStrings
+
+    @Environment(PulseStore.self) private var store
+
+    var body: some View {
+        let metrics = store.coreMetrics
+        let networkBytesPerSecond = metrics.network.incomingBytesPerSecond
+            + metrics.network.outgoingBytesPerSecond
+
+        VStack(alignment: .leading, spacing: PulsePanelLayout.metricRowSpacing) {
+            MetricGraphBlock(
+                title: strings.text(.cpu),
+                tint: .cyan,
+                progress: metrics.cpu.percentage,
+                accessibilityValue: ResourceFormatters.percentage(metrics.cpu.percentage)
+            )
+
+            MetricGraphBlock(
+                title: strings.text(.memory),
+                tint: .green,
+                progress: metrics.memory.percentage,
+                accessibilityValue: ResourceFormatters.percentage(metrics.memory.percentage)
+            )
+
+            MetricGraphBlock(
+                title: strings.text(.network),
+                tint: .indigo,
+                progress: ResourceScales.networkActivityProgress(bytesPerSecond: networkBytesPerSecond),
+                accessibilityValue: ResourceFormatters.byteRate(bytesPerSecond: networkBytesPerSecond)
+            )
+
+            MetricGraphBlock(
+                title: strings.text(.disk),
+                tint: .orange,
+                progress: metrics.disk.percentage,
+                accessibilityValue: ResourceFormatters.percentage(metrics.disk.percentage)
+            )
+        }
+    }
+}
+
+private struct CoreMetricsSection: View {
+    var strings: PulseStrings
+
+    @Environment(PulseStore.self) private var store
+
+    var body: some View {
+        let metrics = store.coreMetrics
+
         VStack(spacing: PulsePanelLayout.metricRowSpacing) {
             MetricRow(
                 title: strings.text(.cpu),
-                value: ResourceFormatters.percentage(store.snapshot.cpu.percentage),
-                detail: strings.cores(store.snapshot.cpu.coreCount),
+                value: ResourceFormatters.percentage(metrics.cpu.percentage),
+                detail: strings.cores(metrics.cpu.coreCount),
                 tint: .cyan,
-                progress: store.snapshot.cpu.percentage
+                progress: metrics.cpu.percentage
             )
 
             MetricRow(
                 title: strings.text(.memory),
-                value: ResourceFormatters.percentage(store.snapshot.memory.percentage),
+                value: ResourceFormatters.percentage(metrics.memory.percentage),
                 detail: strings.memoryDetail(
-                    used: ResourceFormatters.byteString(bytes: store.snapshot.memory.usedBytes),
-                    total: ResourceFormatters.byteString(bytes: store.snapshot.memory.totalBytes)
+                    used: ResourceFormatters.byteString(bytes: metrics.memory.usedBytes),
+                    total: ResourceFormatters.byteString(bytes: metrics.memory.totalBytes)
                 ),
                 tint: .green,
-                progress: store.snapshot.memory.percentage
+                progress: metrics.memory.percentage
             )
 
             MetricRow(
                 title: strings.text(.network),
-                value: ResourceFormatters.byteRate(bytesPerSecond: store.snapshot.network.incomingBytesPerSecond),
+                value: ResourceFormatters.byteRate(bytesPerSecond: metrics.network.incomingBytesPerSecond),
                 detail: strings.networkUploadDetail(
-                    rate: ResourceFormatters.byteRate(bytesPerSecond: store.snapshot.network.outgoingBytesPerSecond)
+                    rate: ResourceFormatters.byteRate(bytesPerSecond: metrics.network.outgoingBytesPerSecond)
                 ),
                 tint: .indigo,
                 progress: ResourceScales.networkActivityProgress(
-                    bytesPerSecond: store.snapshot.network.incomingBytesPerSecond + store.snapshot.network.outgoingBytesPerSecond
+                    bytesPerSecond: metrics.network.incomingBytesPerSecond + metrics.network.outgoingBytesPerSecond
                 )
             )
 
             MetricRow(
                 title: strings.text(.disk),
-                value: ResourceFormatters.percentage(store.snapshot.disk.percentage),
-                detail: strings.diskFreeDetail(ResourceFormatters.storageByteString(bytes: store.snapshot.disk.availableBytes)),
+                value: ResourceFormatters.percentage(metrics.disk.percentage),
+                detail: strings.diskFreeDetail(ResourceFormatters.storageByteString(bytes: metrics.disk.availableBytes)),
                 tint: .orange,
-                progress: store.snapshot.disk.percentage
+                progress: metrics.disk.percentage
             )
         }
         .frame(height: PulsePanelLayout.coreMetricsHeight)
     }
+}
 
-    private func signalGrid(strings: PulseStrings) -> some View {
-        let snapshot = store.snapshot
-        let memoryPressureColor = SignalStatusColor.memoryPressure(snapshot.memory.pressureLevel)
-        let thermalColor = SignalStatusColor.thermal(snapshot.thermal.condition)
-        let powerColor = SignalStatusColor.power(snapshot.power)
-        let diskIOColor = SignalStatusColor.diskIO(snapshot.diskIO)
+private struct SignalGridSection: View {
+    var strings: PulseStrings
 
-        return VStack(spacing: PulsePanelLayout.signalSpacing) {
+    @Environment(PulseStore.self) private var store
+
+    var body: some View {
+        let metrics = store.signalMetrics
+        let memoryPressureColor = SignalStatusColor.memoryPressure(metrics.memory.pressureLevel)
+        let thermalColor = SignalStatusColor.thermal(metrics.thermal.condition)
+        let powerColor = SignalStatusColor.power(metrics.power)
+        let diskIOColor = SignalStatusColor.diskIO(metrics.diskIO)
+
+        VStack(spacing: PulsePanelLayout.signalSpacing) {
             HStack(spacing: PulsePanelLayout.signalSpacing) {
                 SignalCard(
                     title: strings.text(.memoryPressure),
-                    value: strings.pressure(snapshot.memory.pressureLevel),
-                    detail: strings.pressureDetail(snapshot.memory),
-                    helpText: strings.pressureExplanation(snapshot.memory),
+                    value: strings.pressure(metrics.memory.pressureLevel),
+                    detail: strings.pressureDetail(metrics.memory),
+                    helpText: strings.pressureExplanation(metrics.memory),
                     tint: memoryPressureColor
                 )
 
                 SignalCard(
                     title: strings.text(.thermal),
-                    value: strings.thermal(snapshot.thermal.condition),
-                    detail: strings.thermalDetail(snapshot.thermal),
-                    helpText: strings.thermalExplanation(snapshot.thermal),
+                    value: strings.thermal(metrics.thermal.condition),
+                    detail: strings.thermalDetail(metrics.thermal),
+                    helpText: strings.thermalExplanation(metrics.thermal),
                     tint: thermalColor
                 )
             }
@@ -433,18 +475,18 @@ struct PulsePanelView: View {
             HStack(spacing: PulsePanelLayout.signalSpacing) {
                 SignalCard(
                     title: strings.text(.power),
-                    value: strings.powerTitle(snapshot.power),
-                    detail: strings.powerDetail(snapshot.power),
-                    helpText: strings.powerExplanation(snapshot.power),
+                    value: strings.powerTitle(metrics.power),
+                    detail: strings.powerDetail(metrics.power),
+                    helpText: strings.powerExplanation(metrics.power),
                     tint: powerColor,
-                    isTintBreathing: SignalStatusColor.powerIsBreathing(snapshot.power)
+                    isTintBreathing: SignalStatusColor.powerIsBreathing(metrics.power)
                 )
 
                 SignalCard(
                     title: strings.text(.diskIO),
-                    value: "\(strings.text(.read)) \(ResourceFormatters.byteRate(bytesPerSecond: snapshot.diskIO.readBytesPerSecond))",
-                    detail: "\(strings.text(.write)) \(ResourceFormatters.byteRate(bytesPerSecond: snapshot.diskIO.writeBytesPerSecond))",
-                    helpText: strings.diskIOExplanation(snapshot.diskIO),
+                    value: "\(strings.text(.read)) \(ResourceFormatters.byteRate(bytesPerSecond: metrics.diskIO.readBytesPerSecond))",
+                    detail: "\(strings.text(.write)) \(ResourceFormatters.byteRate(bytesPerSecond: metrics.diskIO.writeBytesPerSecond))",
+                    helpText: strings.diskIOExplanation(metrics.diskIO),
                     tint: diskIOColor
                 )
             }
@@ -452,19 +494,27 @@ struct PulsePanelView: View {
 
             RuntimeSummaryRow(
                 title: strings.text(.systemRuntime),
-                text: strings.runtimeSummary(snapshot.runtime),
+                text: strings.runtimeSummary(metrics.runtime),
                 tint: .cyan
             )
             .frame(height: PulsePanelLayout.runtimeRowHeight)
         }
         .frame(height: PulsePanelLayout.signalGridHeight)
     }
+}
 
-    private func processLeaders(strings: PulseStrings) -> some View {
+private struct ProcessLeadersView: View {
+    var strings: PulseStrings
+
+    @Environment(PulseStore.self) private var store
+
+    var body: some View {
+        let processLeaders = store.processLeaders
+
         VStack(alignment: .leading, spacing: PulsePanelLayout.processSectionSpacing) {
             ProcessUsageSection(
                 title: strings.text(.topCPUProcesses),
-                entries: store.snapshot.processes.topCPU,
+                entries: processLeaders.topCPU,
                 emptyText: strings.text(.collecting),
                 value: { ResourceFormatters.processPercentage($0.cpuPercentage) },
                 valueColor: { ProcessUsageValueColor.cpu(for: $0.cpuPercentage) },
@@ -473,7 +523,7 @@ struct PulsePanelView: View {
 
             ProcessUsageSection(
                 title: strings.text(.topMemoryProcesses),
-                entries: store.snapshot.processes.topMemory,
+                entries: processLeaders.topMemory,
                 emptyText: strings.text(.collecting),
                 value: { ResourceFormatters.byteString(bytes: $0.memoryBytes) },
                 share: { Double(max($0.memoryBytes, 0)) }
@@ -626,6 +676,8 @@ private struct RuntimeSummaryRow: View {
 }
 
 private enum SignalStatusColor {
+    private static let activeDiskIOThresholdBytesPerSecond: Double = 50_000_000
+
     static func memoryPressure(_ level: PressureLevel) -> Color {
         switch level {
         case .nominal:
@@ -684,7 +736,7 @@ private enum SignalStatusColor {
 
     static func diskIO(_ usage: DiskIOUsage) -> Color {
         let totalBytesPerSecond = max(usage.readBytesPerSecond, 0) + max(usage.writeBytesPerSecond, 0)
-        return totalBytesPerSecond >= 5_000_000 ? .purple : .blue
+        return totalBytesPerSecond >= activeDiskIOThresholdBytesPerSecond ? .purple : .blue
     }
 }
 

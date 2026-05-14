@@ -64,6 +64,10 @@ See [Privacy Policy](PRIVACY.en.md) for details.
 
 ## Changelog
 
+### Unreleased
+
+- Adjusted the high-activity threshold for disk I/O and reduced Pulse's own refresh overhead without slowing real-time CPU, memory, network, or disk I/O updates.
+
 ### 1.1.0 - 2026-05-14
 
 - Added a pinnable floating panel and minimal mode for switching between the full status panel and a compact metrics view.

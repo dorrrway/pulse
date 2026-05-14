@@ -60,7 +60,14 @@ verification notes that would make the public changelog too noisy.
   - unknown battery percentage stays green because the system did not provide
     enough information for a severity decision.
 - Disk I/O card keeps visible `Read` / `Write` labels. The card marker reflects
-  activity: blue below 5 MB/s combined read/write, purple at or above 5 MB/s.
+  activity: blue below 50 MB/s combined read/write, purple at or above 50 MB/s.
+- Runtime sampling still runs at the 1-second cadence, but `PulseStore` now
+  publishes grouped visible-state changes instead of replacing one full
+  snapshot every tick. This keeps the panel feeling realtime while avoiding
+  broad SwiftUI invalidation when formatted values did not visibly change.
+- Process rankings keep the 6-second window, but path/bundle metadata is
+  resolved only for top CPU/memory candidates after lightweight pid, CPU time,
+  resident memory, and process-name sampling.
 - The four status cards use hover help and accessibility values for full
   descriptions instead of expanding the card or adding more visible text.
 

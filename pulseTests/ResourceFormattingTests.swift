@@ -124,4 +124,220 @@ final class ResourceFormattingTests: XCTestCase {
         XCTAssertEqual(timebase.seconds(fromMachAbsoluteTime: 24_000_000), 1, accuracy: 0.0001)
     }
 
+    func testProcessSnapshotResolvesAppIdentityOnlyForTopCandidates() {
+        let samples = [
+            ProcessSample(
+                identity: ProcessIdentity(pid: 101, startSeconds: 1, startMicroseconds: 0),
+                fallbackName: "App Main",
+                cpuTime: 6_000_000_000,
+                residentBytes: 400
+            ),
+            ProcessSample(
+                identity: ProcessIdentity(pid: 102, startSeconds: 1, startMicroseconds: 0),
+                fallbackName: "App Helper",
+                cpuTime: 3_000_000_000,
+                residentBytes: 500
+            ),
+            ProcessSample(
+                identity: ProcessIdentity(pid: 103, startSeconds: 1, startMicroseconds: 0),
+                fallbackName: "Background 1",
+                cpuTime: 1_000_000_000,
+                residentBytes: 100
+            ),
+            ProcessSample(
+                identity: ProcessIdentity(pid: 104, startSeconds: 1, startMicroseconds: 0),
+                fallbackName: "Background 2",
+                cpuTime: 900_000_000,
+                residentBytes: 90
+            ),
+            ProcessSample(
+                identity: ProcessIdentity(pid: 105, startSeconds: 1, startMicroseconds: 0),
+                fallbackName: "Background 3",
+                cpuTime: 800_000_000,
+                residentBytes: 80
+            ),
+            ProcessSample(
+                identity: ProcessIdentity(pid: 106, startSeconds: 1, startMicroseconds: 0),
+                fallbackName: "Background 4",
+                cpuTime: 700_000_000,
+                residentBytes: 70
+            ),
+            ProcessSample(
+                identity: ProcessIdentity(pid: 107, startSeconds: 1, startMicroseconds: 0),
+                fallbackName: "Background 5",
+                cpuTime: 600_000_000,
+                residentBytes: 60
+            ),
+            ProcessSample(
+                identity: ProcessIdentity(pid: 108, startSeconds: 1, startMicroseconds: 0),
+                fallbackName: "Background 6",
+                cpuTime: 500_000_000,
+                residentBytes: 50
+            ),
+        ]
+        let previousCPUTime = samples.reduce(into: [ProcessIdentity: UInt64]()) { result, sample in
+            result[sample.identity] = 0
+        }
+        var resolvedPIDs: [pid_t] = []
+
+        let snapshot = SystemSampler.processResourceSnapshot(
+            samples: samples,
+            previousCPUTime: previousCPUTime,
+            interval: 6,
+            timebase: ProcessCPUTimebase(numer: 1, denom: 1),
+            candidateLimit: 5
+        ) { sample in
+            resolvedPIDs.append(sample.identity.pid)
+
+            if sample.identity.pid == 101 || sample.identity.pid == 102 {
+                return ProcessAppIdentity(
+                    identifier: "bundle:com.example.app",
+                    name: "Example App",
+                    appBundlePath: "/Applications/Example.app"
+                )
+            }
+
+            return ProcessAppIdentity(
+                identifier: "process:\(sample.fallbackName)",
+                name: sample.fallbackName,
+                appBundlePath: nil
+            )
+        }
+
+        XCTAssertEqual(resolvedPIDs.sorted(), [101, 102, 103, 104, 105])
+        XCTAssertEqual(snapshot.topCPU.first?.identifier, "bundle:com.example.app")
+        XCTAssertEqual(snapshot.topCPU.first?.name, "Example App")
+        XCTAssertEqual(snapshot.topCPU.first?.appBundlePath, "/Applications/Example.app")
+        XCTAssertEqual(snapshot.topCPU.first?.cpuPercentage ?? 0, 1.5, accuracy: 0.0001)
+        XCTAssertEqual(snapshot.topMemory.first?.memoryBytes, 900)
+    }
+
+    func testStoreSkipsPublishingCoreMetricsWhenVisibleValuesDoNotChange() {
+        let previous = CoreMetricsSnapshot(
+            cpu: CPUUsage(percentage: 0.421, coreCount: 10),
+            memory: MemoryUsage(
+                totalBytes: 10_000,
+                usedBytes: 4_210,
+                availableBytes: 5_790,
+                compressedBytes: 0,
+                swapUsedBytes: 0,
+                swapTotalBytes: 0
+            ),
+            network: NetworkUsage(
+                incomingBytesPerSecond: 1_000.2,
+                outgoingBytesPerSecond: 2_000.2,
+                totalReceivedBytes: 0,
+                totalSentBytes: 0
+            ),
+            disk: DiskUsage(totalBytes: 100_000_000_000, availableBytes: 51_000_000_000)
+        )
+        let next = CoreMetricsSnapshot(
+            cpu: CPUUsage(percentage: 0.424, coreCount: 10),
+            memory: MemoryUsage(
+                totalBytes: 10_000,
+                usedBytes: 4_240,
+                availableBytes: 5_760,
+                compressedBytes: 0,
+                swapUsedBytes: 0,
+                swapTotalBytes: 0
+            ),
+            network: NetworkUsage(
+                incomingBytesPerSecond: 1_000.8,
+                outgoingBytesPerSecond: 2_000.8,
+                totalReceivedBytes: 0,
+                totalSentBytes: 0
+            ),
+            disk: DiskUsage(totalBytes: 100_000_000_000, availableBytes: 51_000_000_000)
+        )
+
+        XCTAssertFalse(PulseStore.shouldPublishCoreMetrics(previous: previous, next: next))
+    }
+
+    func testStorePublishesCoreMetricsWhenVisibleValuesChange() {
+        let previous = CoreMetricsSnapshot(
+            cpu: CPUUsage(percentage: 0.421, coreCount: 10),
+            memory: .empty,
+            network: .empty,
+            disk: .empty
+        )
+        let next = CoreMetricsSnapshot(
+            cpu: CPUUsage(percentage: 0.435, coreCount: 10),
+            memory: .empty,
+            network: .empty,
+            disk: .empty
+        )
+
+        XCTAssertTrue(PulseStore.shouldPublishCoreMetrics(previous: previous, next: next))
+    }
+
+    func testStoreSkipsPublishingSignalMetricsWhenVisibleValuesDoNotChange() {
+        let previous = SignalMetricsSnapshot(
+            memory: MemoryUsage(
+                totalBytes: 10_000,
+                usedBytes: 4_210,
+                availableBytes: 5_790,
+                compressedBytes: 200,
+                swapUsedBytes: 100,
+                swapTotalBytes: 1_000
+            ),
+            thermal: ThermalUsage(condition: .nominal, stateDuration: 65),
+            power: PowerUsage(
+                hasBattery: true,
+                batteryPercentage: 0.821,
+                isPluggedIn: false,
+                isCharging: false,
+                timeRemaining: 3_630
+            ),
+            diskIO: DiskIOUsage(
+                readBytesPerSecond: 1_000.2,
+                writeBytesPerSecond: 2_000.2,
+                totalReadBytes: 0,
+                totalWrittenBytes: 0
+            ),
+            runtime: SystemRuntimeUsage(
+                bootedAt: Date(timeIntervalSince1970: 1_777_777_777),
+                elapsedTime: 3_600
+            )
+        )
+        let next = SignalMetricsSnapshot(
+            memory: MemoryUsage(
+                totalBytes: 10_000,
+                usedBytes: 4_240,
+                availableBytes: 5_760,
+                compressedBytes: 200,
+                swapUsedBytes: 100,
+                swapTotalBytes: 1_000
+            ),
+            thermal: ThermalUsage(condition: .nominal, stateDuration: 80),
+            power: PowerUsage(
+                hasBattery: true,
+                batteryPercentage: 0.824,
+                isPluggedIn: false,
+                isCharging: false,
+                timeRemaining: 3_650
+            ),
+            diskIO: DiskIOUsage(
+                readBytesPerSecond: 1_000.8,
+                writeBytesPerSecond: 2_000.8,
+                totalReadBytes: 0,
+                totalWrittenBytes: 0
+            ),
+            runtime: SystemRuntimeUsage(
+                bootedAt: Date(timeIntervalSince1970: 1_777_777_777),
+                elapsedTime: 3_630
+            )
+        )
+
+        XCTAssertFalse(PulseStore.shouldPublishSignalMetrics(previous: previous, next: next))
+    }
+
+    func testStorePublishesCapturedAtOnlyWhenDisplayedMinuteChanges() {
+        let previous = Date(timeIntervalSince1970: 120)
+        let sameMinute = Date(timeIntervalSince1970: 179)
+        let nextMinute = Date(timeIntervalSince1970: 180)
+
+        XCTAssertFalse(PulseStore.shouldPublishCapturedAt(previous: previous, next: sameMinute))
+        XCTAssertTrue(PulseStore.shouldPublishCapturedAt(previous: previous, next: nextMinute))
+    }
+
 }

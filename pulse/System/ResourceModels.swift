@@ -131,6 +131,81 @@ nonisolated struct SystemRuntimeUsage: Equatable, Sendable {
     static let empty = SystemRuntimeUsage(bootedAt: nil, elapsedTime: 0)
 }
 
+nonisolated struct CoreMetricsSnapshot: Equatable, Sendable {
+    var cpu: CPUUsage
+    var memory: MemoryUsage
+    var network: NetworkUsage
+    var disk: DiskUsage
+
+    init(
+        cpu: CPUUsage,
+        memory: MemoryUsage,
+        network: NetworkUsage,
+        disk: DiskUsage
+    ) {
+        self.cpu = cpu
+        self.memory = memory
+        self.network = network
+        self.disk = disk
+    }
+
+    init(_ snapshot: ResourceSnapshot) {
+        self.init(
+            cpu: snapshot.cpu,
+            memory: snapshot.memory,
+            network: snapshot.network,
+            disk: snapshot.disk
+        )
+    }
+
+    static let empty = CoreMetricsSnapshot(
+        cpu: .empty,
+        memory: .empty,
+        network: .empty,
+        disk: .empty
+    )
+}
+
+nonisolated struct SignalMetricsSnapshot: Equatable, Sendable {
+    var memory: MemoryUsage
+    var thermal: ThermalUsage
+    var power: PowerUsage
+    var diskIO: DiskIOUsage
+    var runtime: SystemRuntimeUsage
+
+    init(
+        memory: MemoryUsage,
+        thermal: ThermalUsage,
+        power: PowerUsage,
+        diskIO: DiskIOUsage,
+        runtime: SystemRuntimeUsage
+    ) {
+        self.memory = memory
+        self.thermal = thermal
+        self.power = power
+        self.diskIO = diskIO
+        self.runtime = runtime
+    }
+
+    init(_ snapshot: ResourceSnapshot) {
+        self.init(
+            memory: snapshot.memory,
+            thermal: snapshot.thermal,
+            power: snapshot.power,
+            diskIO: snapshot.diskIO,
+            runtime: snapshot.runtime
+        )
+    }
+
+    static let empty = SignalMetricsSnapshot(
+        memory: .empty,
+        thermal: .empty,
+        power: .empty,
+        diskIO: .empty,
+        runtime: .empty
+    )
+}
+
 nonisolated struct ProcessResourceUsage: Equatable, Identifiable, Sendable {
     var identifier: String
     var name: String
@@ -138,13 +213,27 @@ nonisolated struct ProcessResourceUsage: Equatable, Identifiable, Sendable {
     var cpuPercentage: Double
     var memoryBytes: Int64
 
+    init(
+        identifier: String,
+        name: String,
+        appBundlePath: String? = nil,
+        cpuPercentage: Double,
+        memoryBytes: Int64
+    ) {
+        self.identifier = identifier
+        self.name = name
+        self.appBundlePath = appBundlePath
+        self.cpuPercentage = cpuPercentage
+        self.memoryBytes = memoryBytes
+    }
+
     var id: String {
         identifier
     }
 }
 
 nonisolated struct ProcessResourceSnapshot: Equatable, Sendable {
-    private static let processLimit = 5
+    static let processLimit = 5
 
     var topCPU: [ProcessResourceUsage]
     var topMemory: [ProcessResourceUsage]
