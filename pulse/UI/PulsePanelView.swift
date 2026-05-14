@@ -251,6 +251,13 @@ struct PulsePanelView: View {
             .help(strings.text(isPinned ? .unpinPanel : .pinPanel))
             .accessibilityLabel(strings.text(isPinned ? .unpinPanel : .pinPanel))
 
+            if presentation == .pinned {
+                PanelIconButton(iconName: PanelControlIcon.minimize, action: collapseAction)
+                .labelStyle(.iconOnly)
+                .help(strings.text(.minimalPanel))
+                .accessibilityLabel(strings.text(.minimalPanel))
+            }
+
             if let update = updateController.availableUpdate {
                 Button {
                     updateController.installAvailableUpdate()
@@ -258,15 +265,9 @@ struct PulsePanelView: View {
                     Text(strings.updateButtonTitle())
                 }
                 .buttonStyle(.borderedProminent)
+                .tint(.blue)
                 .disabled(!updateController.canCheckForUpdates)
                 .help(strings.updateButtonHelp(version: update.version))
-            }
-
-            if presentation == .pinned {
-                PanelIconButton(iconName: PanelControlIcon.minimize, action: collapseAction)
-                .labelStyle(.iconOnly)
-                .help(strings.text(.minimalPanel))
-                .accessibilityLabel(strings.text(.minimalPanel))
             }
 
             Spacer()
