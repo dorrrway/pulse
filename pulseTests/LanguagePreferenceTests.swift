@@ -159,6 +159,8 @@ final class LanguagePreferenceTests: XCTestCase {
         XCTAssertEqual(PulseStrings(language: .chinese).text(.expandPanel), "展开面板")
         XCTAssertEqual(PulseStrings(language: .english).text(.systemRuntime), "System Runtime")
         XCTAssertEqual(PulseStrings(language: .chinese).text(.systemRuntime), "开机时长")
+        XCTAssertEqual(PulseStrings(language: .english).text(.appVersion), "Version")
+        XCTAssertEqual(PulseStrings(language: .chinese).text(.appVersion), "版本")
         XCTAssertEqual(PulseStrings(language: .chinese).memoryDetail(used: "17 GB", total: "24 GB"), "17 GB / 共 24 GB")
         XCTAssertEqual(PulseStrings(language: .english).pressure(.elevated), "Watch")
         XCTAssertEqual(PulseStrings(language: .chinese).pressure(.elevated), "偏高")

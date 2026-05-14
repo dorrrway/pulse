@@ -491,6 +491,7 @@ extension PulseStrings {
         case followSystem
         case english
         case chinese
+        case appVersion
         case pulseSettings
     }
 }
@@ -590,6 +591,8 @@ private extension PulseStrings {
             "English"
         case .chinese:
             "中文"
+        case .appVersion:
+            "Version"
         case .pulseSettings:
             "Pulse Settings"
         }
@@ -689,6 +692,8 @@ private extension PulseStrings {
             "English"
         case .chinese:
             "中文"
+        case .appVersion:
+            "版本"
         case .pulseSettings:
             "Pulse 设置"
         }

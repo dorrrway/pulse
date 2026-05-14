@@ -266,6 +266,7 @@ struct PulsePanelView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.blue)
+                .environment(\.controlActiveState, .key)
                 .disabled(!updateController.canCheckForUpdates)
                 .help(strings.updateButtonHelp(version: update.version))
             }
