@@ -13,7 +13,7 @@
 </h3>
 
 <p align="center">
-  <img alt="release" src="https://img.shields.io/badge/release-v1.1.4-0A84FF">
+  <img alt="release" src="https://img.shields.io/badge/release-v1.2.0-0A84FF">
   <img alt="platform" src="https://img.shields.io/badge/platform-macOS-147EFB">
   <img alt="Swift" src="https://img.shields.io/badge/Swift-6-FA7343">
   <img alt="notarized" src="https://img.shields.io/badge/Developer%20ID-notarized-34C759">
@@ -29,20 +29,20 @@ Pulse is a lightweight macOS menu bar app for watching local system status at a 
 
 Latest release:
 
-- [Pulse 1.1.4](https://github.com/dorrrway/pulse/releases/tag/v1.1.4)
-- DMG: [Pulse-1.1.4.dmg](https://github.com/dorrrway/pulse/releases/download/v1.1.4/Pulse-1.1.4.dmg)
+- [Pulse 1.2.0](https://github.com/dorrrway/pulse/releases/tag/v1.2.0)
+- DMG: [Pulse-1.2.0.dmg](https://github.com/dorrrway/pulse/releases/download/v1.2.0/Pulse-1.2.0.dmg)
 
 SHA-256:
 
 ```text
-36147b065eea136d272502bbb09c5d054cafe54c174acd33deb73080a1717d6e  Pulse-1.1.4.dmg
+4549673b0017257a46326c5f6b91f8833ddd98a386c218bda484c8bac6e45c95  Pulse-1.2.0.dmg
 ```
 
 ## Installation
 
-1. Download `Pulse-1.1.4.dmg`.
+1. Download `Pulse-1.2.0.dmg`.
 2. Open the DMG.
-3. Drag `Pulse.app` to Applications.
+3. Follow the bilingual DMG guide and drag `Pulse.app` to Applications.
 4. Launch Pulse from Applications.
 
 The app is signed with Developer ID and notarized by Apple.
@@ -63,6 +63,13 @@ Pulse requests the TimeLikeSilver-hosted appcast to check for new versions and d
 See [Privacy Policy](PRIVACY.en.md) for details.
 
 ## Changelog
+
+### 1.2.0 - 2026-05-15
+
+- Fixed Language > System sometimes showing English under macOS settings whose preferred language is Chinese; Pulse now matches supported languages from the system preferred-language list.
+- Fixed Appearance > System not immediately refreshing open windows after switching back from Light or Dark mode.
+- Improved the DMG installer window with bilingual drag guidance and fixed Pulse-to-Applications layout.
+- Release archive: [Pulse-1.2.0.dmg](https://github.com/dorrrway/pulse/releases/download/v1.2.0/Pulse-1.2.0.dmg); SHA-256: `4549673b0017257a46326c5f6b91f8833ddd98a386c218bda484c8bac6e45c95`.
 
 ### 1.1.4 - 2026-05-14
 

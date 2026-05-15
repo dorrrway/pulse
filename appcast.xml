@@ -3,6 +3,20 @@
     <channel>
         <title>Pulse</title>
         <item>
+            <title>1.2.0</title>
+            <pubDate>Fri, 15 May 2026 08:57:27 +0800</pubDate>
+            <sparkle:version>7</sparkle:version>
+            <sparkle:shortVersionString>1.2.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[# Pulse 1.2.0
+
+- Fixed System language matching for macOS preferred-language setups.
+- Fixed Appearance > System so open windows refresh immediately after switching back from Light or Dark mode.
+- Improved the DMG installer window with bilingual drag guidance and fixed Pulse-to-Applications layout.
+]]></description>
+            <enclosure url="https://github.com/dorrrway/pulse/releases/download/v1.2.0/Pulse-1.2.0.dmg" length="2782794" type="application/octet-stream" sparkle:edSignature="kk9C27T4BtUej4OZKc407zWh1r/obVwkwwPf4xG/EgAkDxQ11pz8/+l0vNIlZ7JvIXCdVq64/ZzyjDlw1dkAAQ=="/>
+        </item>
+        <item>
             <title>1.1.4</title>
             <pubDate>Thu, 14 May 2026 23:28:38 +0800</pubDate>
             <sparkle:version>6</sparkle:version>

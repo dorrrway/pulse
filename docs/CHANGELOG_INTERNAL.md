@@ -5,6 +5,32 @@ This file is for maintainers. Keep the public changelog in `README.md` and
 implementation context, product decisions, privacy boundaries, thresholds, and
 verification notes that would make the public changelog too noisy.
 
+## 1.2.0 - 2026-05-15
+
+### Localization
+
+- System language resolution now checks `Locale.preferredLanguages` before
+  falling back to `Locale.autoupdatingCurrent`. This keeps `zh-Hans-US` primary
+  language setups in Chinese even when the app process locale or bundle
+  development region reports English.
+
+### Appearance
+
+- Applying an appearance preference now updates the hosting `NSWindow` and
+  content view together, then invalidates layout and display. The `.system`
+  path resolves the current macOS appearance immediately instead of relying on
+  SwiftUI to clear a previous optional override, and observes system appearance
+  changes while System is selected.
+
+### Distribution
+
+- The release script now builds a styled DMG by generating a bilingual
+  installation background, mounting a writable image, applying Finder icon-view
+  layout, then converting the result before Developer ID signing, notarization,
+  stapling, Sparkle signing, and SHA-256 generation.
+- The DMG volume name now includes the current marketing version, so the Finder
+  window title matches the released archive.
+
 ## 1.1.2 - 2026-05-14
 
 ### Updates

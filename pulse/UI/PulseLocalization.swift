@@ -22,9 +22,36 @@ nonisolated enum PulseLanguage: Sendable {
     case chinese
 
     static var systemResolved: PulseLanguage {
-        let languageCode = Locale.autoupdatingCurrent.language.languageCode?.identifier.lowercased()
+        resolveSystemLanguage(
+            preferredLanguages: Locale.preferredLanguages,
+            fallbackLanguageCode: Locale.autoupdatingCurrent.language.languageCode?.identifier
+        )
+    }
 
-        return languageCode == "zh" ? .chinese : .english
+    static func resolveSystemLanguage(
+        preferredLanguages: [String],
+        fallbackLanguageCode: String?
+    ) -> PulseLanguage {
+        for languageIdentifier in preferredLanguages {
+            switch normalizedLanguageCode(from: languageIdentifier) {
+            case "zh":
+                return .chinese
+            case "en":
+                return .english
+            default:
+                continue
+            }
+        }
+
+        return fallbackLanguageCode?.lowercased() == "zh" ? .chinese : .english
+    }
+
+    private static func normalizedLanguageCode(from identifier: String) -> String? {
+        Locale(identifier: identifier)
+            .language
+            .languageCode?
+            .identifier
+            .lowercased()
     }
 }
 

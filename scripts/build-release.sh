@@ -10,6 +10,7 @@ PRODUCT_APP_NAME="pulse.app"
 INSTALL_APP_NAME="Pulse.app"
 NOTARY_PROFILE="${NOTARY_PROFILE:-pulse-notary}"
 SPARKLE_ACCOUNT="${SPARKLE_ACCOUNT:-com.timelikesilver.pulse}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 BUILD_ROOT="${BUILD_ROOT:-${TMPDIR:-/tmp}/pulse-distribution}"
 DERIVED_DATA_PATH="$BUILD_ROOT/DerivedData"
@@ -35,6 +36,7 @@ require_command() {
 require_command codesign
 require_command ditto
 require_command hdiutil
+require_command osascript
 require_command shasum
 require_command spctl
 require_command xcodebuild
@@ -51,8 +53,22 @@ BUILD_NUMBER="$(printf '%s\n' "$BUILD_SETTINGS" | awk -F'= ' '/CURRENT_PROJECT_V
 
 DMG_NAME="Pulse-$MARKETING_VERSION.dmg"
 DMG_PATH="$APPCAST_INPUT_PATH/$DMG_NAME"
+DMG_RW_PATH="$BUILD_ROOT/Pulse-$MARKETING_VERSION-rw.dmg"
+DMG_VOLUME_NAME="Pulse $MARKETING_VERSION"
+DMG_MOUNT_PATH="/Volumes/$DMG_VOLUME_NAME"
+DMG_BACKGROUND_PATH="$DMG_ROOT/.background/background.png"
 SIGNATURE_OUTPUT="$APPCAST_INPUT_PATH/Pulse-$MARKETING_VERSION.signature.txt"
 SHA_OUTPUT="$APPCAST_INPUT_PATH/Pulse-$MARKETING_VERSION.sha256.txt"
+DMG_DEVICE=""
+
+cleanup_mount() {
+  if [[ -n "$DMG_DEVICE" ]]; then
+    hdiutil detach "$DMG_DEVICE" >/dev/null 2>&1 || true
+    DMG_DEVICE=""
+  fi
+}
+
+trap cleanup_mount EXIT
 
 log "Checking Developer ID identity"
 security find-identity -v -p codesigning | grep -q "$DEVELOPER_ID_NAME" \
@@ -107,11 +123,51 @@ EXPORTED_APP_PATH="$EXPORT_PATH/$PRODUCT_APP_NAME"
 log "Verifying exported app signature"
 codesign --verify --deep --strict --verbose=2 "$EXPORTED_APP_PATH"
 
-log "Creating DMG"
+log "Creating styled DMG"
 mkdir -p "$DMG_ROOT"
 ditto "$EXPORTED_APP_PATH" "$DMG_ROOT/$INSTALL_APP_NAME"
 ln -s /Applications "$DMG_ROOT/Applications"
-hdiutil create -volname "Pulse" -srcfolder "$DMG_ROOT" -ov -format UDZO "$DMG_PATH"
+xcrun swift "$SCRIPT_DIR/generate-dmg-background.swift" "$DMG_BACKGROUND_PATH"
+
+hdiutil create \
+  -volname "$DMG_VOLUME_NAME" \
+  -srcfolder "$DMG_ROOT" \
+  -ov \
+  -format UDRW \
+  -fs HFS+ \
+  "$DMG_RW_PATH"
+
+[[ ! -e "$DMG_MOUNT_PATH" ]] || fail "Unmount existing $DMG_MOUNT_PATH before building release"
+DMG_DEVICE="$(hdiutil attach "$DMG_RW_PATH" -nobrowse -noverify -noautoopen | awk '/Apple_HFS/ { print $1; exit }')"
+[[ -n "$DMG_DEVICE" ]] || fail "Could not mount DMG for Finder layout"
+
+osascript <<APPLESCRIPT
+tell application "Finder"
+  tell disk "$DMG_VOLUME_NAME"
+    open
+    set current view of container window to icon view
+    set toolbar visible of container window to false
+    set statusbar visible of container window to false
+    set bounds of container window to {120, 120, 840, 540}
+
+    set viewOptions to the icon view options of container window
+    set arrangement of viewOptions to not arranged
+    set icon size of viewOptions to 104
+    set background picture of viewOptions to file ".background:background.png"
+
+    set position of item "$INSTALL_APP_NAME" of container window to {180, 230}
+    set position of item "Applications" of container window to {540, 230}
+
+    update without registering applications
+    delay 1
+    close
+  end tell
+end tell
+APPLESCRIPT
+
+sync
+cleanup_mount
+hdiutil convert "$DMG_RW_PATH" -ov -format UDZO -imagekey zlib-level=9 -o "$DMG_PATH"
 codesign --force --sign "$DEVELOPER_ID_NAME" --timestamp "$DMG_PATH"
 
 log "Submitting DMG to Apple notary service"

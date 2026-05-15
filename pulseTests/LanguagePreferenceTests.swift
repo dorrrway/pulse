@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import XCTest
 @testable import pulse
@@ -60,6 +61,32 @@ final class LanguagePreferenceTests: XCTestCase {
         XCTAssertEqual(reloadedStore.languagePreference, .chinese)
     }
 
+    func testSystemLanguageUsesPreferredLanguagesBeforeLocaleFallback() {
+        XCTAssertEqual(
+            PulseLanguage.resolveSystemLanguage(
+                preferredLanguages: ["zh-Hans-US", "en-US"],
+                fallbackLanguageCode: "en"
+            ),
+            .chinese
+        )
+
+        XCTAssertEqual(
+            PulseLanguage.resolveSystemLanguage(
+                preferredLanguages: ["ja-JP", "zh-Hans-US", "en-US"],
+                fallbackLanguageCode: "en"
+            ),
+            .chinese
+        )
+
+        XCTAssertEqual(
+            PulseLanguage.resolveSystemLanguage(
+                preferredLanguages: ["fr-FR"],
+                fallbackLanguageCode: "zh"
+            ),
+            .chinese
+        )
+    }
+
     @MainActor
     func testPersistsSelectedAppearancePreference() {
         let defaults = makeUserDefaults()
@@ -78,6 +105,23 @@ final class LanguagePreferenceTests: XCTestCase {
         )
         XCTAssertEqual(reloadedStore.appearancePreference, .dark)
         XCTAssertEqual(reloadedStore.appearancePreference.colorScheme, .dark)
+    }
+
+    @MainActor
+    func testApplyingSystemAppearanceResolvesCurrentSystemStyle() {
+        let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 200, height: 120), styleMask: [], backing: .buffered, defer: false)
+        window.contentView = NSView(frame: window.contentView?.frame ?? .zero)
+
+        PulseAppearancePreference.dark.apply(to: window)
+
+        XCTAssertEqual(window.appearance?.name, .darkAqua)
+        XCTAssertEqual(window.contentView?.appearance?.name, .darkAqua)
+
+        PulseAppearancePreference.system.apply(to: window)
+
+        let expectedAppearanceName = PulseAppearancePreference.system.nsAppearance?.name
+        XCTAssertEqual(window.appearance?.name, expectedAppearanceName)
+        XCTAssertEqual(window.contentView?.appearance?.name, expectedAppearanceName)
     }
 
     @MainActor
