@@ -153,7 +153,7 @@ struct PulseIslandCriticalAlertPreviewRequest: Equatable, Sendable {
 }
 #endif
 
-enum PulseIslandModule: CaseIterable, Equatable {
+enum PulseIslandModule: CaseIterable, Equatable, Hashable {
     case resourceMonitor
     case applications
 

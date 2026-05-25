@@ -475,6 +475,10 @@ final class PulseIslandPanelController {
     private static let criticalAlertDuration: Duration = .seconds(3)
     private static let screenTrackingInterval: Duration = .milliseconds(350)
 
+    static func shouldDeferHoverCollapse(pressedMouseButtons: Int) -> Bool {
+        pressedMouseButtons != 0
+    }
+
     func present(
         store: PulseStore,
         updateController: PulseUpdateController,
@@ -523,23 +527,7 @@ final class PulseIslandPanelController {
         if isHovering {
             expand()
         } else {
-            collapseTask = Task { @MainActor [weak self] in
-                do {
-                    try await Task.sleep(for: Self.hoverCollapseDelay)
-                } catch {
-                    return
-                }
-
-                guard !Task.isCancelled else {
-                    return
-                }
-
-                guard let self, !self.isMouseInsideCurrentContentRect() else {
-                    return
-                }
-
-                self.collapse()
-            }
+            scheduleHoverCollapse()
         }
     }
 
@@ -610,6 +598,37 @@ final class PulseIslandPanelController {
 
     private func collapse() {
         setStyle(.seed)
+    }
+
+    private func scheduleHoverCollapse() {
+        collapseTask = Task { @MainActor [weak self] in
+            do {
+                try await Task.sleep(for: Self.hoverCollapseDelay)
+            } catch {
+                return
+            }
+
+            guard !Task.isCancelled else {
+                return
+            }
+
+            self?.performHoverCollapseIfReady()
+        }
+    }
+
+    private func performHoverCollapseIfReady() {
+        guard !Self.shouldDeferHoverCollapse(pressedMouseButtons: NSEvent.pressedMouseButtons) else {
+            scheduleHoverCollapse()
+            return
+        }
+
+        collapseTask = nil
+
+        guard !isMouseInsideCurrentContentRect() else {
+            return
+        }
+
+        collapse()
     }
 
     private func setStyle(_ newStyle: PulseIslandStyle) {

@@ -30,23 +30,35 @@ verification notes that would make the public changelog too noisy.
   above the app browser. Favorite app bundle paths are stored in UserDefaults,
   list rows use a trailing pin action, and icon tiles can be dragged into the
   strip through SwiftUI drop handling. Favorite apps can also be reordered
-  through explicit insertion slots that expand into a visible gap while
-  dragging. Favorite apps can be dragged from the strip back into the app
-  browser area to remove them, with a lightweight local shatter effect on the
-  source tile before removal. The app browser opens in icon view by default,
-  with the footer switch ordered icon view first and list view second.
-- Favorite-app drag and drop now uses a text-backed JSON payload so drag-in,
-  drag-out, and reordering share one local payload format. Insertion slots hide
-  for no-op drops immediately before or after the dragged favorite app, so the
-  visual gap only appears where releasing would change the order. Dragging a
-  favorite back to the app browser now uses the system delete drop operation,
-  and library apps can be dropped anywhere inside the favorite strip instead of
-  only on narrow insertion slots. The wide favorite-strip drop target is only
-  attached during library drags, leaving favorite-to-favorite reordering to the
-  insertion slots so the sort drop path is not intercepted.
+  through the same strip-level projected layout used for library drops. Favorite
+  apps can be dragged from the strip back into the app browser area to remove
+  them, with a lightweight local shatter effect on the source tile before
+  removal. The app browser opens in icon view by default, with the footer switch
+  ordered icon view first and list view second.
+- Favorite-app drag and drop now advertises a Pulse-specific own-process item
+  representation plus a text representation for SwiftUI/AppKit drop
+  compatibility; accepted drops are still gated by the active in-process
+  payload. No-op drops immediately before or after the dragged favorite app
+  suppress the projected layout, so the visual landing slot only appears where
+  releasing would change the order. Dragging a favorite back to the app browser
+  now uses the system delete drop operation, and library apps can be dropped
+  anywhere inside the favorite strip.
+- The island hover-collapse path now defers while any mouse button is pressed,
+  so dragging apps inside the Applications panel does not collapse and unmount
+  the drop targets before the drag session ends.
+- Favorite-app drag placement now uses one continuous strip-level drop delegate
+  that maps `DropInfo.location.x` to a projected insertion index. The strip
+  renders the projected layout before the store order is committed, so library
+  drops and favorite reordering move icons toward their final positions without
+  customizing the system drag preview.
 - The Applications module now tracks `NSWorkspace` running-app launch and
   termination notifications, rendering running apps with a non-gray highlighted
   dot below the app icon. The state is kept in memory only and is not persisted.
+- Expanded-state module switching now uses horizontal drag and horizontal scroll
+  input instead of vertical movement. The header renders all modules in a
+  horizontal selector and offsets the row so the selected module remains
+  centered, while the attached panel transitions from the matching horizontal
+  edge.
 
 ## 2.0.0 - 2026-05-25
 

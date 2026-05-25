@@ -11,10 +11,12 @@ private let expandedSurfaceUnmountDelay: TimeInterval = 0.36
 private let expandedHeaderRevealDelay: TimeInterval = 0.12
 private let attachedPanelRevealDelay: TimeInterval = 0.18
 private let attachedPanelHiddenYOffset: CGFloat = -8
-private let moduleSwitchDragThreshold: CGFloat = 18
-private let moduleSwitchScrollThreshold: CGFloat = 12
+private let moduleSwitchHorizontalDragThreshold: CGFloat = 18
+private let moduleSwitchHorizontalScrollThreshold: CGFloat = 12
 private let moduleSwitchAnimation = Animation.smooth(duration: 0.22)
 private let moduleSwitchInputLockDuration: TimeInterval = 0.24
+private let moduleSelectorItemWidth: CGFloat = 156
+private let moduleSelectorItemSpacing: CGFloat = PulseDesign.Spacing.sm
 private let seedMetricRollAnimation = Animation.spring(response: 0.50, dampingFraction: 0.86, blendDuration: 0)
 private let seedMetricFadeAnimation = Animation.easeInOut(duration: 0.16)
 private let criticalSeedAnimation = Animation.spring(response: 0.42, dampingFraction: 0.84, blendDuration: 0)
@@ -534,8 +536,8 @@ struct PulseIslandView: View {
     }
 
     private var attachedPanelModuleTransition: AnyTransition {
-        let insertionEdge: Edge = moduleSwitchDirection > 0 ? .bottom : .top
-        let removalEdge: Edge = moduleSwitchDirection > 0 ? .top : .bottom
+        let insertionEdge: Edge = moduleSwitchDirection > 0 ? .trailing : .leading
+        let removalEdge: Edge = moduleSwitchDirection > 0 ? .leading : .trailing
 
         return .asymmetric(
             insertion: .opacity.combined(with: .move(edge: insertionEdge)),
@@ -553,8 +555,8 @@ struct PulseIslandView: View {
                 .frame(height: PulseIslandLayout.topAttachmentDepth(for: .expanded))
 
             IslandModuleHeader(
-                module: selectedModule,
-                title: strings.text(selectedModule.titleKey),
+                selectedModule: selectedModule,
+                moduleTitle: { strings.text($0.titleKey) },
                 deviceName: store.deviceName ?? strings.text(.thisMac),
                 rowHeight: headerRowHeight,
                 settingsTitle: strings.text(.settings),
@@ -996,8 +998,8 @@ private enum IslandHeaderControlIcon {
 }
 
 private struct IslandModuleHeader: View {
-    var module: PulseIslandModule
-    var title: String
+    var selectedModule: PulseIslandModule
+    var moduleTitle: (PulseIslandModule) -> String
     var deviceName: String
     var rowHeight: CGFloat
     var settingsTitle: String
@@ -1036,37 +1038,74 @@ private struct IslandModuleHeader: View {
             }
             .frame(height: rowHeight, alignment: .center)
 
-            HStack {
-                Spacer(minLength: 0)
-                moduleTitle
-                Spacer(minLength: 0)
-            }
+            IslandModuleSelector(
+                selectedModule: selectedModule,
+                moduleTitle: moduleTitle
+            )
             .frame(height: rowHeight, alignment: .center)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityElement(children: .contain)
     }
+}
 
-    private var moduleTitle: some View {
-        HStack(spacing: 10) {
-            moduleIcon
-                .frame(width: 16, height: 16)
+private struct IslandModuleSelector: View {
+    var selectedModule: PulseIslandModule
+    var moduleTitle: (PulseIslandModule) -> String
 
-            Text(title)
-                .font(.system(.callout, design: .rounded, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.92))
-                .lineLimit(1)
+    private let modules = PulseIslandModule.allCases
+
+    var body: some View {
+        GeometryReader { proxy in
+            HStack(spacing: moduleSelectorItemSpacing) {
+                ForEach(modules, id: \.self) { module in
+                    IslandModuleSelectorItem(
+                        module: module,
+                        title: moduleTitle(module),
+                        isSelected: module == selectedModule
+                    )
+                    .frame(width: moduleSelectorItemWidth, height: proxy.size.height)
+                }
+            }
+            .offset(x: horizontalOffset(in: proxy.size.width))
+            .frame(width: proxy.size.width, height: proxy.size.height, alignment: .leading)
+            .animation(moduleSwitchAnimation, value: selectedModule)
         }
+        .clipped()
+        .accessibilityElement(children: .contain)
     }
 
-    @ViewBuilder
-    private var moduleIcon: some View {
-        Image(module.iconAssetName)
-            .renderingMode(.template)
-            .resizable()
-            .scaledToFit()
-            .foregroundStyle(.white.opacity(0.94))
-            .accessibilityHidden(true)
+    private func horizontalOffset(in width: CGFloat) -> CGFloat {
+        let selectedIndex = modules.firstIndex(of: selectedModule) ?? 0
+        let selectedCenterX = moduleSelectorItemWidth / 2
+            + CGFloat(selectedIndex) * (moduleSelectorItemWidth + moduleSelectorItemSpacing)
+
+        return width / 2 - selectedCenterX
+    }
+}
+
+private struct IslandModuleSelectorItem: View {
+    var module: PulseIslandModule
+    var title: String
+    var isSelected: Bool
+
+    var body: some View {
+        HStack(spacing: PulseDesign.Spacing.xs) {
+            Image(module.iconAssetName)
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 16, height: 16)
+                .accessibilityHidden(true)
+
+            Text(title)
+                .font(.system(.callout, design: .rounded, weight: isSelected ? .semibold : .medium))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .foregroundStyle(.white.opacity(isSelected ? 0.94 : 0.54))
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityLabel(title)
     }
 }
 
@@ -1122,7 +1161,7 @@ private struct IslandModuleInteractionBridge: NSViewRepresentable {
         private var mouseDownPoint: CGPoint?
         private var didSwitchDuringMouseDown = false
         private var didSwitchDuringScrollGesture = false
-        private var accumulatedScrollDeltaY: CGFloat = 0
+        private var accumulatedScrollDeltaX: CGFloat = 0
         private var lastScrollSwitchTime: TimeInterval = 0
 
         override var acceptsFirstResponder: Bool {
@@ -1150,13 +1189,13 @@ private struct IslandModuleInteractionBridge: NSViewRepresentable {
             )
 
             guard
-                abs(translation.height) >= abs(translation.width),
-                abs(translation.height) >= moduleSwitchDragThreshold
+                abs(translation.width) >= abs(translation.height),
+                abs(translation.width) >= moduleSwitchHorizontalDragThreshold
             else {
                 return
             }
 
-            switchAction?(translation.height > 0 ? 1 : -1)
+            switchAction?(translation.width < 0 ? 1 : -1)
             didSwitchDuringMouseDown = true
         }
 
@@ -1184,10 +1223,10 @@ private struct IslandModuleInteractionBridge: NSViewRepresentable {
                 }
             }
 
-            let deltaY = event.scrollingDeltaY
+            let deltaX = event.scrollingDeltaX
             guard
-                abs(deltaY) >= abs(event.scrollingDeltaX),
-                abs(deltaY) > 0
+                abs(deltaX) >= abs(event.scrollingDeltaY),
+                abs(deltaX) > 0
             else {
                 super.scrollWheel(with: event)
                 return
@@ -1198,16 +1237,16 @@ private struct IslandModuleInteractionBridge: NSViewRepresentable {
                 return
             }
 
-            accumulatedScrollDeltaY += deltaY
+            accumulatedScrollDeltaX += deltaX
 
-            guard abs(accumulatedScrollDeltaY) >= moduleSwitchScrollThreshold else {
+            guard abs(accumulatedScrollDeltaX) >= moduleSwitchHorizontalScrollThreshold else {
                 return
             }
 
-            switchAction?(accumulatedScrollDeltaY > 0 ? 1 : -1)
+            switchAction?(accumulatedScrollDeltaX > 0 ? 1 : -1)
             didSwitchDuringScrollGesture = isPhasedGesture
             lastScrollSwitchTime = ProcessInfo.processInfo.systemUptime
-            accumulatedScrollDeltaY = 0
+            accumulatedScrollDeltaX = 0
         }
 
         private func shouldAcceptScrollSwitch(isPhasedGesture: Bool) -> Bool {
@@ -1220,7 +1259,7 @@ private struct IslandModuleInteractionBridge: NSViewRepresentable {
 
         private func resetScrollGesture() {
             didSwitchDuringScrollGesture = false
-            accumulatedScrollDeltaY = 0
+            accumulatedScrollDeltaX = 0
         }
     }
 }

@@ -7,7 +7,7 @@ enum InstalledAppsPanelLayout {
     static let favoriteIconSide: CGFloat = 42
     static let favoriteSlotSide: CGFloat = 52
     static let favoriteInsertionGapWidth: CGFloat = 14
-    static let favoriteInsertionActiveGapWidth: CGFloat = 34
+    static let favoriteProjectedItemFootprint = favoriteSlotSide + favoriteInsertionGapWidth
     static let runningIndicatorSide: CGFloat = 5
     static let runningIndicatorColor = Color(red: 0.28, green: 0.88, blue: 0.58)
     static let sectionGapHeight: CGFloat = 18
@@ -16,6 +16,50 @@ enum InstalledAppsPanelLayout {
         + favoritePanelHeight
         + PulseDesign.Spacing.xs
         + sectionGapHeight / 2
+
+    static func favoriteContentWidth(itemCount: Int) -> CGFloat {
+        guard itemCount > 0 else {
+            return 0
+        }
+
+        return CGFloat(itemCount) * favoriteSlotSide
+            + CGFloat(itemCount + 1) * favoriteInsertionGapWidth
+    }
+
+    static func favoriteDropInsertionIndex(locationX: CGFloat, itemCount: Int, containerWidth: CGFloat) -> Int {
+        guard itemCount > 0 else {
+            return 0
+        }
+
+        let contentWidth = favoriteContentWidth(itemCount: itemCount)
+        let contentStartX = max(0, (containerWidth - contentWidth) / 2)
+        let localX = locationX - contentStartX
+        let firstItemCenterX = favoriteInsertionGapWidth + favoriteSlotSide / 2
+
+        guard localX > firstItemCenterX else {
+            return 0
+        }
+
+        let itemStep = favoriteSlotSide + favoriteInsertionGapWidth
+        let index = Int((localX - firstItemCenterX) / itemStep) + 1
+        return min(max(index, 0), itemCount)
+    }
+
+    static func favoriteCompactInsertionIndex(originalIndex: Int, sourceIndex: Int?) -> Int {
+        guard let sourceIndex, sourceIndex < originalIndex else {
+            return originalIndex
+        }
+
+        return originalIndex - 1
+    }
+
+    static func isNoOpFavoriteDrop(originalIndex: Int, sourceIndex: Int?) -> Bool {
+        guard let sourceIndex else {
+            return false
+        }
+
+        return originalIndex == sourceIndex || originalIndex == sourceIndex + 1
+    }
 }
 
 struct InstalledAppsPanelView: View {
@@ -92,15 +136,6 @@ struct InstalledAppsPanelView: View {
 
     private func canRemoveFavoriteApplication(_ payload: InstalledApplicationDragPayload) -> Bool {
         payload.source == .favorite && store.isFavoriteApplication(bundlePath: payload.bundlePath)
-    }
-
-    private func removeFavoriteApplications(_ payloadStrings: [String]) -> Bool {
-        let payloads = InstalledApplicationDragPayload.payloads(from: payloadStrings)
-        guard let payload = payloads.first(where: canRemoveFavoriteApplication) else {
-            return false
-        }
-
-        return removeFavoriteApplication(payload)
     }
 
     private func removeFavoriteApplication(_ payload: InstalledApplicationDragPayload) -> Bool {
@@ -246,36 +281,36 @@ private nonisolated struct InstalledApplicationDragPayload: Codable, Equatable, 
     var bundlePath: String
     var source: InstalledApplicationDragSource
 
+    nonisolated private static let contentType = UTType(exportedAs: "com.timelikesilver.pulse.installed-application-drag-payload")
     nonisolated static let supportedTypeIdentifiers = [
+        contentType.identifier,
         UTType.utf8PlainText.identifier,
         UTType.plainText.identifier,
         UTType.text.identifier,
     ]
 
-    nonisolated static func payloads(from strings: [String]) -> [InstalledApplicationDragPayload] {
-        strings.compactMap(payload(from:))
+    func itemProvider() -> NSItemProvider {
+        let provider = NSItemProvider(object: encodedString as NSString)
+        guard let data = encodedData else {
+            return provider
+        }
+
+        provider.registerDataRepresentation(
+            forTypeIdentifier: Self.contentType.identifier,
+            visibility: .ownProcess
+        ) { completion in
+            completion(data, nil)
+            return nil
+        }
+        return provider
     }
 
-    func itemProvider() -> NSItemProvider {
-        NSItemProvider(object: encodedString as NSString)
+    private var encodedData: Data? {
+        try? JSONEncoder().encode(self)
     }
 
     private var encodedString: String {
-        guard let data = try? JSONEncoder().encode(self),
-              let string = String(data: data, encoding: .utf8)
-        else {
-            return ""
-        }
-
-        return string
-    }
-
-    nonisolated private static func payload(from string: String) -> InstalledApplicationDragPayload? {
-        guard let data = string.data(using: .utf8) else {
-            return nil
-        }
-
-        return try? JSONDecoder().decode(InstalledApplicationDragPayload.self, from: data)
+        encodedData.flatMap { String(data: $0, encoding: .utf8) } ?? ""
     }
 }
 
@@ -324,52 +359,26 @@ private struct FavoriteApplicationRemovalDropDelegate: DropDelegate {
     }
 }
 
-private struct FavoriteApplicationsWideDropTarget: ViewModifier {
+private struct FavoriteApplicationsEmptyDropDelegate: DropDelegate {
     var activePayload: InstalledApplicationDragPayload?
     @Binding var isTargeted: Bool
 
-    var canAccept: (InstalledApplicationDragPayload) -> Bool
-    var dropPayload: (InstalledApplicationDragPayload) -> Bool
-
-    @ViewBuilder
-    func body(content: Content) -> some View {
-        if let activePayload, canAccept(activePayload) {
-            content.onDrop(
-                of: InstalledApplicationDragPayload.supportedTypeIdentifiers,
-                delegate: FavoriteApplicationsWideDropDelegate(
-                    activePayload: activePayload,
-                    isTargeted: $isTargeted,
-                    canAccept: canAccept,
-                    dropPayload: dropPayload
-                )
-            )
-        } else {
-            content
-        }
-    }
-}
-
-private struct FavoriteApplicationsWideDropDelegate: DropDelegate {
-    var activePayload: InstalledApplicationDragPayload
-    @Binding var isTargeted: Bool
-
-    var canAccept: (InstalledApplicationDragPayload) -> Bool
     var dropPayload: (InstalledApplicationDragPayload) -> Bool
 
     func validateDrop(info: DropInfo) -> Bool {
-        canAcceptDrop(info)
+        canAccept(info)
     }
 
     func dropEntered(info: DropInfo) {
-        isTargeted = canAcceptDrop(info)
+        isTargeted = canAccept(info)
     }
 
     func dropUpdated(info: DropInfo) -> DropProposal? {
-        if canAcceptDrop(info) {
-            return DropProposal(operation: .copy)
+        guard canAccept(info), let activePayload else {
+            return DropProposal(operation: .forbidden)
         }
 
-        return DropProposal(operation: .forbidden)
+        return DropProposal(operation: activePayload.source == .favorite ? .move : .copy)
     }
 
     func dropExited(info: DropInfo) {
@@ -377,7 +386,7 @@ private struct FavoriteApplicationsWideDropDelegate: DropDelegate {
     }
 
     func performDrop(info: DropInfo) -> Bool {
-        guard canAcceptDrop(info) else {
+        guard canAccept(info), let activePayload else {
             isTargeted = false
             return false
         }
@@ -387,15 +396,9 @@ private struct FavoriteApplicationsWideDropDelegate: DropDelegate {
         return didDrop
     }
 
-    private func canAcceptDrop(_ info: DropInfo) -> Bool {
-        guard
-            info.hasItemsConforming(to: InstalledApplicationDragPayload.supportedTypeIdentifiers),
-            canAccept(activePayload)
-        else {
-            return false
-        }
-
-        return true
+    private func canAccept(_ info: DropInfo) -> Bool {
+        info.hasItemsConforming(to: InstalledApplicationDragPayload.supportedTypeIdentifiers)
+            && activePayload != nil
     }
 }
 
@@ -424,10 +427,9 @@ private struct FavoriteApplicationsStrip: View {
     var dragItemProvider: (InstalledApplicationDragPayload) -> NSItemProvider
 
     @State private var hoveredApplicationID: InstalledApplication.ID?
-    @State private var activeDropIndex: Int?
-    @State private var draggedFavoriteBundlePath: String?
+    @State private var projectedDropIndex: Int?
     @State private var isEmptyDropTargeted = false
-    @State private var isWideDropTargeted = false
+    @State private var isStripDropTargeted = false
 
     var body: some View {
         Group {
@@ -444,20 +446,13 @@ private struct FavoriteApplicationsStrip: View {
         )
         .contentShape(Rectangle())
         .background {
-            if isWideDropTargeted {
+            if isStripDropTargeted, projectedDropIndex != nil {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .fill(.white.opacity(0.045))
             }
         }
-        .modifier(
-            FavoriteApplicationsWideDropTarget(
-                activePayload: activeDragPayload,
-                isTargeted: $isWideDropTargeted,
-                canAccept: canAcceptWideDrop,
-                dropPayload: performWideDrop
-            )
-        )
-        .animation(.snappy(duration: 0.16), value: isWideDropTargeted)
+        .animation(.snappy(duration: 0.16), value: isStripDropTargeted)
+        .animation(.smooth(duration: 0.20), value: projectedDropIndex)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(strings.text(.favoriteApplications))
     }
@@ -466,35 +461,38 @@ private struct FavoriteApplicationsStrip: View {
         GeometryReader { geometry in
             ScrollView(.horizontal) {
                 HStack(spacing: 0) {
-                    insertionDropZone(index: 0)
+                    Color.clear
+                        .frame(
+                            width: InstalledAppsPanelLayout.favoriteInsertionGapWidth,
+                            height: InstalledAppsPanelLayout.favoriteSlotSide
+                        )
+                        .accessibilityHidden(true)
 
-                    ForEach(Array(applications.enumerated()), id: \.element.id) { index, application in
-                        FavoriteApplicationTile(
-                            application: application,
-                            strings: strings,
-                            isHovering: hoveredApplicationID == application.id,
-                            isRunning: isRunning(application),
-                            removalEffectID: removalEffect?.bundlePath == application.bundlePath ? removalEffect?.id : nil
-                        ) {
-                            openAction(application)
-                        } removeAction: {
-                            removeAction(application)
-                        }
-                        .onDrag {
-                            draggedFavoriteBundlePath = application.bundlePath
-                            return dragItemProvider(InstalledApplicationDragPayload(
-                                bundlePath: application.bundlePath,
-                                source: .favorite
-                            ))
-                        }
-                        .onHover { isHovering in
-                            hoveredApplicationID = isHovering ? application.id : nil
-                        }
+                    ForEach(favoriteLayoutItems) { item in
+                        favoriteLayoutItem(item)
 
-                        insertionDropZone(index: index + 1)
+                        Color.clear
+                            .frame(
+                                width: InstalledAppsPanelLayout.favoriteInsertionGapWidth,
+                                height: InstalledAppsPanelLayout.favoriteSlotSide
+                            )
+                            .accessibilityHidden(true)
                     }
                 }
                 .frame(minWidth: geometry.size.width, alignment: .center)
+                .contentShape(Rectangle())
+                .onDrop(
+                    of: InstalledApplicationDragPayload.supportedTypeIdentifiers,
+                    delegate: FavoriteApplicationsContinuousDropDelegate(
+                        applications: applications,
+                        activePayload: activeDragPayload,
+                        containerWidth: geometry.size.width,
+                        projectedDropIndex: $projectedDropIndex,
+                        isTargeted: $isStripDropTargeted,
+                        dropPayload: performDrop
+                    )
+                )
+                .animation(.smooth(duration: 0.20), value: favoriteLayoutItemIDs)
             }
             .scrollIndicators(.hidden)
         }
@@ -506,109 +504,225 @@ private struct FavoriteApplicationsStrip: View {
             .foregroundStyle(.white.opacity(isEmptyDropTargeted ? 0.58 : 0.36))
             .lineLimit(1)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-            .dropDestination(for: String.self) { payloadStrings, _ in
-                performDrop(payloadStrings, at: 0)
-            } isTargeted: { isTargeted in
-                isEmptyDropTargeted = isTargeted
+            .onDrop(
+                of: InstalledApplicationDragPayload.supportedTypeIdentifiers,
+                delegate: FavoriteApplicationsEmptyDropDelegate(
+                    activePayload: activeDragPayload,
+                    isTargeted: $isEmptyDropTargeted
+                ) { payload in
+                    performDrop(payload, at: 0)
+                }
+            )
+    }
+
+    private var favoriteLayoutItems: [FavoriteApplicationLayoutItem] {
+        var items = applications.map(FavoriteApplicationLayoutItem.application)
+
+        guard let activeDragPayload, let projectedDropIndex else {
+            return items
+        }
+
+        let sourceIndex = applications.firstIndex { $0.bundlePath == activeDragPayload.bundlePath }
+        if let sourceIndex {
+            items.remove(at: sourceIndex)
+        }
+
+        let compactIndex = InstalledAppsPanelLayout.favoriteCompactInsertionIndex(
+            originalIndex: projectedDropIndex,
+            sourceIndex: sourceIndex
+        )
+        items.insert(
+            .placeholder(bundlePath: activeDragPayload.bundlePath),
+            at: min(max(compactIndex, 0), items.count)
+        )
+        return items
+    }
+
+    private var favoriteLayoutItemIDs: [String] {
+        favoriteLayoutItems.map(\.id)
+    }
+
+    @ViewBuilder
+    private func favoriteLayoutItem(_ item: FavoriteApplicationLayoutItem) -> some View {
+        switch item.kind {
+        case .application(let application):
+            FavoriteApplicationTile(
+                application: application,
+                strings: strings,
+                isHovering: hoveredApplicationID == application.id,
+                isRunning: isRunning(application),
+                removalEffectID: removalEffect?.bundlePath == application.bundlePath ? removalEffect?.id : nil
+            ) {
+                openAction(application)
+            } removeAction: {
+                removeAction(application)
             }
-    }
-
-    private func insertionDropZone(index: Int) -> some View {
-        FavoriteApplicationInsertionDropZone(
-            isActive: activeDropIndex == index
-        ) { isTargeted in
-            if isTargeted && canShowInsertionDropZone(at: index) {
-                activeDropIndex = index
-            } else if activeDropIndex == index {
-                activeDropIndex = nil
+            .onDrag {
+                return dragItemProvider(InstalledApplicationDragPayload(
+                    bundlePath: application.bundlePath,
+                    source: .favorite
+                ))
             }
-        } dropAction: { payloadStrings in
-            performDrop(payloadStrings, at: index)
+            .onHover { isHovering in
+                hoveredApplicationID = isHovering ? application.id : nil
+            }
+        case .placeholder:
+            FavoriteApplicationDropPlaceholder()
         }
     }
 
-    private func performDrop(_ payloadStrings: [String], at index: Int) -> Bool {
-        var didAcceptDrop = false
+    private func performDrop(_ payload: InstalledApplicationDragPayload, at index: Int) -> Bool {
+        let sourceIndex = applications.firstIndex { $0.bundlePath == payload.bundlePath }
 
-        for payload in InstalledApplicationDragPayload.payloads(from: payloadStrings) where !isNoOpDrop(payload, at: index) {
-            didAcceptDrop = dropAction(payload.bundlePath, index) || didAcceptDrop
-        }
-
-        if didAcceptDrop {
-            activeDropIndex = nil
-            draggedFavoriteBundlePath = nil
-            isEmptyDropTargeted = false
-        }
-
-        return didAcceptDrop
-    }
-
-    private func performWideDrop(_ payload: InstalledApplicationDragPayload) -> Bool {
-        guard activeDropIndex == nil else {
-            return false
-        }
-
-        let didAcceptDrop = dropAction(payload.bundlePath, applications.count)
-        if didAcceptDrop {
-            isWideDropTargeted = false
-        }
-
-        return didAcceptDrop
-    }
-
-    private func canShowInsertionDropZone(at index: Int) -> Bool {
-        guard let draggedFavoriteBundlePath else {
+        if InstalledAppsPanelLayout.isNoOpFavoriteDrop(originalIndex: index, sourceIndex: sourceIndex) {
+            projectedDropIndex = nil
+            isStripDropTargeted = false
             return true
         }
 
-        return !isNoOpFavoriteDrop(bundlePath: draggedFavoriteBundlePath, at: index)
-    }
-
-    private func canAcceptWideDrop(_ payload: InstalledApplicationDragPayload) -> Bool {
-        !applications.isEmpty && payload.source == .library
-    }
-
-    private func isNoOpDrop(_ payload: InstalledApplicationDragPayload, at index: Int) -> Bool {
-        payload.source == .favorite && isNoOpFavoriteDrop(bundlePath: payload.bundlePath, at: index)
-    }
-
-    private func isNoOpFavoriteDrop(bundlePath: String, at index: Int) -> Bool {
-        guard let sourceIndex = applications.firstIndex(where: { $0.bundlePath == bundlePath }) else {
-            return false
+        let didDrop = withAnimation(.smooth(duration: 0.20)) {
+            dropAction(payload.bundlePath, index)
         }
 
-        return index == sourceIndex || index == sourceIndex + 1
+        if didDrop {
+            projectedDropIndex = nil
+            isStripDropTargeted = false
+            isEmptyDropTargeted = false
+        }
+
+        return didDrop
     }
 }
 
-private struct FavoriteApplicationInsertionDropZone: View {
-    var isActive: Bool
-    var setTargeted: (Bool) -> Void
-    var dropAction: ([String]) -> Bool
+private struct FavoriteApplicationsContinuousDropDelegate: DropDelegate {
+    var applications: [InstalledApplication]
+    var activePayload: InstalledApplicationDragPayload?
+    var containerWidth: CGFloat
+    @Binding var projectedDropIndex: Int?
+    @Binding var isTargeted: Bool
 
+    var dropPayload: (InstalledApplicationDragPayload, Int) -> Bool
+
+    func validateDrop(info: DropInfo) -> Bool {
+        canAcceptDrop(info)
+    }
+
+    func dropEntered(info: DropInfo) {
+        updateProjection(info: info)
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        guard updateProjection(info: info), let activePayload else {
+            return DropProposal(operation: .forbidden)
+        }
+
+        return DropProposal(operation: activePayload.source == .favorite ? .move : .copy)
+    }
+
+    func dropExited(info: DropInfo) {
+        clearProjection()
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        guard
+            canAcceptDrop(info),
+            let activePayload
+        else {
+            clearProjection()
+            return false
+        }
+
+        let originalIndex = originalInsertionIndex(for: info)
+        if isNoOpDrop(activePayload, at: originalIndex) {
+            clearProjection()
+            return true
+        }
+
+        let didDrop = dropPayload(activePayload, originalIndex)
+        clearProjection()
+        return didDrop
+    }
+
+    @discardableResult
+    private func updateProjection(info: DropInfo) -> Bool {
+        guard canAcceptDrop(info), let activePayload else {
+            clearProjection()
+            return false
+        }
+
+        let originalIndex = originalInsertionIndex(for: info)
+        let nextIndex: Int? = isNoOpDrop(activePayload, at: originalIndex) ? nil : originalIndex
+        withAnimation(.smooth(duration: 0.16)) {
+            projectedDropIndex = nextIndex
+            isTargeted = true
+        }
+        return true
+    }
+
+    private func originalInsertionIndex(for info: DropInfo) -> Int {
+        InstalledAppsPanelLayout.favoriteDropInsertionIndex(
+            locationX: info.location.x,
+            itemCount: applications.count,
+            containerWidth: containerWidth
+        )
+    }
+
+    private func canAcceptDrop(_ info: DropInfo) -> Bool {
+        info.hasItemsConforming(to: InstalledApplicationDragPayload.supportedTypeIdentifiers)
+            && activePayload != nil
+    }
+
+    private func isNoOpDrop(_ payload: InstalledApplicationDragPayload, at index: Int) -> Bool {
+        InstalledAppsPanelLayout.isNoOpFavoriteDrop(
+            originalIndex: index,
+            sourceIndex: sourceIndex(for: payload)
+        )
+    }
+
+    private func sourceIndex(for payload: InstalledApplicationDragPayload) -> Int? {
+        applications.firstIndex { $0.bundlePath == payload.bundlePath }
+    }
+
+    private func clearProjection() {
+        withAnimation(.smooth(duration: 0.16)) {
+            projectedDropIndex = nil
+            isTargeted = false
+        }
+    }
+}
+
+private struct FavoriteApplicationLayoutItem: Identifiable {
+    enum Kind {
+        case application(InstalledApplication)
+        case placeholder
+    }
+
+    var id: String
+    var kind: Kind
+
+    static func application(_ application: InstalledApplication) -> FavoriteApplicationLayoutItem {
+        FavoriteApplicationLayoutItem(id: "app-\(application.bundlePath)", kind: .application(application))
+    }
+
+    static func placeholder(bundlePath: String) -> FavoriteApplicationLayoutItem {
+        FavoriteApplicationLayoutItem(id: "placeholder-\(bundlePath)", kind: .placeholder)
+    }
+}
+
+private struct FavoriteApplicationDropPlaceholder: View {
     var body: some View {
-        RoundedRectangle(cornerRadius: 10, style: .continuous)
-            .fill(isActive ? .white.opacity(0.10) : .clear)
+        RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .fill(.white.opacity(0.08))
             .overlay {
-                if isActive {
-                    Capsule()
-                        .fill(InstalledAppsPanelLayout.runningIndicatorColor.opacity(0.84))
-                        .frame(width: 4, height: 22)
-                }
+                Capsule()
+                    .fill(InstalledAppsPanelLayout.runningIndicatorColor.opacity(0.88))
+                    .frame(width: 4, height: 22)
             }
             .frame(
-                width: isActive
-                    ? InstalledAppsPanelLayout.favoriteInsertionActiveGapWidth
-                    : InstalledAppsPanelLayout.favoriteInsertionGapWidth,
+                width: InstalledAppsPanelLayout.favoriteSlotSide,
                 height: InstalledAppsPanelLayout.favoriteSlotSide
             )
-            .contentShape(Rectangle())
-            .dropDestination(for: String.self) { payloadStrings, _ in
-                dropAction(payloadStrings)
-            } isTargeted: { isTargeted in
-                setTargeted(isTargeted)
-            }
-            .animation(.snappy(duration: 0.16), value: isActive)
+            .transition(.opacity.combined(with: .scale(scale: 0.92)))
             .accessibilityHidden(true)
     }
 }

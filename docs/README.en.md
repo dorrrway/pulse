@@ -70,7 +70,9 @@ See [Privacy Policy](PRIVACY.en.md) for details.
 - Moved common actions into the expanded-state header: Settings and Quit now sit at the top right, while the Resource Monitor footer only keeps panel-specific controls; pinned panels now place Minimize at the bottom right.
 - Simplified the Resource Monitor panel by removing the repeated Pulse title, device name, and pixel icon; the expanded-state Resource Monitor footer now shows the refresh time, while pinned panels no longer show time.
 - Improved multi-display behavior: the Dynamic Island-style entry and pinned Resource Monitor panel now follow the current display, so switching between external monitors feels more consistent.
+- Changed expanded-state module switching to a horizontal selector: Resource Monitor and Applications now sit in one row, left/right swipes switch modules, and the selected module stays centered.
 - Added a single-row Favorite Apps panel in the Applications module: the module now opens in icon view by default, icon view supports dragging apps into favorites, list view uses a pin button to add or remove favorites quickly, favorites can be reordered by dragging or removed by dragging them back to the app area, and running apps show a highlighted dot below their icons.
+- Smoothed Favorite Apps drop placement: dragging or reordering an app between two favorites now reserves the real landing width, reducing the jump after release.
 
 ### 2.0.0 - 2026-05-25
 

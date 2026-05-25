@@ -23,6 +23,75 @@ final class PinnedPanelControllerTests: XCTestCase {
     }
 
     @MainActor
+    func testFavoriteProjectedItemFootprintMatchesContentWidthIncrement() {
+        let currentWidth = InstalledAppsPanelLayout.favoriteContentWidth(itemCount: 3)
+        let projectedWidth = InstalledAppsPanelLayout.favoriteContentWidth(itemCount: 4)
+
+        XCTAssertEqual(
+            projectedWidth - currentWidth,
+            InstalledAppsPanelLayout.favoriteProjectedItemFootprint
+        )
+        XCTAssertGreaterThan(
+            InstalledAppsPanelLayout.favoriteProjectedItemFootprint,
+            InstalledAppsPanelLayout.favoriteSlotSide
+        )
+    }
+
+    @MainActor
+    func testFavoriteDropInsertionIndexTracksPointerAcrossIconCenters() {
+        let itemCount = 3
+        let contentWidth = InstalledAppsPanelLayout.favoriteContentWidth(itemCount: itemCount)
+        let firstCenter = InstalledAppsPanelLayout.favoriteInsertionGapWidth
+            + InstalledAppsPanelLayout.favoriteSlotSide / 2
+        let itemStep = InstalledAppsPanelLayout.favoriteSlotSide
+            + InstalledAppsPanelLayout.favoriteInsertionGapWidth
+
+        XCTAssertEqual(
+            InstalledAppsPanelLayout.favoriteDropInsertionIndex(
+                locationX: firstCenter - 1,
+                itemCount: itemCount,
+                containerWidth: contentWidth
+            ),
+            0
+        )
+        XCTAssertEqual(
+            InstalledAppsPanelLayout.favoriteDropInsertionIndex(
+                locationX: firstCenter + 1,
+                itemCount: itemCount,
+                containerWidth: contentWidth
+            ),
+            1
+        )
+        XCTAssertEqual(
+            InstalledAppsPanelLayout.favoriteDropInsertionIndex(
+                locationX: firstCenter + itemStep + 1,
+                itemCount: itemCount,
+                containerWidth: contentWidth
+            ),
+            2
+        )
+        XCTAssertEqual(
+            InstalledAppsPanelLayout.favoriteDropInsertionIndex(
+                locationX: contentWidth + 100,
+                itemCount: itemCount,
+                containerWidth: contentWidth
+            ),
+            3
+        )
+    }
+
+    @MainActor
+    func testFavoriteDropIndexCompactsProjectedLayoutAfterSourceRemoval() {
+        XCTAssertEqual(
+            InstalledAppsPanelLayout.favoriteCompactInsertionIndex(originalIndex: 3, sourceIndex: 1),
+            2
+        )
+        XCTAssertTrue(InstalledAppsPanelLayout.isNoOpFavoriteDrop(originalIndex: 1, sourceIndex: 1))
+        XCTAssertTrue(InstalledAppsPanelLayout.isNoOpFavoriteDrop(originalIndex: 2, sourceIndex: 1))
+        XCTAssertFalse(InstalledAppsPanelLayout.isNoOpFavoriteDrop(originalIndex: 3, sourceIndex: 1))
+    }
+
+    @MainActor
     func testPinnedPanelReceivesUpdateControllerEnvironment() {
         let controller = PulsePinnedPanelController()
         let store = PulseStore(
@@ -226,7 +295,7 @@ final class PinnedPanelControllerTests: XCTestCase {
     }
 
     @MainActor
-    func testIslandModulesCycleVertically() {
+    func testIslandModulesCycleHorizontally() {
         XCTAssertEqual(PulseIslandModule.resourceMonitor.shifted(by: 1), .applications)
         XCTAssertEqual(PulseIslandModule.applications.shifted(by: 1), .resourceMonitor)
         XCTAssertEqual(PulseIslandModule.resourceMonitor.shifted(by: -1), .applications)
@@ -699,6 +768,14 @@ final class PinnedPanelControllerTests: XCTestCase {
         controller.setHovering(true)
 
         XCTAssertEqual(controller.style, .expanded)
+    }
+
+    @MainActor
+    func testIslandHoverCollapseDefersWhileMouseButtonIsPressed() {
+        XCTAssertFalse(PulseIslandPanelController.shouldDeferHoverCollapse(pressedMouseButtons: 0))
+        XCTAssertTrue(PulseIslandPanelController.shouldDeferHoverCollapse(pressedMouseButtons: 1))
+        XCTAssertTrue(PulseIslandPanelController.shouldDeferHoverCollapse(pressedMouseButtons: 1 << 1))
+        XCTAssertTrue(PulseIslandPanelController.shouldDeferHoverCollapse(pressedMouseButtons: 1 << 2))
     }
 
     @MainActor
