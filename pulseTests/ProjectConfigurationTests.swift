@@ -1,7 +1,7 @@
 import XCTest
 
 final class ProjectConfigurationTests: XCTestCase {
-    func testHostAppInfoPlistKeepsMenuBarSingleInstanceConfiguration() {
+    func testHostAppInfoPlistKeepsAgentSingleInstanceConfiguration() {
         let infoDictionary = Bundle.main.infoDictionary
 
         XCTAssertEqual(infoDictionary?["CFBundleDisplayName"] as? String, "Pulse")

@@ -2,12 +2,12 @@ import AppKit
 import SwiftUI
 
 enum PulsePanelPresentation {
-    case menuBar
     case pinned
+    case island
 }
 
 private struct PulsePanelPresentationKey: EnvironmentKey {
-    static let defaultValue: PulsePanelPresentation = .menuBar
+    static let defaultValue: PulsePanelPresentation = .pinned
 }
 
 private struct PulsePanelIsPinnedKey: EnvironmentKey {
@@ -32,26 +32,6 @@ extension EnvironmentValues {
     var pulsePanelPinAction: () -> Void {
         get { self[PulsePanelPinActionKey.self] }
         set { self[PulsePanelPinActionKey.self] = newValue }
-    }
-}
-
-private struct PulsePanelWindowReader: NSViewRepresentable {
-    var onResolve: (NSWindow?) -> Void
-
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView(frame: .zero)
-        resolveWindow(for: view)
-        return view
-    }
-
-    func updateNSView(_ nsView: NSView, context: Context) {
-        resolveWindow(for: nsView)
-    }
-
-    private func resolveWindow(for view: NSView) {
-        DispatchQueue.main.async {
-            onResolve(view.window)
-        }
     }
 }
 
@@ -81,10 +61,10 @@ private struct PanelControlIconImage: View {
 
 private struct PanelIconButton: View {
     private enum Layout {
-        static let side: CGFloat = 28
-        static let iconFrameSide: CGFloat = 20
-        static let iconSide: CGFloat = 18
-        static let cornerRadius: CGFloat = 8
+        static let side: CGFloat = PulseDesign.Control.buttonSide
+        static let iconFrameSide: CGFloat = PulseDesign.Control.iconFrameSide
+        static let iconSide: CGFloat = PulseDesign.Control.iconSide
+        static let cornerRadius: CGFloat = PulseDesign.Radius.control
     }
 
     var iconName: String
@@ -97,7 +77,7 @@ private struct PanelIconButton: View {
             ZStack {
                 if isHovering {
                     RoundedRectangle(cornerRadius: Layout.cornerRadius, style: .continuous)
-                        .fill(.primary.opacity(0.10))
+                        .fill(.primary.opacity(PulseDesign.Opacity.hoverFill))
                 }
 
                 PanelControlIconImage(name: iconName, side: Layout.iconSide)
@@ -126,20 +106,16 @@ struct PulsePanelView: View {
     @Environment(\.pulsePanelIsPinned) private var isPinned
     @Environment(\.pulsePanelPinAction) private var pinAction
     @Environment(PulseUpdateController.self) private var updateController
-    @State private var hostingWindow: NSWindow?
     @State private var isMinimalRestoreVisible = false
 
     var body: some View {
         let strings = store.strings
 
         panelContent(strings: strings)
-            .background(.regularMaterial)
-            .clipShape(panelShape)
             .background {
-                PulsePanelWindowReader { window in
-                    hostingWindow = window
-                }
+                panelBackground
             }
+            .clipShape(panelShape)
             .overlay(alignment: .top) {
                 if presentation == .pinned && style == .full {
                     Color.clear
@@ -181,7 +157,7 @@ struct PulsePanelView: View {
         .padding(.top, PulsePanelLayout.outerPadding)
         .padding(.bottom, PulsePanelLayout.footerBottomPadding)
         .frame(
-            width: PulsePanelLayout.contentWidth,
+            width: fullPanelContentWidth,
             height: PulsePanelLayout.contentHeight,
             alignment: .top
         )
@@ -230,9 +206,25 @@ struct PulsePanelView: View {
 
     private var panelShape: RoundedRectangle {
         RoundedRectangle(
-            cornerRadius: presentation == .pinned ? PulsePanelLayout.panelCornerRadius : 0,
+            cornerRadius: PulsePanelLayout.panelCornerRadius,
             style: .continuous
         )
+    }
+
+    @ViewBuilder
+    private var panelBackground: some View {
+        if presentation != .island {
+            panelShape.fill(.regularMaterial)
+        }
+    }
+
+    private var fullPanelContentWidth: CGFloat {
+        switch presentation {
+        case .island:
+            PulseIslandLayout.attachedPanelSize.width
+        case .pinned:
+            PulsePanelLayout.contentWidth
+        }
     }
 
     private var header: some View {
@@ -292,12 +284,10 @@ struct PulsePanelView: View {
     }
 
     private func togglePinnedPanel() {
-        let sourceWindow = hostingWindow
         pinAction()
 
-        if presentation == .menuBar {
-            sourceWindow?.resignKey()
-            sourceWindow?.orderOut(nil)
+        if presentation == .island {
+            collapseAction()
         }
     }
 
@@ -320,14 +310,14 @@ private struct PulseHeaderView: View {
     @Environment(PulseStore.self) private var store
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: PulseDesign.Spacing.sm) {
             PixelGlyph(level: store.coreMetrics.cpu.percentage)
                 .frame(width: 36, height: 36)
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("Pulse")
-                    .font(.system(.title3, design: .rounded, weight: .semibold))
+                    .font(PulseDesign.Typography.panelTitle)
                     .lineLimit(1)
 
                 Text(store.deviceName ?? strings.text(.thisMac))
@@ -394,6 +384,7 @@ private struct CoreMetricsSection: View {
     var strings: PulseStrings
 
     @Environment(PulseStore.self) private var store
+    @Environment(\.pulsePanelPresentation) private var presentation
 
     var body: some View {
         let metrics = store.coreMetrics
@@ -404,7 +395,8 @@ private struct CoreMetricsSection: View {
                 value: ResourceFormatters.percentage(metrics.cpu.percentage),
                 detail: strings.cores(metrics.cpu.coreCount),
                 tint: .cyan,
-                progress: metrics.cpu.percentage
+                progress: metrics.cpu.percentage,
+                meterColumns: meterColumns
             )
 
             MetricRow(
@@ -415,7 +407,8 @@ private struct CoreMetricsSection: View {
                     total: ResourceFormatters.byteString(bytes: metrics.memory.totalBytes)
                 ),
                 tint: .green,
-                progress: metrics.memory.percentage
+                progress: metrics.memory.percentage,
+                meterColumns: meterColumns
             )
 
             MetricRow(
@@ -427,7 +420,8 @@ private struct CoreMetricsSection: View {
                 tint: .indigo,
                 progress: ResourceScales.networkActivityProgress(
                     bytesPerSecond: metrics.network.incomingBytesPerSecond + metrics.network.outgoingBytesPerSecond
-                )
+                ),
+                meterColumns: meterColumns
             )
 
             MetricRow(
@@ -435,10 +429,15 @@ private struct CoreMetricsSection: View {
                 value: ResourceFormatters.percentage(metrics.disk.percentage),
                 detail: strings.diskFreeDetail(ResourceFormatters.storageByteString(bytes: metrics.disk.availableBytes)),
                 tint: .orange,
-                progress: metrics.disk.percentage
+                progress: metrics.disk.percentage,
+                meterColumns: meterColumns
             )
         }
         .frame(height: PulsePanelLayout.coreMetricsHeight)
+    }
+
+    private var meterColumns: Int {
+        presentation == .island ? 32 : 18
     }
 }
 
@@ -550,28 +549,29 @@ private struct MetricRow: View {
     var detail: String
     var tint: Color
     var progress: Double
+    var meterColumns: Int
 
     var body: some View {
         HStack(alignment: .center, spacing: Layout.groupSpacing) {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: PulseDesign.Spacing.fine) {
                 Text(title)
-                    .font(.system(.callout, design: .rounded, weight: .medium))
+                    .font(PulseDesign.Typography.panelBody)
                     .lineLimit(1)
 
-                PixelMeter(value: progress, tint: tint)
+                PixelMeter(value: progress, tint: tint, columns: meterColumns)
                     .accessibilityLabel("\(title) \(value)")
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack(alignment: .firstTextBaseline, spacing: Layout.valueSpacing) {
                 Text(value)
-                    .font(.system(.title3, design: .monospaced, weight: .semibold))
+                    .font(PulseDesign.Typography.panelLargeValue)
                     .lineLimit(1)
                     .fixedSize(horizontal: true, vertical: false)
                     .frame(width: Layout.valueColumnWidth, alignment: .trailing)
 
                 Text(detail)
-                    .font(.system(.callout, design: .monospaced, weight: .semibold))
+                    .font(PulseDesign.Typography.panelValue)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .fixedSize(horizontal: true, vertical: false)
@@ -589,9 +589,9 @@ private struct MetricGraphBlock: View {
     var accessibilityValue: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: PulseDesign.Spacing.fine) {
             Text(title)
-                .font(.system(.callout, design: .rounded, weight: .medium))
+                .font(PulseDesign.Typography.panelBody)
                 .lineLimit(1)
                 .fixedSize(horizontal: true, vertical: false)
 
@@ -613,32 +613,32 @@ private struct SignalCard: View {
     var isTintBreathing = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: PulseDesign.Spacing.fine - PulseDesign.Spacing.hairline) {
+            HStack(spacing: PulseDesign.Spacing.fine) {
                 SignalLegendDot(tint: tint, isBreathing: isTintBreathing)
 
                 Text(title)
-                    .font(.system(.caption, design: .rounded, weight: .medium))
+                    .font(PulseDesign.Typography.panelLabel)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.tail)
             }
 
             Text(value)
-                .font(.system(.callout, design: .monospaced, weight: .semibold))
+                .font(PulseDesign.Typography.panelValue)
                 .foregroundStyle(.primary)
                 .lineLimit(1)
                 .truncationMode(.tail)
 
             Text(detail)
-                .font(.system(.caption2, design: .monospaced, weight: .medium))
+                .font(PulseDesign.Typography.panelDetail)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .truncationMode(.tail)
         }
-        .padding(10)
+        .padding(PulseDesign.Spacing.compact)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: PulseDesign.Radius.card, style: .continuous))
         .help(helpText)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(title)
@@ -656,29 +656,29 @@ private struct RuntimeSummaryRow: View {
     var tint: Color
 
     var body: some View {
-        HStack(alignment: .center, spacing: 8) {
+        HStack(alignment: .center, spacing: PulseDesign.Spacing.xs) {
             PanelControlIconImage(name: PanelControlIcon.runtimePulse, side: Layout.iconSide)
                 .foregroundStyle(tint)
 
             Text(text)
-                .font(.system(.callout, design: .monospaced, weight: .semibold))
+                .font(PulseDesign.Typography.panelValue)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .truncationMode(.tail)
 
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
+        .padding(.horizontal, PulseDesign.Spacing.compact)
+        .padding(.vertical, PulseDesign.Spacing.xs)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.quaternary.opacity(0.28), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .background(.quaternary.opacity(0.28), in: RoundedRectangle(cornerRadius: PulseDesign.Radius.card, style: .continuous))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(title)
         .accessibilityValue(text)
     }
 }
 
-private enum SignalStatusColor {
+enum SignalStatusColor {
     private static let activeDiskIOThresholdBytesPerSecond: Double = 50_000_000
 
     static func memoryPressure(_ level: PressureLevel) -> Color {
@@ -718,11 +718,11 @@ private enum SignalStatusColor {
             return .green
         }
 
-        if percentage < 0.1 {
+        if percentage <= 0.1 {
             return .red
         }
 
-        if percentage < 0.2 {
+        if percentage <= 0.2 {
             return .orange
         }
 

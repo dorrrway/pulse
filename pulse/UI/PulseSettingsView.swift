@@ -3,6 +3,9 @@ import SwiftUI
 struct PulseSettingsView: View {
     @Environment(PulseStore.self) private var store
     @Environment(\.openURL) private var openURL
+    #if DEBUG
+    @Environment(\.pulseIslandPreviewCriticalAlerts) private var previewCriticalAlerts
+    #endif
     private let settingsControlHeight: CGFloat = 22
     private let websiteURL = URL(string: "https://timelikesilver.com/apps/pulse")
 
@@ -82,6 +85,25 @@ struct PulseSettingsView: View {
                     .frame(maxWidth: .infinity, alignment: .center)
                 }
 
+                #if DEBUG
+                Section {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Island Alert Preview")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        HStack(spacing: 8) {
+                            previewButton(title: strings.islandBatteryLevelTitle(), alerts: [.power])
+                            previewButton(title: strings.text(.thermal), alerts: [.thermal])
+                            previewButton(title: strings.text(.disk), alerts: [.disk])
+                            previewButton(title: strings.text(.memoryPressure), alerts: [.memory])
+                            previewButton(title: previewAllTitle(strings: strings), alerts: PulseIslandCriticalAlert.allCases)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                #endif
+
                 Section {
                     HStack(alignment: .center) {
                         Text(strings.text(.contactUs))
@@ -111,7 +133,7 @@ struct PulseSettingsView: View {
                 .padding(.bottom, 16)
         }
         .navigationTitle(strings.text(.pulseSettings))
-        .frame(width: 460, height: 326)
+        .frame(width: 460, height: settingsWindowHeight)
         .onAppear {
             store.refreshLaunchAtLoginStatus()
         }
@@ -139,6 +161,32 @@ private extension PulseSettingsView {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
         return "\(strings.text(.appVersion)) \(version ?? "Unknown")"
     }
+
+    var settingsWindowHeight: CGFloat {
+        #if DEBUG
+        return 384
+        #else
+        return 326
+        #endif
+    }
+
+    #if DEBUG
+    func previewButton(title: String, alerts: [PulseIslandCriticalAlert]) -> some View {
+        Button(title) {
+            previewCriticalAlerts(alerts)
+        }
+        .controlSize(.small)
+    }
+
+    func previewAllTitle(strings: PulseStrings) -> String {
+        switch strings.language {
+        case .english:
+            return "All"
+        case .chinese:
+            return "全部"
+        }
+    }
+    #endif
 }
 
 #Preview {

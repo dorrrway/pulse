@@ -3,7 +3,7 @@ set -euo pipefail
 
 PROJECT="pulse.xcodeproj"
 SCHEME="pulse"
-CONFIGURATION="Release"
+CONFIGURATION="${CONFIGURATION:-Release}"
 PRODUCT_APP_NAME="pulse.app"
 INSTALL_APP_NAME="Pulse.app"
 BUNDLE_ID="com.timelikesilver.pulse"
@@ -11,7 +11,6 @@ BUNDLE_ID="com.timelikesilver.pulse"
 BUILD_ROOT="${BUILD_ROOT:-${TMPDIR:-/tmp}/pulse-local-install}"
 DERIVED_DATA_PATH="$BUILD_ROOT/DerivedData"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/Applications}"
-PRODUCT_APP_PATH="$DERIVED_DATA_PATH/Build/Products/$CONFIGURATION/$PRODUCT_APP_NAME"
 INSTALL_APP_PATH="$INSTALL_DIR/$INSTALL_APP_NAME"
 
 log() {
@@ -29,7 +28,35 @@ command -v codesign >/dev/null 2>&1 || fail "Missing required command: codesign"
 
 [[ -d "$PROJECT" ]] || fail "Run this script from the repository root."
 
-log "Building Release app"
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --configuration)
+      [[ $# -ge 2 ]] || fail "--configuration requires a value"
+      CONFIGURATION="$2"
+      shift 2
+      ;;
+    --configuration=*)
+      CONFIGURATION="${1#*=}"
+      shift
+      ;;
+    Debug|Release)
+      CONFIGURATION="$1"
+      shift
+      ;;
+    *)
+      fail "Unknown argument: $1"
+      ;;
+  esac
+done
+
+case "$CONFIGURATION" in
+  Debug|Release) ;;
+  *) fail "Unsupported configuration: $CONFIGURATION" ;;
+esac
+
+PRODUCT_APP_PATH="$DERIVED_DATA_PATH/Build/Products/$CONFIGURATION/$PRODUCT_APP_NAME"
+
+log "Building $CONFIGURATION app"
 rm -rf "$DERIVED_DATA_PATH"
 export COPYFILE_DISABLE=1
 xcodebuild \

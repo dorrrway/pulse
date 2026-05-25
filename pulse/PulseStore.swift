@@ -7,6 +7,9 @@ final class PulseStore {
     var coreMetrics: CoreMetricsSnapshot = .empty
     var signalMetrics: SignalMetricsSnapshot = .empty
     var processLeaders: ProcessResourceSnapshot = .empty
+    var installedApplications: [InstalledApplication] = []
+    var isRefreshingInstalledApplications = false
+    var installedApplicationsRefreshedAt: Date?
     var capturedAt: Date = .distantPast
     var deviceName: String?
     var languagePreference: PulseLanguagePreference {
@@ -24,29 +27,40 @@ final class PulseStore {
             userDefaults.set(launchAtLogin, forKey: Self.launchAtLoginKey)
         }
     }
+    var installedAppsDisplayMode: PulseInstalledAppsDisplayMode {
+        didSet {
+            userDefaults.set(installedAppsDisplayMode.rawValue, forKey: Self.installedAppsDisplayModeKey)
+        }
+    }
     var launchAtLoginStatus: PulseLoginItemStatus
     var launchAtLoginError: PulseLoginItemError?
 
     private let sampler = SystemSampler()
+    private let installedAppCatalog: InstalledAppCatalog
     private var samplingTask: Task<Void, Never>?
+    private var installedApplicationsRefreshTask: Task<Void, Never>?
     private let userDefaults: UserDefaults
     private let launchAtLoginService: PulseLoginItemService
 
     private static let snapshotRefreshInterval: Duration = .seconds(1)
+    private static let installedApplicationsRefreshInterval: TimeInterval = 300
     private static let languagePreferenceKey = "pulse.settings.languagePreference"
     private static let appearancePreferenceKey = "pulse.settings.appearancePreference"
     private static let launchAtLoginKey = "pulse.settings.launchAtLogin"
     private static let launchAtLoginDefaultAppliedKey = "pulse.settings.launchAtLoginDefaultApplied"
+    private static let installedAppsDisplayModeKey = "pulse.settings.installedApps.displayMode"
 
     init(
         userDefaults: UserDefaults = .standard,
         launchAtLoginService: PulseLoginItemService = .live,
+        installedAppCatalog: InstalledAppCatalog = InstalledAppCatalog(),
         deviceName: String? = nil,
         reconcileLaunchAtLogin: Bool? = nil,
         startSamplingImmediately: Bool = false
     ) {
         self.userDefaults = userDefaults
         self.launchAtLoginService = launchAtLoginService
+        self.installedAppCatalog = installedAppCatalog
         self.deviceName = Self.normalizedDeviceName(deviceName) ?? Self.currentDeviceName()
         self.languagePreference = Self.loadLanguagePreference(from: userDefaults, key: Self.languagePreferenceKey)
         self.appearancePreference = Self.loadAppearancePreference(from: userDefaults, key: Self.appearancePreferenceKey)
@@ -54,6 +68,10 @@ final class PulseStore {
             from: userDefaults,
             key: Self.launchAtLoginKey,
             defaultAppliedKey: Self.launchAtLoginDefaultAppliedKey
+        )
+        self.installedAppsDisplayMode = Self.loadInstalledAppsDisplayMode(
+            from: userDefaults,
+            key: Self.installedAppsDisplayModeKey
         )
         self.launchAtLoginStatus = launchAtLoginService.currentStatus()
 
@@ -135,8 +153,45 @@ final class PulseStore {
         reconcilePreferredLaunchAtLogin()
     }
 
+    func setInstalledAppsDisplayMode(_ mode: PulseInstalledAppsDisplayMode) {
+        installedAppsDisplayMode = mode
+    }
+
     func refreshLaunchAtLoginStatus() {
         launchAtLoginStatus = launchAtLoginService.currentStatus()
+    }
+
+    func refreshInstalledApplicationsIfNeeded(force: Bool = false) {
+        if isRefreshingInstalledApplications {
+            return
+        }
+
+        if
+            !force,
+            !installedApplications.isEmpty,
+            let installedApplicationsRefreshedAt,
+            Date().timeIntervalSince(installedApplicationsRefreshedAt) < Self.installedApplicationsRefreshInterval
+        {
+            return
+        }
+
+        refreshInstalledApplications()
+    }
+
+    func refreshInstalledApplications() {
+        installedApplicationsRefreshTask?.cancel()
+        isRefreshingInstalledApplications = true
+
+        installedApplicationsRefreshTask = Task { [installedAppCatalog] in
+            let applications = await installedAppCatalog.applications()
+            guard !Task.isCancelled else {
+                return
+            }
+
+            installedApplications = applications
+            installedApplicationsRefreshedAt = Date()
+            isRefreshingInstalledApplications = false
+        }
     }
 
     private func reconcilePreferredLaunchAtLogin() {
@@ -251,6 +306,20 @@ final class PulseStore {
         }
 
         return preference
+    }
+
+    private static func loadInstalledAppsDisplayMode(
+        from userDefaults: UserDefaults,
+        key: String
+    ) -> PulseInstalledAppsDisplayMode {
+        guard
+            let rawValue = userDefaults.string(forKey: key),
+            let displayMode = PulseInstalledAppsDisplayMode(rawValue: rawValue)
+        else {
+            return .list
+        }
+
+        return displayMode
     }
 
     private static func loadLaunchAtLogin(

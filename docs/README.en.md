@@ -13,34 +13,34 @@
 </h3>
 
 <p align="center">
-  <img alt="release" src="https://img.shields.io/badge/release-v1.2.0-0A84FF">
+  <img alt="release" src="https://img.shields.io/badge/release-v2.0.0-0A84FF">
   <img alt="platform" src="https://img.shields.io/badge/platform-macOS-147EFB">
   <img alt="Swift" src="https://img.shields.io/badge/Swift-6-FA7343">
   <img alt="notarized" src="https://img.shields.io/badge/Developer%20ID-notarized-34C759">
 </p>
 
-Pulse is a lightweight macOS menu bar app for watching local system status at a glance.
+Pulse is a lightweight macOS Pulse Island app that launches at the top center of the screen for local system status, with quick access to Resource Monitor and Applications.
 
 <p align="center">
-  <img src="assets/pulse-preview-combined.gif" width="640" alt="Pulse menu bar status panel preview in Light and Dark Mode">
+  <img src="assets/pulse-preview-combined.gif" width="640" alt="Pulse status panel preview in Light and Dark Mode">
 </p>
 
 ## Download
 
 Latest release:
 
-- [Pulse 1.2.0](https://github.com/dorrrway/pulse/releases/tag/v1.2.0)
-- DMG: [Pulse-1.2.0.dmg](https://github.com/dorrrway/pulse/releases/download/v1.2.0/Pulse-1.2.0.dmg)
+- [Pulse 2.0.0](https://github.com/dorrrway/pulse/releases/tag/v2.0.0)
+- DMG: [Pulse-2.0.0.dmg](https://github.com/dorrrway/pulse/releases/download/v2.0.0/Pulse-2.0.0.dmg)
 
 SHA-256:
 
 ```text
-4549673b0017257a46326c5f6b91f8833ddd98a386c218bda484c8bac6e45c95  Pulse-1.2.0.dmg
+eb19283e73273f8df1f70e466888aa95f95ef25dec227eaa129a4ca21ac46028  Pulse-2.0.0.dmg
 ```
 
 ## Installation
 
-1. Download `Pulse-1.2.0.dmg`.
+1. Download `Pulse-2.0.0.dmg`.
 2. Open the DMG.
 3. Follow the bilingual DMG guide and drag `Pulse.app` to Applications.
 4. Launch Pulse from Applications.
@@ -56,13 +56,24 @@ This version includes the updater and checks for updates in the background. When
 
 ## Privacy
 
-Pulse reads local system metrics only, such as CPU, memory, disk, network byte counters, battery, thermal state, disk I/O, and the system's last boot time. To show usage rankings, Pulse also reads the names of running local processes, their CPU and memory usage, and local app bundle paths used to display app icons.
+Pulse reads local system metrics only, such as CPU, memory, disk, network byte counters, battery, thermal state, disk I/O, and the system's last boot time. To show usage rankings, Pulse also reads the names of running local processes, their CPU and memory usage, and local app bundle paths used to display app icons. To show the Applications list, Pulse reads app names, bundle IDs, versions, and bundle paths from standard application locations.
 
-Pulse requests the TimeLikeSilver-hosted appcast to check for new versions and downloads a release archive when the user clicks Update. This update-check request may be used to aggregate runtime trends, but it does not attach files, personal data, system metrics, process lists, app bundle paths, persistent tracking identifiers, or Sparkle system profiling data.
+Pulse requests the TimeLikeSilver-hosted appcast to check for new versions and downloads a release archive when the user clicks Update. This update-check request may be used to aggregate runtime trends, but it does not attach files, personal data, system metrics, process lists, application lists, app bundle paths, persistent tracking identifiers, or Sparkle system profiling data.
 
 See [Privacy Policy](PRIVACY.en.md) for details.
 
 ## Changelog
+
+### 2.0.0 - 2026-05-25
+
+- Pulse now launches with Pulse Island as the only primary entry point, without a menu bar icon or menu bar status panel; Settings, updates, pinning, and Quit remain available from the expanded island panel.
+- Pulse Island sits at the top center as a lightweight activity entry point; its compact state reads as a top status aperture, then drops into a compact Resource Monitor header with the full status panel below.
+- Pulse Island's compact state now rotates between memory and CPU percentages by default; when a Mac is on battery or charging from a low level at or below 20%, battery level joins the rotation and uses 20%, 10%, or charging icons for state.
+- When a Mac is on battery at or below 10%, thermal state becomes critical, storage is extremely low, or memory pressure is high, Pulse Island temporarily expands into a wider prioritized two-line critical warning with a matching leading status icon, then returns to its default compact state after 3 seconds; each continuous condition is shown once.
+- Refined the compact Pulse Island rotation with vertical rolling and numeric text transitions while respecting the system Reduce Motion setting.
+- Pulse Island's header can now be dragged or scrolled vertically to switch modules; the new Applications module opens local apps from standard application locations in either list view or a Launchpad-like icon view.
+- Fixed Pulse Island placement on MacBooks with a camera housing by avoiding the hidden top-center area.
+- Release archive: [Pulse-2.0.0.dmg](https://github.com/dorrrway/pulse/releases/download/v2.0.0/Pulse-2.0.0.dmg); SHA-256: `eb19283e73273f8df1f70e466888aa95f95ef25dec227eaa129a4ca21ac46028`.
 
 ### 1.2.0 - 2026-05-15
 

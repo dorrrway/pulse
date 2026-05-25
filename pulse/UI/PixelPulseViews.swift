@@ -67,14 +67,14 @@ struct PixelGlyph: View {
 struct PixelMeter: View {
     var value: Double
     var tint: Color
-
-    private let columns = 18
+    var columns = 18
 
     var body: some View {
-        let activeColumns = Int((min(max(value, 0), 1) * Double(columns)).rounded())
+        let columnCount = max(columns, 0)
+        let activeColumns = Int((min(max(value, 0), 1) * Double(columnCount)).rounded())
 
         HStack(spacing: 2) {
-            ForEach(0..<columns, id: \.self) { index in
+            ForEach(0..<columnCount, id: \.self) { index in
                 Rectangle()
                     .fill(index < activeColumns ? tint : Color.secondary.opacity(0.18))
                     .frame(width: 4, height: 10)

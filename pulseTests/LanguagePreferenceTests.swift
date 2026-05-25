@@ -137,6 +137,25 @@ final class LanguagePreferenceTests: XCTestCase {
     }
 
     @MainActor
+    func testPersistsInstalledAppsDisplayMode() {
+        let defaults = makeUserDefaults()
+        let store = PulseStore(
+            userDefaults: defaults,
+            launchAtLoginService: makeLoginItemService(),
+            reconcileLaunchAtLogin: false
+        )
+
+        store.setInstalledAppsDisplayMode(.icon)
+
+        let reloadedStore = PulseStore(
+            userDefaults: defaults,
+            launchAtLoginService: makeLoginItemService(),
+            reconcileLaunchAtLogin: false
+        )
+        XCTAssertEqual(reloadedStore.installedAppsDisplayMode, .icon)
+    }
+
+    @MainActor
     func testPersistsLaunchAtLoginPreferenceAndAppliesServiceState() {
         let defaults = makeUserDefaults()
         var appliedValues: [Bool] = []
@@ -197,14 +216,29 @@ final class LanguagePreferenceTests: XCTestCase {
         XCTAssertEqual(PulseStrings(language: .chinese).text(.darkMode), "深色模式")
         XCTAssertEqual(PulseStrings(language: .english).text(.thisMac), "This Mac")
         XCTAssertEqual(PulseStrings(language: .chinese).text(.thisMac), "这台 Mac")
-        XCTAssertEqual(PulseStrings(language: .english).text(.monitorOnly), "Monitoring only")
-        XCTAssertEqual(PulseStrings(language: .chinese).text(.monitorOnly), "仅监控")
         XCTAssertEqual(PulseStrings(language: .english).text(.minimalPanel), "Minimal panel")
         XCTAssertEqual(PulseStrings(language: .chinese).text(.expandPanel), "展开面板")
+        XCTAssertEqual(PulseStrings(language: .english).text(.topIsland), "Pulse Island")
+        XCTAssertEqual(PulseStrings(language: .chinese).text(.topIsland), "脉冲岛")
+        XCTAssertEqual(PulseStrings(language: .english).text(.applications), "Applications")
+        XCTAssertEqual(PulseStrings(language: .chinese).text(.applications), "应用程序")
+        XCTAssertEqual(PulseStrings(language: .english).text(.applicationsListView), "List view")
+        XCTAssertEqual(PulseStrings(language: .chinese).text(.applicationsIconView), "图标视图")
+        XCTAssertEqual(PulseStrings(language: .english).applicationCount(1), "1 application")
+        XCTAssertEqual(PulseStrings(language: .english).applicationCount(3), "3 applications")
+        XCTAssertEqual(PulseStrings(language: .chinese).applicationCount(3), "3 个应用程序")
+        XCTAssertEqual(PulseStrings(language: .english).installedApplicationSource(.system), "System")
+        XCTAssertEqual(PulseStrings(language: .chinese).installedApplicationSource(.user), "用户")
         XCTAssertEqual(PulseStrings(language: .english).text(.systemRuntime), "System Runtime")
         XCTAssertEqual(PulseStrings(language: .chinese).text(.systemRuntime), "开机时长")
         XCTAssertEqual(PulseStrings(language: .english).text(.appVersion), "Version")
         XCTAssertEqual(PulseStrings(language: .chinese).text(.appVersion), "版本")
+        XCTAssertEqual(PulseStrings(language: .english).text(.memory), "Memory")
+        XCTAssertEqual(PulseStrings(language: .chinese).text(.memory), "内存")
+        XCTAssertEqual(PulseStrings(language: .english).text(.memoryPressure), "Memory Pressure")
+        XCTAssertEqual(PulseStrings(language: .chinese).text(.memoryPressure), "内存压力")
+        XCTAssertEqual(PulseStrings(language: .english).islandBatteryLevelTitle(), "Battery")
+        XCTAssertEqual(PulseStrings(language: .chinese).islandBatteryLevelTitle(), "电量")
         XCTAssertEqual(PulseStrings(language: .chinese).memoryDetail(used: "17 GB", total: "24 GB"), "17 GB / 共 24 GB")
         XCTAssertEqual(PulseStrings(language: .english).pressure(.elevated), "Watch")
         XCTAssertEqual(PulseStrings(language: .chinese).pressure(.elevated), "偏高")
@@ -287,6 +321,92 @@ final class LanguagePreferenceTests: XCTestCase {
                 )
             ),
             "On battery: 50%, 2h 10m left."
+        )
+        XCTAssertEqual(
+            PulseStrings(language: .chinese).criticalPowerIslandDetail(
+                PowerUsage(
+                    hasBattery: true,
+                    batteryPercentage: 0.09,
+                    isPluggedIn: false,
+                    isCharging: false,
+                    timeRemaining: 1_080
+                )
+            ),
+            "约剩余 18 分钟 · 请尽快接入电源"
+        )
+        XCTAssertEqual(
+            PulseStrings(language: .chinese).criticalPowerIslandDetail(
+                PowerUsage(
+                    hasBattery: true,
+                    batteryPercentage: 0.09,
+                    isPluggedIn: false,
+                    isCharging: false,
+                    timeRemaining: nil
+                )
+            ),
+            "请尽快接入电源"
+        )
+        XCTAssertEqual(
+            PulseStrings(language: .english).criticalPowerIslandDetail(
+                PowerUsage(
+                    hasBattery: true,
+                    batteryPercentage: 0.09,
+                    isPluggedIn: false,
+                    isCharging: false,
+                    timeRemaining: 1_080
+                )
+            ),
+            "About 18m left · Connect power soon"
+        )
+        XCTAssertEqual(
+            PulseStrings(language: .chinese).criticalThermalIslandDetail(
+                ThermalUsage(condition: .critical, stateDuration: 12)
+            ),
+            "建议降低负载或加强散热"
+        )
+        XCTAssertEqual(
+            PulseStrings(language: .english).criticalThermalIslandDetail(
+                ThermalUsage(condition: .critical, stateDuration: 12)
+            ),
+            "Reduce load or improve cooling"
+        )
+        XCTAssertEqual(
+            PulseStrings(language: .chinese).criticalDiskIslandDetail(
+                DiskUsage(totalBytes: 100_000_000_000, availableBytes: 4_900_000_000)
+            ),
+            "剩余 4.9 GB · 请尽快清理空间"
+        )
+        XCTAssertEqual(
+            PulseStrings(language: .english).criticalDiskIslandDetail(
+                DiskUsage(totalBytes: 100_000_000_000, availableBytes: 4_900_000_000)
+            ),
+            "4.9 GB free · Free up storage soon"
+        )
+        XCTAssertEqual(
+            PulseStrings(language: .chinese).criticalMemoryIslandDetail(
+                MemoryUsage(
+                    totalBytes: 100_000_000_000,
+                    usedBytes: 91_000_000_000,
+                    availableBytes: 9_000_000_000,
+                    compressedBytes: 0,
+                    swapUsedBytes: 0,
+                    swapTotalBytes: 0
+                )
+            ),
+            "建议关闭部分 App 或浏览器标签"
+        )
+        XCTAssertEqual(
+            PulseStrings(language: .english).criticalMemoryIslandDetail(
+                MemoryUsage(
+                    totalBytes: 100_000_000_000,
+                    usedBytes: 91_000_000_000,
+                    availableBytes: 9_000_000_000,
+                    compressedBytes: 0,
+                    swapUsedBytes: 0,
+                    swapTotalBytes: 0
+                )
+            ),
+            "Close some apps or browser tabs"
         )
         XCTAssertEqual(
             PulseStrings(language: .chinese).powerDetail(

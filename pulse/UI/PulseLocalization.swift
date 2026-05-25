@@ -103,6 +103,50 @@ nonisolated struct PulseStrings: Sendable {
         }
     }
 
+    func islandBatteryLevelTitle() -> String {
+        switch language {
+        case .english:
+            return "Battery"
+        case .chinese:
+            return "电量"
+        }
+    }
+
+    func applicationCount(_ count: Int) -> String {
+        switch language {
+        case .english:
+            return count == 1 ? "1 application" : "\(count) applications"
+        case .chinese:
+            return "\(count) 个应用程序"
+        }
+    }
+
+    func installedApplicationSource(_ source: InstalledApplicationSource) -> String {
+        switch (language, source) {
+        case (.english, .user):
+            return "User"
+        case (.english, .local):
+            return "Applications"
+        case (.english, .system):
+            return "System"
+        case (.chinese, .user):
+            return "用户"
+        case (.chinese, .local):
+            return "应用程序"
+        case (.chinese, .system):
+            return "系统"
+        }
+    }
+
+    func openApplicationHelp(_ name: String) -> String {
+        switch language {
+        case .english:
+            return "Open \(name)"
+        case .chinese:
+            return "打开 \(name)"
+        }
+    }
+
     func pressure(_ level: PressureLevel) -> String {
         switch (language, level) {
         case (.english, .nominal):
@@ -294,6 +338,48 @@ nonisolated struct PulseStrings: Sendable {
         }
     }
 
+    func criticalPowerIslandDetail(_ power: PowerUsage) -> String {
+        guard let timeRemaining = power.timeRemaining else {
+            return connectPowerSoonText()
+        }
+
+        switch language {
+        case .english:
+            return "About \(compactPowerAlertDuration(timeRemaining)) left · \(connectPowerSoonText())"
+        case .chinese:
+            return "约剩余 \(compactPowerAlertDuration(timeRemaining)) · \(connectPowerSoonText())"
+        }
+    }
+
+    func criticalThermalIslandDetail(_ thermal: ThermalUsage) -> String {
+        switch language {
+        case .english:
+            return "Reduce load or improve cooling"
+        case .chinese:
+            return "建议降低负载或加强散热"
+        }
+    }
+
+    func criticalDiskIslandDetail(_ disk: DiskUsage) -> String {
+        let available = ResourceFormatters.storageByteString(bytes: disk.availableBytes)
+
+        switch language {
+        case .english:
+            return "\(available) free · Free up storage soon"
+        case .chinese:
+            return "剩余 \(available) · 请尽快清理空间"
+        }
+    }
+
+    func criticalMemoryIslandDetail(_ memory: MemoryUsage) -> String {
+        switch language {
+        case .english:
+            return "Close some apps or browser tabs"
+        case .chinese:
+            return "建议关闭部分 App 或浏览器标签"
+        }
+    }
+
     func diskIOExplanation(_ diskIO: DiskIOUsage) -> String {
         let read = ResourceFormatters.byteRate(bytesPerSecond: diskIO.readBytesPerSecond)
         let write = ResourceFormatters.byteRate(bytesPerSecond: diskIO.writeBytesPerSecond)
@@ -401,6 +487,44 @@ nonisolated struct PulseStrings: Sendable {
         }
     }
 
+    private func connectPowerSoonText() -> String {
+        switch language {
+        case .english:
+            return "Connect power soon"
+        case .chinese:
+            return "请尽快接入电源"
+        }
+    }
+
+    private func compactPowerAlertDuration(_ duration: TimeInterval) -> String {
+        let totalMinutes = max(Int(duration.rounded(.down)) / 60, 1)
+        let hours = totalMinutes / 60
+        let minutes = totalMinutes % 60
+
+        switch language {
+        case .english:
+            if hours > 0, minutes > 0 {
+                return "\(hours)h \(minutes)m"
+            }
+
+            if hours > 0 {
+                return "\(hours)h"
+            }
+
+            return "\(minutes)m"
+        case .chinese:
+            if hours > 0, minutes > 0 {
+                return "\(hours) 小时 \(minutes) 分钟"
+            }
+
+            if hours > 0 {
+                return "\(hours) 小时"
+            }
+
+            return "\(minutes) 分钟"
+        }
+    }
+
     private func compactDuration(_ duration: TimeInterval) -> String {
         let totalSeconds = max(Int(duration.rounded(.down)), 0)
 
@@ -477,11 +601,18 @@ extension PulseStrings {
         case network
         case disk
         case thisMac
-        case monitorOnly
         case pinPanel
         case unpinPanel
         case minimalPanel
         case expandPanel
+        case resourceMonitoring
+        case applications
+        case applicationsListView
+        case applicationsIconView
+        case refreshApplications
+        case noApplicationsFound
+        case switchIslandModule
+        case topIsland
         case settings
         case settingsHelp
         case quit
@@ -536,8 +667,6 @@ private extension PulseStrings {
             "Disk"
         case .thisMac:
             "This Mac"
-        case .monitorOnly:
-            "Monitoring only"
         case .pinPanel:
             "Pin panel"
         case .unpinPanel:
@@ -546,6 +675,22 @@ private extension PulseStrings {
             "Minimal panel"
         case .expandPanel:
             "Expand panel"
+        case .resourceMonitoring:
+            "Resource Monitor"
+        case .applications:
+            "Applications"
+        case .applicationsListView:
+            "List view"
+        case .applicationsIconView:
+            "Icon view"
+        case .refreshApplications:
+            "Refresh applications"
+        case .noApplicationsFound:
+            "No applications found"
+        case .switchIslandModule:
+            "Switch island module"
+        case .topIsland:
+            "Pulse Island"
         case .settings:
             "Settings"
         case .settingsHelp:
@@ -637,8 +782,6 @@ private extension PulseStrings {
             "磁盘"
         case .thisMac:
             "这台 Mac"
-        case .monitorOnly:
-            "仅监控"
         case .pinPanel:
             "固定面板"
         case .unpinPanel:
@@ -647,6 +790,22 @@ private extension PulseStrings {
             "极简面板"
         case .expandPanel:
             "展开面板"
+        case .resourceMonitoring:
+            "资源监控"
+        case .applications:
+            "应用程序"
+        case .applicationsListView:
+            "列表视图"
+        case .applicationsIconView:
+            "图标视图"
+        case .refreshApplications:
+            "刷新应用程序"
+        case .noApplicationsFound:
+            "未找到应用程序"
+        case .switchIslandModule:
+            "切换脉冲岛功能"
+        case .topIsland:
+            "脉冲岛"
         case .settings:
             "设置"
         case .settingsHelp:

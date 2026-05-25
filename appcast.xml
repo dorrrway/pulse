@@ -3,6 +3,22 @@
     <channel>
         <title>Pulse</title>
         <item>
+            <title>2.0.0</title>
+            <pubDate>Mon, 25 May 2026 16:52:12 +0800</pubDate>
+            <sparkle:version>8</sparkle:version>
+            <sparkle:shortVersionString>2.0.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[# Pulse 2.0.0
+
+- Pulse now opens as a top-of-screen Pulse Island instead of a menu bar icon.
+- Hover to expand into the full Resource Monitor, with Settings, updates, pinning, and Quit still close at hand.
+- The compact island rotates between memory and CPU, adds battery status when power is low, and shows short critical alerts for low battery, high heat, low storage, or high memory pressure.
+- Added an Applications view for opening local apps from standard application locations.
+- Improved placement on MacBooks with a camera housing.
+]]></description>
+            <enclosure url="https://github.com/dorrrway/pulse/releases/download/v2.0.0/Pulse-2.0.0.dmg" length="3040553" type="application/octet-stream" sparkle:edSignature="j7JxT8l5+LytXtJBg11KSKLLTjeJLKPYM6qVXCYQBsVmrqExS2cmwxay9zFyHfmBjCqXTisPEqdRcrGmoj3QCg=="/>
+        </item>
+        <item>
             <title>1.2.0</title>
             <pubDate>Fri, 15 May 2026 08:57:27 +0800</pubDate>
             <sparkle:version>7</sparkle:version>

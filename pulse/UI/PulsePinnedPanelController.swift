@@ -3,25 +3,25 @@ import Observation
 import SwiftUI
 
 enum PulsePanelLayout {
-    static let contentWidth: CGFloat = 420
-    static let outerPadding: CGFloat = 16
-    static let sectionSpacing: CGFloat = 16
-    static let headerHeight: CGFloat = 36
-    static let metricRowHeight: CGFloat = 36
-    static let metricRowSpacing: CGFloat = 10
+    static let contentWidth: CGFloat = PulseDesign.Panel.contentWidth
+    static let outerPadding: CGFloat = PulseDesign.Panel.outerPadding
+    static let sectionSpacing: CGFloat = PulseDesign.Panel.sectionSpacing
+    static let headerHeight: CGFloat = PulseDesign.Panel.headerHeight
+    static let metricRowHeight: CGFloat = PulseDesign.Panel.metricRowHeight
+    static let metricRowSpacing: CGFloat = PulseDesign.Panel.metricRowSpacing
     static let coreMetricsHeight = metricRowHeight * 4 + metricRowSpacing * 3
-    static let processSectionHeight: CGFloat = 82
-    static let processSectionSpacing: CGFloat = 12
+    static let processSectionHeight: CGFloat = PulseDesign.Panel.processSectionHeight
+    static let processSectionSpacing: CGFloat = PulseDesign.Panel.processSectionSpacing
     static let processLeadersHeight = processSectionHeight * 2 + processSectionSpacing
-    static let signalCardHeight: CGFloat = 68
-    static let runtimeRowHeight: CGFloat = 34
-    static let signalSpacing: CGFloat = 8
+    static let signalCardHeight: CGFloat = PulseDesign.Panel.signalCardHeight
+    static let runtimeRowHeight: CGFloat = PulseDesign.Panel.runtimeRowHeight
+    static let signalSpacing: CGFloat = PulseDesign.Panel.signalSpacing
     static let signalGridHeight = signalCardHeight * 2 + runtimeRowHeight + signalSpacing * 2
-    static let footerHeight: CGFloat = 36
-    static let footerTopSpacing: CGFloat = 8
-    static let footerBottomPadding: CGFloat = 8
-    static let panelCornerRadius: CGFloat = 16
-    static let dragRegionHeight: CGFloat = 86
+    static let footerHeight: CGFloat = PulseDesign.Panel.footerHeight
+    static let footerTopSpacing: CGFloat = PulseDesign.Panel.footerTopSpacing
+    static let footerBottomPadding: CGFloat = PulseDesign.Panel.footerBottomPadding
+    static let panelCornerRadius: CGFloat = PulseDesign.Radius.panel
+    static let dragRegionHeight: CGFloat = PulseDesign.Panel.dragRegionHeight
     static let contentHeight = outerPadding
         + footerBottomPadding
         + headerHeight
@@ -33,7 +33,7 @@ enum PulsePanelLayout {
         + footerTopSpacing
     static let contentSize = CGSize(width: contentWidth, height: contentHeight)
 
-    static let minimalMetricGraphWidth: CGFloat = 106
+    static let minimalMetricGraphWidth: CGFloat = PulseDesign.Panel.minimalMetricGraphWidth
     static let minimalContentWidth = minimalMetricGraphWidth + outerPadding * 2
     static let minimalContentHeight = coreMetricsHeight + outerPadding * 2
     static let minimalContentSize = CGSize(width: minimalContentWidth, height: minimalContentHeight)
@@ -58,6 +58,7 @@ enum PulsePanelStyle {
 final class PulsePinnedPanelController {
     private(set) var isPresented = false
 
+    @ObservationIgnored var presentationDidChange: ((Bool) -> Void)?
     @ObservationIgnored private var panel: NSPanel?
     @ObservationIgnored private var style: PulsePanelStyle = .full
 
@@ -84,13 +85,13 @@ final class PulsePinnedPanelController {
         }
 
         panel.orderFrontRegardless()
-        isPresented = true
+        updatePresentationState(true)
     }
 
     func dismiss() {
         panel?.orderOut(nil)
         style = .full
-        isPresented = false
+        updatePresentationState(false)
     }
 
     private func collapse(store: PulseStore, updateController: PulseUpdateController) {
@@ -112,7 +113,16 @@ final class PulsePinnedPanelController {
         installRootView(in: panel, store: store, updateController: updateController)
         resize(panel, to: newStyle, animated: true)
         panel.orderFrontRegardless()
-        isPresented = true
+        updatePresentationState(true)
+    }
+
+    private func updatePresentationState(_ newValue: Bool) {
+        guard isPresented != newValue else {
+            return
+        }
+
+        isPresented = newValue
+        presentationDidChange?(newValue)
     }
 
     private func makePanel(store: PulseStore, updateController: PulseUpdateController) -> NSPanel {
