@@ -22,6 +22,10 @@ verification notes that would make the public changelog too noisy.
   the repeated app title, device name, and now-unused `PixelGlyph`. The panel
   height now excludes the old header row, and refresh time is only shown in the
   island-attached resource footer, not in pinned Resource Monitor panels.
+- The Dynamic Island-style surface and pinned Resource Monitor panel now use
+  the display containing the pointer as the current display. The island tracks
+  the current display while resting, and the pinned panel keeps a single window
+  while migrating to the new display at the same relative position.
 
 ## 2.0.0 - 2026-05-25
 

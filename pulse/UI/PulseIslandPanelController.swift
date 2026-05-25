@@ -424,6 +424,26 @@ enum PulseIslandStyle: Equatable {
     case expanded
 }
 
+enum PulseDisplaySelection {
+    static func screenIndex(containing point: CGPoint, in screenFrames: [CGRect]) -> Int? {
+        screenFrames.firstIndex { frame in
+            frame.contains(point)
+        }
+    }
+
+    static func isSameScreen(_ lhs: NSScreen?, _ rhs: NSScreen?) -> Bool {
+        switch (lhs, rhs) {
+        case let (lhs?, rhs?):
+            lhs.frame == rhs.frame
+                && lhs.visibleFrame == rhs.visibleFrame
+        case (nil, nil):
+            true
+        case (.some, .none), (.none, .some):
+            false
+        }
+    }
+}
+
 @MainActor
 @Observable
 final class PulseIslandPanelController {
@@ -439,10 +459,12 @@ final class PulseIslandPanelController {
     @ObservationIgnored private var anchorScreen: NSScreen?
     @ObservationIgnored private var collapseTask: Task<Void, Never>?
     @ObservationIgnored private var criticalAlertTask: Task<Void, Never>?
+    @ObservationIgnored private var screenTrackingTask: Task<Void, Never>?
     @ObservationIgnored private var pinPanelAction: () -> Void = {}
 
     private static let hoverCollapseDelay: Duration = .milliseconds(360)
     private static let criticalAlertDuration: Duration = .seconds(3)
+    private static let screenTrackingInterval: Duration = .milliseconds(350)
 
     func present(
         store: PulseStore,
@@ -466,6 +488,7 @@ final class PulseIslandPanelController {
         panel.setFrame(targetFrame(screen: anchorScreen), display: true)
         panel.orderFrontRegardless()
         isPresented = true
+        startScreenTracking()
     }
 
     func setPinnedPanelPresented(_ isPresented: Bool) {
@@ -477,6 +500,8 @@ final class PulseIslandPanelController {
         collapseTask = nil
         criticalAlertTask?.cancel()
         criticalAlertTask = nil
+        screenTrackingTask?.cancel()
+        screenTrackingTask = nil
         panel?.orderOut(nil)
         style = .seed
         isPresented = false
@@ -588,7 +613,8 @@ final class PulseIslandPanelController {
             return
         }
 
-        let screen = panel.screen ?? anchorScreen
+        let screen = screen(for: newStyle)
+        anchorScreen = screen
         layoutMetrics = PulseIslandLayout.metrics(for: screen)
         panel.setFrame(targetFrame(screen: screen), display: true)
         panel.orderFrontRegardless()
@@ -662,6 +688,53 @@ final class PulseIslandPanelController {
         return PulseIslandLayout.surfaceFrame(for: style, in: bounds, metrics: layoutMetrics)
     }
 
+    private func startScreenTracking() {
+        guard screenTrackingTask == nil else {
+            return
+        }
+
+        screenTrackingTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                do {
+                    try await Task.sleep(for: Self.screenTrackingInterval)
+                } catch {
+                    return
+                }
+
+                guard !Task.isCancelled else {
+                    return
+                }
+
+                self?.syncToCurrentScreenIfNeeded()
+            }
+        }
+    }
+
+    private func syncToCurrentScreenIfNeeded() {
+        guard isPresented, style == .seed, let panel else {
+            return
+        }
+
+        let screen = currentScreen()
+        let metrics = PulseIslandLayout.metrics(for: screen)
+        guard !PulseDisplaySelection.isSameScreen(screen, anchorScreen) || metrics != layoutMetrics else {
+            return
+        }
+
+        anchorScreen = screen
+        layoutMetrics = metrics
+        panel.setFrame(targetFrame(screen: screen), display: true)
+    }
+
+    private func screen(for style: PulseIslandStyle) -> NSScreen? {
+        switch style {
+        case .seed, .criticalSeed:
+            currentScreen()
+        case .expanded:
+            panel?.screen ?? anchorScreen ?? currentScreen()
+        }
+    }
+
     private func isMouseInsideCurrentContentRect() -> Bool {
         guard
             let panel,
@@ -686,22 +759,15 @@ final class PulseIslandPanelController {
     }
 
     private func currentScreen() -> NSScreen? {
-        let mouseLocation = NSEvent.mouseLocation
-        let mouseScreen = NSScreen.screens.first { screen in
-            screen.frame.contains(mouseLocation)
+        let screens = NSScreen.screens
+        if let screenIndex = PulseDisplaySelection.screenIndex(
+            containing: NSEvent.mouseLocation,
+            in: screens.map(\.frame)
+        ) {
+            return screens[screenIndex]
         }
 
-        if let mouseScreen, Self.isNotchedScreen(mouseScreen) {
-            return mouseScreen
-        }
-
-        return NSScreen.screens.first(where: Self.isNotchedScreen) ?? mouseScreen ?? NSScreen.main
-    }
-
-    private static func isNotchedScreen(_ screen: NSScreen) -> Bool {
-        screen.safeAreaInsets.top > 0
-            || screen.auxiliaryTopLeftArea?.isEmpty == false
-            || screen.auxiliaryTopRightArea?.isEmpty == false
+        return panel?.screen ?? anchorScreen ?? NSScreen.main
     }
 
 }

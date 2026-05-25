@@ -63,6 +63,35 @@ final class PinnedPanelControllerTests: XCTestCase {
     }
 
     @MainActor
+    func testDisplaySelectionUsesDisplayContainingPointer() {
+        let builtInDisplay = CGRect(x: 0, y: 0, width: 1512, height: 982)
+        let externalDisplay = CGRect(x: 1512, y: 0, width: 2560, height: 1440)
+
+        XCTAssertEqual(
+            PulseDisplaySelection.screenIndex(
+                containing: CGPoint(x: 2200, y: 700),
+                in: [builtInDisplay, externalDisplay]
+            ),
+            1
+        )
+    }
+
+    @MainActor
+    func testDisplaySelectionReturnsNilOutsideKnownDisplays() {
+        let displays = [
+            CGRect(x: 0, y: 0, width: 1512, height: 982),
+            CGRect(x: 1512, y: 0, width: 2560, height: 1440)
+        ]
+
+        XCTAssertNil(
+            PulseDisplaySelection.screenIndex(
+                containing: CGPoint(x: -200, y: -200),
+                in: displays
+            )
+        )
+    }
+
+    @MainActor
     func testIslandControllerTracksPinnedPanelPresentation() {
         let pinnedController = PulsePinnedPanelController()
         let islandController = PulseIslandPanelController()
