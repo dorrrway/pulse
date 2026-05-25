@@ -7,26 +7,26 @@ verification notes that would make the public changelog too noisy.
 
 ## 2.0.0 - 2026-05-25
 
-### Pulse Island
+### Dynamic Island-style Surface
 
 - Pulse now launches directly into a top-centered nonactivating `NSPanel` for
-  Pulse Island and no longer creates a `MenuBarExtra` scene.
-- Removed the island visibility preference, Settings toggle, panel footer
-  toggle, and hide action. The island is the app's primary control surface;
-  Settings and Quit remain available from the island context menu and expanded
+  the Dynamic Island-style surface and no longer creates a `MenuBarExtra` scene.
+- Removed the surface visibility preference, Settings toggle, panel footer
+  toggle, and hide action. The top surface is the app's primary control surface;
+  Settings and Quit remain available from the surface context menu and expanded
   surface.
-- Added the top-centered nonactivating `NSPanel` for Pulse Island mode.
+- Added the top-centered nonactivating `NSPanel` for the Dynamic Island-style mode.
   It anchors to the current screen, uses `NSScreen` auxiliary top areas when a
   camera housing is present, and falls back to a software island on external or
   non-notched displays.
-- The island hides its top attachment cap above the screen edge so the compact
+- The surface hides its top attachment cap above the screen edge so the resting
   state reads as a top status aperture instead of a floating capsule. Hovering
   expands it into a black tray with a secondary control rail, then collapses it
   shortly after the pointer leaves.
-- The expanded tray uses a compact Resource Monitor header instead of a
+- The expanded state uses a compact Resource Monitor header instead of a
   repeated four-metric summary, leaving the attached full panel as the detailed
-  monitoring surface and preserving room for later island modules.
-- The island header is now a module switcher: vertical drag or scroll switches
+  monitoring surface and preserving room for later modules.
+- The expanded-state header is now a module switcher: vertical drag or scroll switches
   between Resource Monitor and Applications without changing the existing
   resource monitoring panel.
 - Applications is implemented as a separate installed-app catalog and island
@@ -36,24 +36,24 @@ verification notes that would make the public changelog too noisy.
 - The Applications panel footer now keeps the count next to the refresh control
   and adds a local list/icon view switcher; icon view presents app icons and
   names in a Launchpad-like grid without changing the catalog or privacy model.
-- On MacBooks with a camera housing, the island now anchors into one of the
+- On MacBooks with a camera housing, the surface now anchors into one of the
   reported auxiliary top areas instead of using the hidden gap between them as
   the horizontal center point.
-- The compact island seed normally rotates memory and CPU. When internal battery
+- The resting-state seed normally rotates memory and CPU. When internal battery
   power is at or below 20% while unplugged or charging from a low level, battery
   level is appended to the same rotation using the existing warning threshold and
   local battery sample.
-- Compact island seed labels use metric-specific template icons instead of text:
+- Resting-state seed labels use metric-specific template icons instead of text:
   memory, CPU, 20% battery, 10% battery, and charging battery. Icons inherit the
   same activity tint as the prior label text, including power status colors.
-- Pulse Island labels battery percentage as `电量` / `Battery` while the full
+- The top surface labels battery percentage as `电量` / `Battery` while the full
   status card keeps `电源` / `Power` for the broader power-source state.
-- Pulse Island critical alerts now share a prioritized queue. When unplugged
+- Alert-state messages now share a prioritized queue. When unplugged
   internal battery power enters the red threshold at or below 10%, thermal state
   becomes critical, storage is extremely low, or memory pressure is high, the
-  island briefly uses a two-row critical seed state, then returns to the default
-  seed after 3 seconds. Alerts are shown one at a time in power, thermal, disk,
-  memory order, and each continuous condition is shown once.
+  surface briefly uses a two-row alert seed, then returns to the resting state
+  after 3 seconds. Alerts are shown one at a time in power, thermal, disk, memory
+  order, and each continuous condition is shown once.
 - Critical alert title rows now use leading template icons in the alert tint:
   low battery reuses the compact battery icon, thermal uses the sun asset,
   disk uses the storage asset, and memory reuses the compact memory icon.
@@ -62,10 +62,10 @@ verification notes that would make the public changelog too noisy.
 - Critical alert thresholds include their boundary values: battery joins the
   compact rotation at 20%, critical battery alerts start at 10%, disk alerts
   start at 5 GB free or 95% used.
-- The critical seed body is wider than the notch-aware compact seed so critical
+- The alert seed body is wider than the notch-aware resting seed so critical
   alerts visibly expand on MacBooks with a camera housing while staying smaller
-  than the fully expanded island surface.
-- Debug builds expose an Island Alert Preview row in Settings to trigger the
+  than the fully expanded surface.
+- Debug builds expose an Alert Preview row in Settings to trigger the
   same power, thermal, disk, memory, or full critical-alert queue with synthetic
   values. The preview path is compiled out of Release builds and does not alter
   live sampled metrics.

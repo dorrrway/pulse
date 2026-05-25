@@ -8,7 +8,7 @@
 
 Last updated: May 25, 2026
 
-Pulse is a local macOS Pulse Island utility. It is designed to show system status on the Mac where it is running.
+Pulse is a local Dynamic Island-style Mac system monitor. It is designed to show system status on the Mac where it is running.
 
 ## Data Pulse Reads
 

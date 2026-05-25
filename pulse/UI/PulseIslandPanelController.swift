@@ -602,7 +602,7 @@ final class PulseIslandPanelController {
             backing: .buffered,
             defer: false
         )
-        panel.title = "Pulse Island"
+        panel.title = "Pulse Dynamic Island-style entry"
         panel.isReleasedWhenClosed = false
         panel.isFloatingPanel = true
         panel.hidesOnDeactivate = false

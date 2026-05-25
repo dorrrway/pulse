@@ -19,7 +19,7 @@
   <img alt="notarized" src="https://img.shields.io/badge/Developer%20ID-notarized-34C759">
 </p>
 
-Pulse is a lightweight macOS Pulse Island app that launches at the top center of the screen for local system status, with quick access to Resource Monitor and Applications.
+Pulse is a lightweight Dynamic Island-style Mac system monitor that stays at the top of the screen, with quick access to Resource Monitor and Applications.
 
 <p align="center">
   <img src="assets/pulse-preview-combined.gif" width="640" alt="Pulse status panel preview in Light and Dark Mode">
@@ -66,13 +66,13 @@ See [Privacy Policy](PRIVACY.en.md) for details.
 
 ### 2.0.0 - 2026-05-25
 
-- Pulse now launches with Pulse Island as the only primary entry point, without a menu bar icon or menu bar status panel; Settings, updates, pinning, and Quit remain available from the expanded island panel.
-- Pulse Island sits at the top center as a lightweight activity entry point; its compact state reads as a top status aperture, then drops into a compact Resource Monitor header with the full status panel below.
-- Pulse Island's compact state now rotates between memory and CPU percentages by default; when a Mac is on battery or charging from a low level at or below 20%, battery level joins the rotation and uses 20%, 10%, or charging icons for state.
-- When a Mac is on battery at or below 10%, thermal state becomes critical, storage is extremely low, or memory pressure is high, Pulse Island temporarily expands into a wider prioritized two-line critical warning with a matching leading status icon, then returns to its default compact state after 3 seconds; each continuous condition is shown once.
-- Refined the compact Pulse Island rotation with vertical rolling and numeric text transitions while respecting the system Reduce Motion setting.
-- Pulse Island's header can now be dragged or scrolled vertically to switch modules; the new Applications module opens local apps from standard application locations in either list view or a Launchpad-like icon view.
-- Fixed Pulse Island placement on MacBooks with a camera housing by avoiding the hidden top-center area.
+- Pulse now works like a Dynamic Island-style surface at the top of the screen, becoming the only primary entry point without a menu bar icon or menu bar status panel; Settings, updates, the pinned panel, and Quit remain available from the expanded state.
+- Added the resting state: Pulse stays at the top center and lightly rotates between memory and CPU; when a Mac is on battery or charging from a low level at or below 20%, battery level joins the rotation with 20%, 10%, or charging icons.
+- Hovering over Pulse opens the expanded state, with a Resource Monitor header and the full status panel below.
+- Added the alert state: when a Mac is on battery at or below 10%, thermal state becomes critical, storage is extremely low, or memory pressure is high, Pulse briefly shows a more visible two-line alert, then returns to the resting state after 3 seconds; each continuous condition is shown once.
+- Refined resting-state rotation with vertical rolling and numeric text transitions while respecting the system Reduce Motion setting.
+- The expanded-state header can now be dragged or scrolled vertically to switch modules; the new Applications module opens local apps from standard application locations in either list view or a Launchpad-like icon view.
+- Fixed Pulse placement on MacBooks with a camera housing by avoiding the hidden top-center area.
 - Release archive: [Pulse-2.0.0.dmg](https://github.com/dorrrway/pulse/releases/download/v2.0.0/Pulse-2.0.0.dmg); SHA-256: `eb19283e73273f8df1f70e466888aa95f95ef25dec227eaa129a4ca21ac46028`.
 
 ### 1.2.0 - 2026-05-15

@@ -88,7 +88,7 @@ struct PulseSettingsView: View {
                 #if DEBUG
                 Section {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Island Alert Preview")
+                        Text("Alert Preview")
                             .font(.caption)
                             .foregroundStyle(.secondary)
 

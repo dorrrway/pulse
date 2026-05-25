@@ -10,9 +10,10 @@
             <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
             <description sparkle:format="markdown"><![CDATA[# Pulse 2.0.0
 
-- Pulse now opens as a top-of-screen Pulse Island instead of a menu bar icon.
-- Hover to expand into the full Resource Monitor, with Settings, updates, pinning, and Quit still close at hand.
-- The compact island rotates between memory and CPU, adds battery status when power is low, and shows short critical alerts for low battery, high heat, low storage, or high memory pressure.
+- Pulse now works like a Dynamic Island-style surface at the top of the screen instead of a menu bar icon.
+- In its resting state, Pulse lightly rotates between memory and CPU, and adds battery status when power is low.
+- Hover to open the expanded state with Resource Monitor, Settings, updates, pinning, and Quit close at hand.
+- Alert state briefly highlights low battery, high heat, low storage, or high memory pressure before returning to the resting state.
 - Added an Applications view for opening local apps from standard application locations.
 - Improved placement on MacBooks with a camera housing.
 ]]></description>

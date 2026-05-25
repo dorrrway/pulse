@@ -688,9 +688,9 @@ private extension PulseStrings {
         case .noApplicationsFound:
             "No applications found"
         case .switchIslandModule:
-            "Switch island module"
+            "Switch view"
         case .topIsland:
-            "Pulse Island"
+            "Pulse Dynamic Island-style entry"
         case .settings:
             "Settings"
         case .settingsHelp:
@@ -803,9 +803,9 @@ private extension PulseStrings {
         case .noApplicationsFound:
             "未找到应用程序"
         case .switchIslandModule:
-            "切换脉冲岛功能"
+            "切换功能"
         case .topIsland:
-            "脉冲岛"
+            "Pulse 灵动岛入口"
         case .settings:
             "设置"
         case .settingsHelp:
