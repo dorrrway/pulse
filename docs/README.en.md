@@ -64,6 +64,10 @@ See [Privacy Policy](PRIVACY.en.md) for details.
 
 ## Changelog
 
+### Unreleased
+
+- Refined the transition from resting state to expanded state: the header text, icon, and Settings button now fade in after the island begins opening, making the expansion feel less abrupt.
+
 ### 2.0.0 - 2026-05-25
 
 - Pulse now works like a Dynamic Island-style surface at the top of the screen, becoming the only primary entry point without a menu bar icon or menu bar status panel; Settings, updates, the pinned panel, and Quit remain available from the expanded state.

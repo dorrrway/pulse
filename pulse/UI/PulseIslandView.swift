@@ -5,7 +5,10 @@ private let islandOpenAnimation = Animation.spring(response: 0.42, dampingFracti
 private let islandCloseAnimation = Animation.smooth(duration: 0.30)
 private let attachedPanelRevealAnimation = Animation.smooth(duration: 0.26)
 private let attachedPanelConcealAnimation = Animation.smooth(duration: 0.16)
+private let expandedHeaderRevealAnimation = Animation.easeOut(duration: 0.16)
+private let expandedHeaderConcealAnimation = Animation.easeOut(duration: 0.10)
 private let expandedSurfaceUnmountDelay: TimeInterval = 0.36
+private let expandedHeaderRevealDelay: TimeInterval = 0.12
 private let attachedPanelRevealDelay: TimeInterval = 0.18
 private let attachedPanelHiddenYOffset: CGFloat = -8
 private let moduleSwitchDragThreshold: CGFloat = 18
@@ -28,6 +31,7 @@ struct PulseIslandView: View {
     @Environment(PulseStore.self) private var store
     @State private var keepsExpandedSurfaceMounted = false
     @State private var expandedSurfaceMountGeneration = 0
+    @State private var isExpandedHeaderRevealed = false
     @State private var isAttachedPanelRevealed = false
     @State private var selectedModule: PulseIslandModule = .resourceMonitor
     @State private var moduleSwitchDirection = 1
@@ -206,7 +210,20 @@ struct PulseIslandView: View {
         switch style {
         case .expanded:
             keepsExpandedSurfaceMounted = true
+            isExpandedHeaderRevealed = immediate
             isAttachedPanelRevealed = false
+
+            if !immediate {
+                DispatchQueue.main.asyncAfter(deadline: .now() + expandedHeaderRevealDelay) {
+                    guard expandedSurfaceMountGeneration == generation, self.style == .expanded else {
+                        return
+                    }
+
+                    withAnimation(expandedHeaderRevealAnimation) {
+                        isExpandedHeaderRevealed = true
+                    }
+                }
+            }
 
             DispatchQueue.main.asyncAfter(deadline: .now() + attachedPanelRevealDelay) {
                 guard expandedSurfaceMountGeneration == generation, self.style == .expanded else {
@@ -218,6 +235,10 @@ struct PulseIslandView: View {
                 }
             }
         case .seed, .criticalSeed:
+            withAnimation(expandedHeaderConcealAnimation) {
+                isExpandedHeaderRevealed = false
+            }
+
             withAnimation(attachedPanelConcealAnimation) {
                 isAttachedPanelRevealed = false
             }
@@ -508,6 +529,9 @@ struct PulseIslandView: View {
                     openSettings()
                 }
             )
+            .opacity(isExpandedHeaderRevealed ? 1 : 0)
+            .allowsHitTesting(isExpandedHeaderRevealed)
+            .accessibilityHidden(!isExpandedHeaderRevealed)
             .padding(.horizontal, PulseIslandLayout.expandedContentHorizontalPadding)
             .frame(
                 width: PulseIslandLayout.expandedSurfaceWidth,

@@ -5,6 +5,15 @@ This file is for maintainers. Keep the public changelog in `README.md` and
 implementation context, product decisions, privacy boundaries, thresholds, and
 verification notes that would make the public changelog too noisy.
 
+## Unreleased
+
+### Dynamic Island-style Surface
+
+- Expanded-state header content now has its own reveal phase. On open, the
+  header text, module icon, and Settings button wait briefly before fading in,
+  while the attached panel keeps its existing later reveal delay. On close, the
+  header fades out quickly before the surface unmount delay completes.
+
 ## 2.0.0 - 2026-05-25
 
 ### Dynamic Island-style Surface
