@@ -10,9 +10,14 @@ verification notes that would make the public changelog too noisy.
 ### Dynamic Island-style Surface
 
 - Expanded-state header content now has its own reveal phase. On open, the
-  header text, module icon, and Settings button wait briefly before fading in,
-  while the attached panel keeps its existing later reveal delay. On close, the
-  header fades out quickly before the surface unmount delay completes.
+  header text, module icon, and common action buttons wait briefly before
+  fading in, while the attached panel keeps its existing later reveal delay. On
+  close, the header fades out quickly before the surface unmount delay
+  completes.
+- Settings and Quit are now owned by the expanded-state common header instead
+  of the Resource Monitor panel footer. The resource panel footer keeps
+  panel-specific controls only, and pinned Resource Monitor panels place the
+  minimize action at the bottom-right corner for balance.
 
 ## 2.0.0 - 2026-05-25
 

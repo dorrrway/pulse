@@ -38,8 +38,6 @@ extension EnvironmentValues {
 private enum PanelControlIcon {
     static let pin = "PanelPinIcon"
     static let pinFilled = "PanelPinFilledIcon"
-    static let settings = "PanelSettingsIcon"
-    static let power = "PanelPowerIcon"
     static let expand = "PanelExpandIcon"
     static let minimize = "PanelMinimizeIcon"
     static let runtimePulse = "RuntimePulseIcon"
@@ -101,7 +99,6 @@ struct PulsePanelView: View {
     var expandAction: () -> Void = {}
 
     @Environment(PulseStore.self) private var store
-    @Environment(\.openSettings) private var openSettings
     @Environment(\.pulsePanelPresentation) private var presentation
     @Environment(\.pulsePanelIsPinned) private var isPinned
     @Environment(\.pulsePanelPinAction) private var pinAction
@@ -243,13 +240,6 @@ struct PulsePanelView: View {
             .help(strings.text(isPinned ? .unpinPanel : .pinPanel))
             .accessibilityLabel(strings.text(isPinned ? .unpinPanel : .pinPanel))
 
-            if presentation == .pinned {
-                PanelIconButton(iconName: PanelControlIcon.minimize, action: collapseAction)
-                .labelStyle(.iconOnly)
-                .help(strings.text(.minimalPanel))
-                .accessibilityLabel(strings.text(.minimalPanel))
-            }
-
             if let update = updateController.availableUpdate {
                 Button {
                     updateController.installAvailableUpdate()
@@ -265,20 +255,12 @@ struct PulsePanelView: View {
 
             Spacer()
 
-            PanelIconButton(iconName: PanelControlIcon.settings) {
-                NSApplication.shared.activate(ignoringOtherApps: true)
-                openSettings()
+            if presentation == .pinned {
+                PanelIconButton(iconName: PanelControlIcon.minimize, action: collapseAction)
+                .labelStyle(.iconOnly)
+                .help(strings.text(.minimalPanel))
+                .accessibilityLabel(strings.text(.minimalPanel))
             }
-            .labelStyle(.iconOnly)
-            .help(strings.text(.settingsHelp))
-            .accessibilityLabel(strings.text(.settings))
-
-            PanelIconButton(iconName: PanelControlIcon.power) {
-                NSApplication.shared.terminate(nil)
-            }
-            .labelStyle(.iconOnly)
-            .help(strings.text(.quitHelp))
-            .accessibilityLabel(strings.text(.quit))
         }
         .frame(height: PulsePanelLayout.footerHeight, alignment: .center)
     }

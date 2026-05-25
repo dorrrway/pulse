@@ -527,6 +527,11 @@ struct PulseIslandView: View {
                 settingsAction: {
                     NSApplication.shared.activate(ignoringOtherApps: true)
                     openSettings()
+                },
+                quitTitle: strings.text(.quit),
+                quitHelp: strings.text(.quitHelp),
+                quitAction: {
+                    NSApplication.shared.terminate(nil)
                 }
             )
             .opacity(isExpandedHeaderRevealed ? 1 : 0)
@@ -947,6 +952,11 @@ private struct IslandActivityTransitionIdentity: Hashable {
     var iconAssetName: String?
 }
 
+private enum IslandHeaderControlIcon {
+    static let settings = "PanelSettingsIcon"
+    static let quit = "PanelPowerIcon"
+}
+
 private struct IslandModuleHeader: View {
     var module: PulseIslandModule
     var title: String
@@ -955,6 +965,9 @@ private struct IslandModuleHeader: View {
     var settingsTitle: String
     var settingsHelp: String
     var settingsAction: () -> Void
+    var quitTitle: String
+    var quitHelp: String
+    var quitAction: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -967,9 +980,21 @@ private struct IslandModuleHeader: View {
 
                 Spacer(minLength: PulseDesign.Spacing.sm)
 
-                IslandHeaderSettingsButton(action: settingsAction)
+                HStack(spacing: PulseDesign.Spacing.xs) {
+                    IslandHeaderIconButton(
+                        iconName: IslandHeaderControlIcon.settings,
+                        action: settingsAction
+                    )
                     .help(settingsHelp)
                     .accessibilityLabel(settingsTitle)
+
+                    IslandHeaderIconButton(
+                        iconName: IslandHeaderControlIcon.quit,
+                        action: quitAction
+                    )
+                    .help(quitHelp)
+                    .accessibilityLabel(quitTitle)
+                }
             }
             .frame(height: rowHeight, alignment: .center)
 
@@ -1014,7 +1039,8 @@ private struct IslandModuleHeader: View {
     }
 }
 
-private struct IslandHeaderSettingsButton: View {
+private struct IslandHeaderIconButton: View {
+    var iconName: String
     var action: () -> Void
 
     @State private var isHovering = false
@@ -1027,7 +1053,7 @@ private struct IslandHeaderSettingsButton: View {
                         .fill(.white.opacity(PulseDesign.Opacity.hoverFillOnDark))
                 }
 
-                Image("PanelSettingsIcon")
+                Image(iconName)
                     .resizable()
                     .renderingMode(.template)
                     .scaledToFit()

@@ -66,7 +66,8 @@ See [Privacy Policy](PRIVACY.en.md) for details.
 
 ### Unreleased
 
-- Refined the transition from resting state to expanded state: the header text, icon, and Settings button now fade in after the island begins opening, making the expansion feel less abrupt.
+- Refined the transition from resting state to expanded state: the header text, icon, and common action buttons now fade in after the island begins opening, making the expansion feel less abrupt.
+- Moved common actions into the expanded-state header: Settings and Quit now sit at the top right, while the Resource Monitor footer only keeps panel-specific controls; pinned panels now place Minimize at the bottom right.
 
 ### 2.0.0 - 2026-05-25
 
