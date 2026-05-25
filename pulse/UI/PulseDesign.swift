@@ -86,7 +86,6 @@ enum PulseDesign {
         static let contentWidth: CGFloat = 420
         static let outerPadding = Spacing.md
         static let sectionSpacing = Spacing.md
-        static let headerHeight: CGFloat = 36
         static let metricRowHeight: CGFloat = 36
         static let metricRowSpacing: CGFloat = 10
         static let processSectionHeight: CGFloat = 82

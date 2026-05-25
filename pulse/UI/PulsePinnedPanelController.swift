@@ -6,7 +6,6 @@ enum PulsePanelLayout {
     static let contentWidth: CGFloat = PulseDesign.Panel.contentWidth
     static let outerPadding: CGFloat = PulseDesign.Panel.outerPadding
     static let sectionSpacing: CGFloat = PulseDesign.Panel.sectionSpacing
-    static let headerHeight: CGFloat = PulseDesign.Panel.headerHeight
     static let metricRowHeight: CGFloat = PulseDesign.Panel.metricRowHeight
     static let metricRowSpacing: CGFloat = PulseDesign.Panel.metricRowSpacing
     static let coreMetricsHeight = metricRowHeight * 4 + metricRowSpacing * 3
@@ -24,12 +23,11 @@ enum PulsePanelLayout {
     static let dragRegionHeight: CGFloat = PulseDesign.Panel.dragRegionHeight
     static let contentHeight = outerPadding
         + footerBottomPadding
-        + headerHeight
         + coreMetricsHeight
         + processLeadersHeight
         + signalGridHeight
         + footerHeight
-        + sectionSpacing * 3
+        + sectionSpacing * 2
         + footerTopSpacing
     static let contentSize = CGSize(width: contentWidth, height: contentHeight)
 

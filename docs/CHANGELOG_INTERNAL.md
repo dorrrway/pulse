@@ -18,6 +18,10 @@ verification notes that would make the public changelog too noisy.
   of the Resource Monitor panel footer. The resource panel footer keeps
   panel-specific controls only, and pinned Resource Monitor panels place the
   minimize action at the bottom-right corner for balance.
+- Removed the Resource Monitor panel's internal `PulseHeaderView`, including
+  the repeated app title, device name, and now-unused `PixelGlyph`. The panel
+  height now excludes the old header row, and refresh time is only shown in the
+  island-attached resource footer, not in pinned Resource Monitor panels.
 
 ## 2.0.0 - 2026-05-25
 

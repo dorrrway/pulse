@@ -136,11 +136,7 @@ struct PulsePanelView: View {
 
     private func fullPanel(strings: PulseStrings) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            header
-
             coreMetrics(strings: strings)
-                .padding(.top, PulsePanelLayout.sectionSpacing)
-
             processLeaders(strings: strings)
                 .padding(.top, PulsePanelLayout.sectionSpacing)
 
@@ -224,10 +220,6 @@ struct PulsePanelView: View {
         }
     }
 
-    private var header: some View {
-        PulseHeaderView(strings: store.strings)
-    }
-
     private var footer: some View {
         let strings = store.strings
 
@@ -254,6 +246,14 @@ struct PulsePanelView: View {
             }
 
             Spacer()
+
+            if presentation == .island {
+                Text(store.capturedAt, style: .time)
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+            }
 
             if presentation == .pinned {
                 PanelIconButton(iconName: PanelControlIcon.minimize, action: collapseAction)
@@ -283,40 +283,6 @@ struct PulsePanelView: View {
 
     private func processLeaders(strings: PulseStrings) -> some View {
         ProcessLeadersView(strings: strings)
-    }
-}
-
-private struct PulseHeaderView: View {
-    var strings: PulseStrings
-
-    @Environment(PulseStore.self) private var store
-
-    var body: some View {
-        HStack(spacing: PulseDesign.Spacing.sm) {
-            PixelGlyph(level: store.coreMetrics.cpu.percentage)
-                .frame(width: 36, height: 36)
-                .accessibilityHidden(true)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Pulse")
-                    .font(PulseDesign.Typography.panelTitle)
-                    .lineLimit(1)
-
-                Text(store.deviceName ?? strings.text(.thisMac))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            Text(store.capturedAt, style: .time)
-                .font(.system(.caption, design: .monospaced))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .fixedSize(horizontal: true, vertical: false)
-        }
-        .frame(height: PulsePanelLayout.headerHeight)
     }
 }
 
