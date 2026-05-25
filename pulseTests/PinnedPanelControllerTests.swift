@@ -204,8 +204,10 @@ final class PinnedPanelControllerTests: XCTestCase {
         let metrics = PulseIslandLayoutMetrics(seedVisibleHeight: 38, notchUnsafeWidth: 220)
 
         XCTAssertEqual(PulseIslandLayout.expandedSurfaceHeightMultiplier, 2)
+        XCTAssertEqual(PulseIslandLayout.expandedHeaderExtraHeight, 24)
         XCTAssertEqual(PulseIslandLayout.expandedHeaderRowHeight(metrics: metrics), 38)
-        XCTAssertEqual(PulseIslandLayout.expandedSurfaceVisibleHeight(metrics: metrics), 76)
+        XCTAssertEqual(PulseIslandLayout.expandedHeaderContentHeight(metrics: metrics), 76)
+        XCTAssertEqual(PulseIslandLayout.expandedSurfaceVisibleHeight(metrics: metrics), 100)
         XCTAssertEqual(PulseIslandLayout.visibleHeight(for: .criticalSeed, metrics: metrics), 76)
         XCTAssertGreaterThan(
             PulseIslandLayout.seedVisibleSize(for: .criticalSeed, metrics: metrics).width,

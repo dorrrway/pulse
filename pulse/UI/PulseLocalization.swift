@@ -147,6 +147,24 @@ nonisolated struct PulseStrings: Sendable {
         }
     }
 
+    func addFavoriteApplicationHelp(_ name: String) -> String {
+        switch language {
+        case .english:
+            return "Add \(name) to Favorite Apps"
+        case .chinese:
+            return "将 \(name) 加入常用应用"
+        }
+    }
+
+    func removeFavoriteApplicationHelp(_ name: String) -> String {
+        switch language {
+        case .english:
+            return "Remove \(name) from Favorite Apps"
+        case .chinese:
+            return "从常用应用移除 \(name)"
+        }
+    }
+
     func pressure(_ level: PressureLevel) -> String {
         switch (language, level) {
         case (.english, .nominal):
@@ -609,6 +627,9 @@ extension PulseStrings {
         case applications
         case applicationsListView
         case applicationsIconView
+        case favoriteApplications
+        case favoriteApplicationsEmptyHint
+        case applicationRunning
         case refreshApplications
         case noApplicationsFound
         case switchIslandModule
@@ -683,6 +704,12 @@ private extension PulseStrings {
             "List view"
         case .applicationsIconView:
             "Icon view"
+        case .favoriteApplications:
+            "Favorite Apps"
+        case .favoriteApplicationsEmptyHint:
+            "Add or drag favorite apps here"
+        case .applicationRunning:
+            "Running"
         case .refreshApplications:
             "Refresh applications"
         case .noApplicationsFound:
@@ -798,6 +825,12 @@ private extension PulseStrings {
             "列表视图"
         case .applicationsIconView:
             "图标视图"
+        case .favoriteApplications:
+            "常用应用"
+        case .favoriteApplicationsEmptyHint:
+            "添加、拖拽常用软件到此处"
+        case .applicationRunning:
+            "正在运行"
         case .refreshApplications:
             "刷新应用程序"
         case .noApplicationsFound:

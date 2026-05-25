@@ -145,14 +145,153 @@ final class LanguagePreferenceTests: XCTestCase {
             reconcileLaunchAtLogin: false
         )
 
-        store.setInstalledAppsDisplayMode(.icon)
+        XCTAssertEqual(store.installedAppsDisplayMode, .icon)
+
+        store.setInstalledAppsDisplayMode(.list)
 
         let reloadedStore = PulseStore(
             userDefaults: defaults,
             launchAtLoginService: makeLoginItemService(),
             reconcileLaunchAtLogin: false
         )
-        XCTAssertEqual(reloadedStore.installedAppsDisplayMode, .icon)
+        XCTAssertEqual(reloadedStore.installedAppsDisplayMode, .list)
+    }
+
+    @MainActor
+    func testPersistsFavoriteApplications() {
+        let defaults = makeUserDefaults()
+        let alpha = makeInstalledApplication(name: "Alpha", path: "/Applications/Alpha.app")
+        let beta = makeInstalledApplication(name: "Beta", path: "/Applications/Beta.app")
+        let store = PulseStore(
+            userDefaults: defaults,
+            launchAtLoginService: makeLoginItemService(),
+            reconcileLaunchAtLogin: false
+        )
+        store.installedApplications = [alpha, beta]
+
+        XCTAssertTrue(store.addFavoriteApplication(alpha))
+        XCTAssertTrue(store.addFavoriteApplication(beta))
+        XCTAssertTrue(store.addFavoriteApplication(alpha))
+
+        let reloadedStore = PulseStore(
+            userDefaults: defaults,
+            launchAtLoginService: makeLoginItemService(),
+            reconcileLaunchAtLogin: false
+        )
+        reloadedStore.installedApplications = [alpha, beta]
+
+        XCTAssertEqual(reloadedStore.favoriteApplicationPaths, [alpha.bundlePath, beta.bundlePath])
+        XCTAssertEqual(reloadedStore.favoriteApplications.map(\.name), ["Alpha", "Beta"])
+    }
+
+    @MainActor
+    func testFavoriteApplicationsSkipMissingApplicationsAndPreserveOrder() {
+        let alpha = makeInstalledApplication(name: "Alpha", path: "/Applications/Alpha.app")
+        let beta = makeInstalledApplication(name: "Beta", path: "/Applications/Beta.app")
+
+        let favorites = PulseStore.favoriteApplications(
+            from: [alpha, beta],
+            favoritePaths: [
+                "/Applications/Missing.app",
+                beta.bundlePath,
+                alpha.bundlePath,
+                beta.bundlePath
+            ]
+        )
+
+        XCTAssertEqual(favorites.map(\.name), ["Beta", "Alpha"])
+    }
+
+    @MainActor
+    func testMovesFavoriteApplicationsByBundlePath() {
+        let defaults = makeUserDefaults()
+        let alpha = makeInstalledApplication(name: "Alpha", path: "/Applications/Alpha.app")
+        let beta = makeInstalledApplication(name: "Beta", path: "/Applications/Beta.app")
+        let gamma = makeInstalledApplication(name: "Gamma", path: "/Applications/Gamma.app")
+        let store = PulseStore(
+            userDefaults: defaults,
+            launchAtLoginService: makeLoginItemService(),
+            reconcileLaunchAtLogin: false
+        )
+        store.installedApplications = [alpha, beta, gamma]
+
+        XCTAssertTrue(store.addFavoriteApplication(alpha))
+        XCTAssertTrue(store.addFavoriteApplication(gamma))
+        XCTAssertTrue(store.addOrMoveFavoriteApplication(bundlePath: beta.bundlePath, before: gamma.bundlePath))
+        XCTAssertEqual(store.favoriteApplications.map(\.name), ["Alpha", "Beta", "Gamma"])
+
+        XCTAssertTrue(store.addOrMoveFavoriteApplication(bundlePath: alpha.bundlePath, after: gamma.bundlePath))
+        XCTAssertEqual(store.favoriteApplications.map(\.name), ["Beta", "Gamma", "Alpha"])
+
+        XCTAssertTrue(store.addOrMoveFavoriteApplication(bundlePath: gamma.bundlePath, before: gamma.bundlePath))
+        XCTAssertEqual(store.favoriteApplications.map(\.name), ["Beta", "Gamma", "Alpha"])
+    }
+
+    @MainActor
+    func testMovesFavoriteApplicationsToInsertionIndex() {
+        let defaults = makeUserDefaults()
+        let alpha = makeInstalledApplication(name: "Alpha", path: "/Applications/Alpha.app")
+        let beta = makeInstalledApplication(name: "Beta", path: "/Applications/Beta.app")
+        let gamma = makeInstalledApplication(name: "Gamma", path: "/Applications/Gamma.app")
+        let delta = makeInstalledApplication(name: "Delta", path: "/Applications/Delta.app")
+        let store = PulseStore(
+            userDefaults: defaults,
+            launchAtLoginService: makeLoginItemService(),
+            reconcileLaunchAtLogin: false
+        )
+        store.installedApplications = [alpha, beta, gamma, delta]
+        for application in [alpha, beta, gamma, delta] {
+            XCTAssertTrue(store.addFavoriteApplication(application))
+        }
+
+        XCTAssertTrue(store.addOrMoveFavoriteApplication(bundlePath: alpha.bundlePath, atFavoriteIndex: 3))
+        XCTAssertEqual(store.favoriteApplications.map(\.name), ["Beta", "Gamma", "Alpha", "Delta"])
+
+        XCTAssertTrue(store.addOrMoveFavoriteApplication(bundlePath: delta.bundlePath, atFavoriteIndex: 1))
+        XCTAssertEqual(store.favoriteApplications.map(\.name), ["Beta", "Delta", "Gamma", "Alpha"])
+
+        XCTAssertTrue(store.addOrMoveFavoriteApplication(bundlePath: gamma.bundlePath, atFavoriteIndex: 3))
+        XCTAssertEqual(store.favoriteApplications.map(\.name), ["Beta", "Delta", "Gamma", "Alpha"])
+    }
+
+    @MainActor
+    func testRemovesFavoriteApplicationsByBundlePath() {
+        let defaults = makeUserDefaults()
+        let alpha = makeInstalledApplication(name: "Alpha", path: "/Applications/Alpha.app")
+        let beta = makeInstalledApplication(name: "Beta", path: "/Applications/Beta.app")
+        let store = PulseStore(
+            userDefaults: defaults,
+            launchAtLoginService: makeLoginItemService(),
+            reconcileLaunchAtLogin: false
+        )
+        store.installedApplications = [alpha, beta]
+
+        XCTAssertTrue(store.addFavoriteApplication(alpha))
+        XCTAssertTrue(store.addFavoriteApplication(beta))
+        XCTAssertTrue(store.isFavoriteApplication(bundlePath: beta.bundlePath))
+
+        store.removeFavoriteApplication(bundlePath: beta.bundlePath)
+
+        XCTAssertFalse(store.isFavoriteApplication(bundlePath: beta.bundlePath))
+        XCTAssertEqual(store.favoriteApplications.map(\.name), ["Alpha"])
+    }
+
+    func testDetectsRunningApplicationsByBundlePathAndIdentifier() {
+        let alpha = makeInstalledApplication(name: "Alpha", path: "/Applications/Alpha.app")
+        let beta = makeInstalledApplication(
+            name: "Beta",
+            path: "/Applications/Beta.app",
+            bundleIdentifier: "com.example.not-running-beta"
+        )
+        let gamma = makeInstalledApplication(name: "Gamma", path: "/Applications/Gamma.app")
+        let state = RunningApplicationState(
+            bundleIdentifiers: ["com.example.alpha"],
+            bundlePaths: ["/Applications/Beta.app"]
+        )
+
+        XCTAssertTrue(state.contains(alpha))
+        XCTAssertTrue(state.contains(beta))
+        XCTAssertFalse(state.contains(gamma))
     }
 
     @MainActor
@@ -224,6 +363,26 @@ final class LanguagePreferenceTests: XCTestCase {
         XCTAssertEqual(PulseStrings(language: .chinese).text(.applications), "应用程序")
         XCTAssertEqual(PulseStrings(language: .english).text(.applicationsListView), "List view")
         XCTAssertEqual(PulseStrings(language: .chinese).text(.applicationsIconView), "图标视图")
+        XCTAssertEqual(PulseStrings(language: .english).text(.favoriteApplications), "Favorite Apps")
+        XCTAssertEqual(PulseStrings(language: .chinese).text(.favoriteApplications), "常用应用")
+        XCTAssertEqual(
+            PulseStrings(language: .english).text(.favoriteApplicationsEmptyHint),
+            "Add or drag favorite apps here"
+        )
+        XCTAssertEqual(
+            PulseStrings(language: .chinese).text(.favoriteApplicationsEmptyHint),
+            "添加、拖拽常用软件到此处"
+        )
+        XCTAssertEqual(PulseStrings(language: .english).text(.applicationRunning), "Running")
+        XCTAssertEqual(PulseStrings(language: .chinese).text(.applicationRunning), "正在运行")
+        XCTAssertEqual(
+            PulseStrings(language: .english).addFavoriteApplicationHelp("Safari"),
+            "Add Safari to Favorite Apps"
+        )
+        XCTAssertEqual(
+            PulseStrings(language: .chinese).removeFavoriteApplicationHelp("Safari"),
+            "从常用应用移除 Safari"
+        )
         XCTAssertEqual(PulseStrings(language: .english).applicationCount(1), "1 application")
         XCTAssertEqual(PulseStrings(language: .english).applicationCount(3), "3 applications")
         XCTAssertEqual(PulseStrings(language: .chinese).applicationCount(3), "3 个应用程序")
@@ -475,6 +634,20 @@ final class LanguagePreferenceTests: XCTestCase {
         PulseLoginItemService(
             currentStatus: { status },
             apply: apply
+        )
+    }
+
+    private func makeInstalledApplication(
+        name: String,
+        path: String,
+        bundleIdentifier: String? = nil
+    ) -> InstalledApplication {
+        InstalledApplication(
+            name: name,
+            bundleIdentifier: bundleIdentifier ?? "com.example.\(name.lowercased())",
+            version: "1.0",
+            bundlePath: path,
+            source: .local
         )
     }
 }

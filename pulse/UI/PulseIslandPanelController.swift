@@ -23,6 +23,7 @@ enum PulseIslandLayout {
     static let notchedSeedContentHorizontalPadding: CGFloat = PulseDesign.Island.notchedSeedContentHorizontalPadding
     static let defaultSeedVisibleHeight: CGFloat = PulseDesign.Island.defaultSeedVisibleHeight
     static let expandedSurfaceHeightMultiplier: CGFloat = PulseDesign.Island.expandedSurfaceHeightMultiplier
+    static let expandedHeaderExtraHeight: CGFloat = PulseDesign.Island.expandedHeaderExtraHeight
     static let expandedSurfaceWidth: CGFloat = PulseDesign.Island.expandedSurfaceWidth
     static let attachedPanelTopGap: CGFloat = PulseDesign.Island.attachedPanelTopGap
     static let screenEdgeInset: CGFloat = PulseDesign.Island.screenEdgeInset
@@ -58,12 +59,20 @@ enum PulseIslandLayout {
         expandedSurfaceVisibleHeight(metrics: .fallback)
     }
 
+    static var expandedHeaderContentHeight: CGFloat {
+        expandedHeaderContentHeight(metrics: .fallback)
+    }
+
     static var expandedHeaderRowHeight: CGFloat {
         expandedHeaderRowHeight(metrics: .fallback)
     }
 
-    static func expandedSurfaceVisibleHeight(metrics: PulseIslandLayoutMetrics) -> CGFloat {
+    static func expandedHeaderContentHeight(metrics: PulseIslandLayoutMetrics) -> CGFloat {
         expandedHeaderRowHeight(metrics: metrics) * expandedSurfaceHeightMultiplier
+    }
+
+    static func expandedSurfaceVisibleHeight(metrics: PulseIslandLayoutMetrics) -> CGFloat {
+        expandedHeaderContentHeight(metrics: metrics) + expandedHeaderExtraHeight
     }
 
     static func expandedHeaderRowHeight(metrics: PulseIslandLayoutMetrics) -> CGFloat {
@@ -185,7 +194,7 @@ enum PulseIslandLayout {
         case .criticalSeed:
             CGSize(
                 width: criticalSeedBodyWidth(metrics: metrics),
-                height: expandedSurfaceVisibleHeight(metrics: metrics)
+                height: expandedHeaderContentHeight(metrics: metrics)
             )
         case .expanded:
             CGSize(width: expandedSurfaceWidth, height: expandedSurfaceVisibleHeight(metrics: metrics))
@@ -217,7 +226,7 @@ enum PulseIslandLayout {
         case .criticalSeed:
             CGSize(
                 width: surfaceWidth(for: style, metrics: metrics),
-                height: expandedSurfaceVisibleHeight(metrics: metrics) + topAttachmentDepth(for: style)
+                height: expandedHeaderContentHeight(metrics: metrics) + topAttachmentDepth(for: style)
             )
         case .expanded:
             CGSize(
@@ -235,7 +244,7 @@ enum PulseIslandLayout {
         case .seed:
             metrics.seedVisibleHeight
         case .criticalSeed:
-            expandedSurfaceVisibleHeight(metrics: metrics)
+            expandedHeaderContentHeight(metrics: metrics)
         case .expanded:
             expandedSurfaceVisibleHeight(metrics: metrics) + attachedPanelTopGap + attachedPanelSize.height
         }

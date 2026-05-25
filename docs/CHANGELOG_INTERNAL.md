@@ -26,6 +26,27 @@ verification notes that would make the public changelog too noisy.
   the display containing the pointer as the current display. The island tracks
   the current display while resting, and the pinned panel keeps a single window
   while migrating to the new display at the same relative position.
+- The Applications module now has a separate single-row Favorite Apps strip
+  above the app browser. Favorite app bundle paths are stored in UserDefaults,
+  list rows use a trailing pin action, and icon tiles can be dragged into the
+  strip through SwiftUI drop handling. Favorite apps can also be reordered
+  through explicit insertion slots that expand into a visible gap while
+  dragging. Favorite apps can be dragged from the strip back into the app
+  browser area to remove them, with a lightweight local shatter effect on the
+  source tile before removal. The app browser opens in icon view by default,
+  with the footer switch ordered icon view first and list view second.
+- Favorite-app drag and drop now uses a text-backed JSON payload so drag-in,
+  drag-out, and reordering share one local payload format. Insertion slots hide
+  for no-op drops immediately before or after the dragged favorite app, so the
+  visual gap only appears where releasing would change the order. Dragging a
+  favorite back to the app browser now uses the system delete drop operation,
+  and library apps can be dropped anywhere inside the favorite strip instead of
+  only on narrow insertion slots. The wide favorite-strip drop target is only
+  attached during library drags, leaving favorite-to-favorite reordering to the
+  insertion slots so the sort drop path is not intercepted.
+- The Applications module now tracks `NSWorkspace` running-app launch and
+  termination notifications, rendering running apps with a non-gray highlighted
+  dot below the app icon. The state is kept in memory only and is not persisted.
 
 ## 2.0.0 - 2026-05-25
 

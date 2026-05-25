@@ -166,12 +166,12 @@ enum PulseIslandModule: CaseIterable, Equatable {
         }
     }
 
-    var symbolName: String? {
+    var iconAssetName: String {
         switch self {
         case .resourceMonitor:
-            nil
+            "IslandResourceMonitorIcon"
         case .applications:
-            "square.grid.3x3.fill"
+            "IslandApplicationsIcon"
         }
     }
 

@@ -454,9 +454,7 @@ struct PulseIslandView: View {
     }
 
     private func attachedPanel() -> some View {
-        let shape = RoundedRectangle(cornerRadius: PulsePanelLayout.panelCornerRadius, style: .continuous)
-
-        return ZStack {
+        ZStack {
             Group {
                 switch selectedModule {
                 case .resourceMonitor:
@@ -483,9 +481,11 @@ struct PulseIslandView: View {
                 height: PulseIslandLayout.attachedPanelSize.height
             )
             .background {
-                shape.fill(Color.black.opacity(PulseIslandLayout.surfaceOpacity(for: .expanded)))
+                attachedPanelBackground()
             }
-            .clipShape(shape)
+            .mask {
+                attachedPanelMask()
+            }
             .animation(moduleSwitchAnimation, value: selectedModule)
             .offset(y: isAttachedPanelRevealed ? 0 : attachedPanelHiddenYOffset)
             .opacity(isAttachedPanelRevealed ? 1 : 0)
@@ -497,6 +497,40 @@ struct PulseIslandView: View {
             .clipped()
             .allowsHitTesting(isAttachedPanelRevealed)
             .accessibilityHidden(!isAttachedPanelRevealed)
+    }
+
+    @ViewBuilder
+    private func attachedPanelBackground() -> some View {
+        let fill = Color.black.opacity(PulseIslandLayout.surfaceOpacity(for: .expanded))
+
+        switch selectedModule {
+        case .resourceMonitor:
+            RoundedRectangle(cornerRadius: PulsePanelLayout.panelCornerRadius, style: .continuous)
+                .fill(fill)
+        case .applications:
+            installedAppsAttachedPanelShape
+                .fill(fill, style: FillStyle(eoFill: true))
+        }
+    }
+
+    @ViewBuilder
+    private func attachedPanelMask() -> some View {
+        switch selectedModule {
+        case .resourceMonitor:
+            RoundedRectangle(cornerRadius: PulsePanelLayout.panelCornerRadius, style: .continuous)
+                .fill(.black)
+        case .applications:
+            installedAppsAttachedPanelShape
+                .fill(.black, style: FillStyle(eoFill: true))
+        }
+    }
+
+    private var installedAppsAttachedPanelShape: InstalledAppsAttachedPanelShape {
+        InstalledAppsAttachedPanelShape(
+            cornerRadius: PulsePanelLayout.panelCornerRadius,
+            separatorCenterY: InstalledAppsPanelLayout.sectionGapCenterY,
+            separatorHeight: InstalledAppsPanelLayout.separatorCutoutHeight
+        )
     }
 
     private var attachedPanelModuleTransition: AnyTransition {
@@ -511,6 +545,7 @@ struct PulseIslandView: View {
 
     private func expandedSurface(strings: PulseStrings) -> some View {
         let surfaceVisibleHeight = PulseIslandLayout.expandedSurfaceVisibleHeight(metrics: layoutMetrics)
+        let headerContentHeight = PulseIslandLayout.expandedHeaderContentHeight(metrics: layoutMetrics)
         let headerRowHeight = PulseIslandLayout.expandedHeaderRowHeight(metrics: layoutMetrics)
 
         return VStack(spacing: 0) {
@@ -540,8 +575,8 @@ struct PulseIslandView: View {
             .padding(.horizontal, PulseIslandLayout.expandedContentHorizontalPadding)
             .frame(
                 width: PulseIslandLayout.expandedSurfaceWidth,
-                height: surfaceVisibleHeight,
-                alignment: .center
+                height: headerContentHeight,
+                alignment: .top
             )
             .overlay(alignment: .bottom) {
                 IslandModuleInteractionBridge(
@@ -549,6 +584,9 @@ struct PulseIslandView: View {
                 )
                 .frame(height: headerRowHeight)
             }
+
+            Color.clear
+                .frame(height: PulseIslandLayout.expandedHeaderExtraHeight)
         }
         .frame(
             width: PulseIslandLayout.surfaceWidth(for: .expanded),
@@ -1023,19 +1061,12 @@ private struct IslandModuleHeader: View {
 
     @ViewBuilder
     private var moduleIcon: some View {
-        if let symbolName = module.symbolName {
-            Image(systemName: symbolName)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.94))
-                .accessibilityHidden(true)
-        } else {
-            Image("PulseStatusIcon")
-                .renderingMode(.template)
-                .resizable()
-                .scaledToFit()
-                .foregroundStyle(.white.opacity(0.94))
-                .accessibilityHidden(true)
-        }
+        Image(module.iconAssetName)
+            .renderingMode(.template)
+            .resizable()
+            .scaledToFit()
+            .foregroundStyle(.white.opacity(0.94))
+            .accessibilityHidden(true)
     }
 }
 
@@ -1214,6 +1245,38 @@ private struct IslandPulseDots: View {
     private var activeIndex: Int {
         let lastIndex = Self.dotCount - 1
         return min(lastIndex, max(0, Int((min(max(progress, 0), 1) * Double(lastIndex)).rounded())))
+    }
+}
+
+private struct InstalledAppsAttachedPanelShape: Shape {
+    var cornerRadius: CGFloat
+    var separatorCenterY: CGFloat
+    var separatorHeight: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        let separatorHeight = min(max(0, separatorHeight), rect.height)
+        let separatorCenterY = min(max(rect.minY + separatorCenterY, rect.minY), rect.maxY)
+        let separatorMinY = min(max(separatorCenterY - separatorHeight / 2, rect.minY), rect.maxY)
+        let separatorMaxY = min(max(separatorCenterY + separatorHeight / 2, rect.minY), rect.maxY)
+        let topRect = CGRect(
+            x: rect.minX,
+            y: rect.minY,
+            width: rect.width,
+            height: max(0, separatorMinY - rect.minY)
+        )
+        let bottomRect = CGRect(
+            x: rect.minX,
+            y: separatorMaxY,
+            width: rect.width,
+            height: max(0, rect.maxY - separatorMaxY)
+        )
+        let cornerSize = CGSize(width: cornerRadius, height: cornerRadius)
+        var path = Path()
+
+        path.addRoundedRect(in: topRect, cornerSize: cornerSize, style: .continuous)
+        path.addRoundedRect(in: bottomRect, cornerSize: cornerSize, style: .continuous)
+
+        return path
     }
 }
 

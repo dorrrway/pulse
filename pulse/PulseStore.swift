@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Observation
 
@@ -10,6 +11,7 @@ final class PulseStore {
     var installedApplications: [InstalledApplication] = []
     var isRefreshingInstalledApplications = false
     var installedApplicationsRefreshedAt: Date?
+    var runningApplications: RunningApplicationState
     var capturedAt: Date = .distantPast
     var deviceName: String?
     var languagePreference: PulseLanguagePreference {
@@ -32,6 +34,11 @@ final class PulseStore {
             userDefaults.set(installedAppsDisplayMode.rawValue, forKey: Self.installedAppsDisplayModeKey)
         }
     }
+    var favoriteApplicationPaths: [String] {
+        didSet {
+            userDefaults.set(favoriteApplicationPaths, forKey: Self.favoriteApplicationPathsKey)
+        }
+    }
     var launchAtLoginStatus: PulseLoginItemStatus
     var launchAtLoginError: PulseLoginItemError?
 
@@ -41,6 +48,7 @@ final class PulseStore {
     private var installedApplicationsRefreshTask: Task<Void, Never>?
     private let userDefaults: UserDefaults
     private let launchAtLoginService: PulseLoginItemService
+    @ObservationIgnored private var runningApplicationObservationTokens: [NSObjectProtocol] = []
 
     private static let snapshotRefreshInterval: Duration = .seconds(1)
     private static let installedApplicationsRefreshInterval: TimeInterval = 300
@@ -49,6 +57,7 @@ final class PulseStore {
     private static let launchAtLoginKey = "pulse.settings.launchAtLogin"
     private static let launchAtLoginDefaultAppliedKey = "pulse.settings.launchAtLoginDefaultApplied"
     private static let installedAppsDisplayModeKey = "pulse.settings.installedApps.displayMode"
+    private static let favoriteApplicationPathsKey = "pulse.settings.installedApps.favoritePaths"
 
     init(
         userDefaults: UserDefaults = .standard,
@@ -61,6 +70,7 @@ final class PulseStore {
         self.userDefaults = userDefaults
         self.launchAtLoginService = launchAtLoginService
         self.installedAppCatalog = installedAppCatalog
+        let isRunningUnitTests = Self.isRunningUnitTests
         self.deviceName = Self.normalizedDeviceName(deviceName) ?? Self.currentDeviceName()
         self.languagePreference = Self.loadLanguagePreference(from: userDefaults, key: Self.languagePreferenceKey)
         self.appearancePreference = Self.loadAppearancePreference(from: userDefaults, key: Self.appearancePreferenceKey)
@@ -73,10 +83,19 @@ final class PulseStore {
             from: userDefaults,
             key: Self.installedAppsDisplayModeKey
         )
+        self.favoriteApplicationPaths = Self.loadFavoriteApplicationPaths(
+            from: userDefaults,
+            key: Self.favoriteApplicationPathsKey
+        )
         self.launchAtLoginStatus = launchAtLoginService.currentStatus()
+        self.runningApplications = isRunningUnitTests ? .empty : Self.currentRunningApplicationState()
 
-        if reconcileLaunchAtLogin ?? !Self.isRunningUnitTests {
+        if reconcileLaunchAtLogin ?? !isRunningUnitTests {
             reconcilePreferredLaunchAtLogin()
+        }
+
+        if !isRunningUnitTests {
+            observeRunningApplications()
         }
 
         if startSamplingImmediately {
@@ -86,6 +105,13 @@ final class PulseStore {
 
     var strings: PulseStrings {
         PulseStrings(language: languagePreference.resolvedLanguage)
+    }
+
+    var favoriteApplications: [InstalledApplication] {
+        Self.favoriteApplications(
+            from: installedApplications,
+            favoritePaths: favoriteApplicationPaths
+        )
     }
 
     func startSampling() {
@@ -148,6 +174,23 @@ final class PulseStore {
         return minuteBucket(previous) != minuteBucket(next)
     }
 
+    nonisolated static func favoriteApplications(
+        from applications: [InstalledApplication],
+        favoritePaths: [String]
+    ) -> [InstalledApplication] {
+        var applicationsByPath: [String: InstalledApplication] = [:]
+        for application in applications {
+            guard let path = normalizedApplicationPath(application.bundlePath), applicationsByPath[path] == nil else {
+                continue
+            }
+
+            applicationsByPath[path] = application
+        }
+
+        return sanitizedFavoriteApplicationPaths(favoritePaths)
+            .compactMap { applicationsByPath[$0] }
+    }
+
     func setLaunchAtLogin(_ enabled: Bool) {
         launchAtLogin = enabled
         reconcilePreferredLaunchAtLogin()
@@ -155,6 +198,127 @@ final class PulseStore {
 
     func setInstalledAppsDisplayMode(_ mode: PulseInstalledAppsDisplayMode) {
         installedAppsDisplayMode = mode
+    }
+
+    func isFavoriteApplication(_ application: InstalledApplication) -> Bool {
+        isFavoriteApplication(bundlePath: application.bundlePath)
+    }
+
+    func isFavoriteApplication(bundlePath: String) -> Bool {
+        guard let path = Self.normalizedApplicationPath(bundlePath) else {
+            return false
+        }
+
+        return favoriteApplicationPaths.contains(path)
+    }
+
+    func isApplicationRunning(_ application: InstalledApplication) -> Bool {
+        runningApplications.contains(application)
+    }
+
+    func toggleFavoriteApplication(_ application: InstalledApplication) {
+        if isFavoriteApplication(application) {
+            removeFavoriteApplication(application)
+        } else {
+            addFavoriteApplication(application)
+        }
+    }
+
+    @discardableResult
+    func addFavoriteApplication(_ application: InstalledApplication) -> Bool {
+        addFavoriteApplication(bundlePath: application.bundlePath)
+    }
+
+    @discardableResult
+    func addFavoriteApplication(bundlePath: String) -> Bool {
+        guard
+            let path = Self.normalizedApplicationPath(bundlePath),
+            installedApplications.contains(where: { Self.normalizedApplicationPath($0.bundlePath) == path })
+        else {
+            return false
+        }
+
+        if !favoriteApplicationPaths.contains(path) {
+            favoriteApplicationPaths.append(path)
+        }
+
+        return true
+    }
+
+    @discardableResult
+    func addOrMoveFavoriteApplication(bundlePath: String, before targetBundlePath: String?) -> Bool {
+        addOrMoveFavoriteApplication(bundlePath: bundlePath, targetBundlePath: targetBundlePath) { targetIndex in
+            targetIndex
+        }
+    }
+
+    @discardableResult
+    func addOrMoveFavoriteApplication(bundlePath: String, after targetBundlePath: String?) -> Bool {
+        addOrMoveFavoriteApplication(bundlePath: bundlePath, targetBundlePath: targetBundlePath) { targetIndex in
+            targetIndex + 1
+        }
+    }
+
+    @discardableResult
+    func addOrMoveFavoriteApplication(bundlePath: String, atFavoriteIndex index: Int) -> Bool {
+        guard
+            let path = Self.normalizedApplicationPath(bundlePath),
+            installedApplications.contains(where: { Self.normalizedApplicationPath($0.bundlePath) == path })
+        else {
+            return false
+        }
+
+        let originalPaths = Self.sanitizedFavoriteApplicationPaths(favoriteApplicationPaths)
+        var insertionIndex = min(max(index, 0), originalPaths.count)
+        if let sourceIndex = originalPaths.firstIndex(of: path), sourceIndex < insertionIndex {
+            insertionIndex -= 1
+        }
+
+        var paths = originalPaths.filter { $0 != path }
+        paths.insert(path, at: min(insertionIndex, paths.count))
+        favoriteApplicationPaths = paths
+        return true
+    }
+
+    func removeFavoriteApplication(_ application: InstalledApplication) {
+        removeFavoriteApplication(bundlePath: application.bundlePath)
+    }
+
+    func removeFavoriteApplication(bundlePath: String) {
+        guard let path = Self.normalizedApplicationPath(bundlePath) else {
+            return
+        }
+
+        favoriteApplicationPaths.removeAll { $0 == path }
+    }
+
+    @discardableResult
+    private func addOrMoveFavoriteApplication(
+        bundlePath: String,
+        targetBundlePath: String?,
+        insertionIndex: (Int) -> Int
+    ) -> Bool {
+        guard
+            let path = Self.normalizedApplicationPath(bundlePath),
+            installedApplications.contains(where: { Self.normalizedApplicationPath($0.bundlePath) == path })
+        else {
+            return false
+        }
+
+        let targetPath = targetBundlePath.flatMap(Self.normalizedApplicationPath)
+        guard targetPath != path else {
+            return true
+        }
+
+        var paths = favoriteApplicationPaths.filter { $0 != path }
+        if let targetPath, let targetIndex = paths.firstIndex(of: targetPath) {
+            paths.insert(path, at: min(paths.count, max(0, insertionIndex(targetIndex))))
+        } else {
+            paths.append(path)
+        }
+
+        favoriteApplicationPaths = Self.sanitizedFavoriteApplicationPaths(paths)
+        return true
     }
 
     func refreshLaunchAtLoginStatus() {
@@ -191,6 +355,28 @@ final class PulseStore {
             installedApplications = applications
             installedApplicationsRefreshedAt = Date()
             isRefreshingInstalledApplications = false
+        }
+    }
+
+    func refreshRunningApplications() {
+        runningApplications = Self.currentRunningApplicationState()
+    }
+
+    private func observeRunningApplications() {
+        guard runningApplicationObservationTokens.isEmpty else {
+            return
+        }
+
+        let notificationCenter = NSWorkspace.shared.notificationCenter
+        runningApplicationObservationTokens = [
+            NSWorkspace.didLaunchApplicationNotification,
+            NSWorkspace.didTerminateApplicationNotification,
+        ].map { name in
+            notificationCenter.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor in
+                    self?.refreshRunningApplications()
+                }
+            }
         }
     }
 
@@ -316,10 +502,39 @@ final class PulseStore {
             let rawValue = userDefaults.string(forKey: key),
             let displayMode = PulseInstalledAppsDisplayMode(rawValue: rawValue)
         else {
-            return .list
+            return .icon
         }
 
         return displayMode
+    }
+
+    private static func loadFavoriteApplicationPaths(from userDefaults: UserDefaults, key: String) -> [String] {
+        sanitizedFavoriteApplicationPaths(userDefaults.stringArray(forKey: key) ?? [])
+    }
+
+    private nonisolated static func sanitizedFavoriteApplicationPaths(_ paths: [String]) -> [String] {
+        var seenPaths: Set<String> = []
+        var sanitizedPaths: [String] = []
+
+        for path in paths {
+            guard let normalizedPath = normalizedApplicationPath(path), !seenPaths.contains(normalizedPath) else {
+                continue
+            }
+
+            seenPaths.insert(normalizedPath)
+            sanitizedPaths.append(normalizedPath)
+        }
+
+        return sanitizedPaths
+    }
+
+    private nonisolated static func normalizedApplicationPath(_ path: String) -> String? {
+        let trimmedPath = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedPath.isEmpty else {
+            return nil
+        }
+
+        return URL(fileURLWithPath: trimmedPath).standardizedFileURL.path
     }
 
     private static func loadLaunchAtLogin(
@@ -342,6 +557,14 @@ final class PulseStore {
             ?? normalizedDeviceName(ProcessInfo.processInfo.hostName)
     }
 
+    private static func currentRunningApplicationState() -> RunningApplicationState {
+        let runningApplications = NSWorkspace.shared.runningApplications
+        return RunningApplicationState(
+            bundleIdentifiers: runningApplications.compactMap(\.bundleIdentifier),
+            bundlePaths: runningApplications.compactMap { $0.bundleURL?.path }
+        )
+    }
+
     private static func normalizedDeviceName(_ name: String?) -> String? {
         guard let trimmed = name?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else {
             return nil
@@ -352,6 +575,44 @@ final class PulseStore {
 
     private static var isRunningUnitTests: Bool {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+    }
+}
+
+nonisolated struct RunningApplicationState: Equatable, Sendable {
+    static let empty = RunningApplicationState(bundleIdentifiers: [], bundlePaths: [])
+
+    var bundleIdentifiers: Set<String>
+    var bundlePaths: Set<String>
+
+    init(bundleIdentifiers: some Sequence<String>, bundlePaths: some Sequence<String>) {
+        self.bundleIdentifiers = Set(bundleIdentifiers.compactMap(Self.normalizedIdentifier))
+        self.bundlePaths = Set(bundlePaths.compactMap(Self.normalizedPath))
+    }
+
+    func contains(_ application: InstalledApplication) -> Bool {
+        if let path = Self.normalizedPath(application.bundlePath), bundlePaths.contains(path) {
+            return true
+        }
+
+        guard let bundleIdentifier = application.bundleIdentifier.flatMap(Self.normalizedIdentifier) else {
+            return false
+        }
+
+        return bundleIdentifiers.contains(bundleIdentifier)
+    }
+
+    private static func normalizedIdentifier(_ value: String) -> String? {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private static func normalizedPath(_ value: String) -> String? {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return nil
+        }
+
+        return URL(fileURLWithPath: trimmed).standardizedFileURL.path
     }
 }
 

@@ -23,9 +23,9 @@ Pulse may read local system metrics including:
 - The system's last boot time, used to calculate system runtime
 - Names of running processes and their CPU and memory usage
 - Local app bundle paths used to display app icons
-- App names, bundle IDs, versions, and bundle paths from standard application locations, used to show the Applications list
+- App names, bundle IDs, versions, and bundle paths from standard application locations, plus those apps' running state, used to show the Applications list
 
-These values are used only to render the app interface. They are not uploaded or used for persistent tracking. The Applications list is refreshed on demand in local memory and is not written to a persistent database.
+These values are used only to render the app interface. They are not uploaded or used for persistent tracking. The Applications list and running state are refreshed on demand in local memory and are not written to a persistent database. App bundle paths added by the user to Favorite Apps are saved in local preferences so Pulse can restore the Favorite Apps panel next time.
 
 ## Data Pulse Does Not Collect
 
@@ -45,4 +45,4 @@ As with ordinary HTTPS requests, the appcast request may be processed with stand
 
 ## Local Preferences
 
-Pulse may store local preferences, such as language, appearance, launch-at-login, and Applications display mode, using macOS local storage.
+Pulse may store local preferences, such as language, appearance, launch-at-login, Applications display mode, and Favorite Apps bundle paths, using macOS local storage.
