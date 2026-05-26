@@ -123,6 +123,9 @@ verification notes that would make the public changelog too noisy.
   The header renders all modules in a horizontal selector and offsets the row so
   the selected module remains centered, while the attached panel transitions
   from the matching horizontal edge.
+- The expanded header selector now measures module button content widths and
+  uses 24 point inter-item spacing, keeping visual layout and local-event
+  hit-testing aligned for click, drag, and horizontal scroll switching.
 
 ## 2.0.0 - 2026-05-25
 

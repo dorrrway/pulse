@@ -336,31 +336,48 @@ final class PinnedPanelControllerTests: XCTestCase {
     func testIslandModuleClickGeometryMatchesCenteredSelector() {
         let bounds = CGRect(x: 0, y: 0, width: PulseIslandLayout.expandedSurfaceWidth, height: 60)
         let moduleRowHeight: CGFloat = 30
+        let itemWidths: [PulseIslandModule: CGFloat] = [
+            .resourceMonitor: 88,
+            .applications: 88,
+            .clipboard: 72
+        ]
 
         XCTAssertEqual(
             PulseIslandModuleInteractionGeometry.module(
                 at: CGPoint(x: 280, y: 15),
                 bounds: bounds,
                 selectedModule: .resourceMonitor,
-                moduleRowHeight: moduleRowHeight
+                moduleRowHeight: moduleRowHeight,
+                itemWidths: itemWidths
             ),
             .resourceMonitor
         )
         XCTAssertEqual(
             PulseIslandModuleInteractionGeometry.module(
-                at: CGPoint(x: 448, y: 15),
+                at: CGPoint(x: 392, y: 15),
                 bounds: bounds,
                 selectedModule: .resourceMonitor,
-                moduleRowHeight: moduleRowHeight
+                moduleRowHeight: moduleRowHeight,
+                itemWidths: itemWidths
             ),
             .applications
+        )
+        XCTAssertNil(
+            PulseIslandModuleInteractionGeometry.module(
+                at: CGPoint(x: 336, y: 15),
+                bounds: bounds,
+                selectedModule: .resourceMonitor,
+                moduleRowHeight: moduleRowHeight,
+                itemWidths: itemWidths
+            )
         )
         XCTAssertNil(
             PulseIslandModuleInteractionGeometry.module(
                 at: CGPoint(x: 24, y: 15),
                 bounds: bounds,
                 selectedModule: .resourceMonitor,
-                moduleRowHeight: moduleRowHeight
+                moduleRowHeight: moduleRowHeight,
+                itemWidths: itemWidths
             )
         )
         XCTAssertNil(
@@ -368,7 +385,8 @@ final class PinnedPanelControllerTests: XCTestCase {
                 at: CGPoint(x: 280, y: 45),
                 bounds: bounds,
                 selectedModule: .resourceMonitor,
-                moduleRowHeight: moduleRowHeight
+                moduleRowHeight: moduleRowHeight,
+                itemWidths: itemWidths
             )
         )
     }

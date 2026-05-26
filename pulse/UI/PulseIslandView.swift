@@ -15,8 +15,8 @@ private let moduleSwitchHorizontalDragThreshold: CGFloat = 18
 private let moduleSwitchHorizontalScrollThreshold: CGFloat = 12
 private let moduleSwitchAnimation = Animation.smooth(duration: 0.22)
 private let moduleSwitchInputLockDuration: TimeInterval = 0.24
-private let moduleSelectorItemWidth: CGFloat = 156
-private let moduleSelectorItemSpacing: CGFloat = PulseDesign.Spacing.sm
+private let moduleSelectorFallbackItemWidth: CGFloat = 96
+private let moduleSelectorItemSpacing: CGFloat = PulseDesign.Spacing.lg
 private let moduleSelectorClickMovementTolerance: CGFloat = 6
 private let seedMetricRollAnimation = Animation.spring(response: 0.50, dampingFraction: 0.86, blendDuration: 0)
 private let seedMetricFadeAnimation = Animation.easeInOut(duration: 0.16)
@@ -41,6 +41,7 @@ struct PulseIslandView: View {
     @State private var moduleSwitchDirection = 1
     @State private var isModuleSwitchLocked = false
     @State private var moduleSwitchLockGeneration = 0
+    @State private var moduleSelectorItemWidths: [PulseIslandModule: CGFloat] = [:]
     @State private var selectedSeedMetric: PulseIslandSeedMetric = .memory
     @State private var activeCriticalAlert: PulseIslandCriticalAlert?
     @State private var acknowledgedCriticalAlerts: Set<PulseIslandCriticalAlert> = []
@@ -683,6 +684,8 @@ struct PulseIslandView: View {
                 quitAction: {
                     NSApplication.shared.terminate(nil)
                 },
+                itemWidths: moduleSelectorItemWidths,
+                updateItemWidths: { moduleSelectorItemWidths = $0 },
                 selectModule: switchModule(to:)
             )
             .opacity(isExpandedHeaderRevealed ? 1 : 0)
@@ -698,6 +701,7 @@ struct PulseIslandView: View {
                 IslandModuleInteractionBridge(
                     selectedModule: selectedModule,
                     moduleRowHeight: headerRowHeight,
+                    itemWidths: moduleSelectorItemWidths,
                     switchAction: { switchModule(by: $0) },
                     selectAction: { switchModule(to: $0) }
                 )
@@ -1278,6 +1282,8 @@ private struct IslandModuleHeader: View {
     var quitTitle: String
     var quitHelp: String
     var quitAction: () -> Void
+    var itemWidths: [PulseIslandModule: CGFloat]
+    var updateItemWidths: ([PulseIslandModule: CGFloat]) -> Void
     var selectModule: (PulseIslandModule) -> Void
 
     var body: some View {
@@ -1312,6 +1318,8 @@ private struct IslandModuleHeader: View {
             IslandModuleSelector(
                 selectedModule: selectedModule,
                 moduleTitle: moduleTitle,
+                itemWidths: itemWidths,
+                updateItemWidths: updateItemWidths,
                 selectModule: selectModule
             )
             .frame(height: rowHeight, alignment: .center)
@@ -1324,6 +1332,8 @@ private struct IslandModuleHeader: View {
 private struct IslandModuleSelector: View {
     var selectedModule: PulseIslandModule
     var moduleTitle: (PulseIslandModule) -> String
+    var itemWidths: [PulseIslandModule: CGFloat]
+    var updateItemWidths: ([PulseIslandModule: CGFloat]) -> Void
     var selectModule: (PulseIslandModule) -> Void
 
     private let modules = PulseIslandModule.allCases
@@ -1341,7 +1351,16 @@ private struct IslandModuleSelector: View {
                                 selectModule(module)
                             }
                         )
-                        .frame(width: moduleSelectorItemWidth, height: proxy.size.height)
+                        .fixedSize(horizontal: true, vertical: false)
+                        .frame(height: proxy.size.height)
+                        .background {
+                            GeometryReader { itemProxy in
+                                Color.clear.preference(
+                                    key: IslandModuleSelectorItemWidthPreferenceKey.self,
+                                    value: [module: itemProxy.size.width]
+                                )
+                            }
+                        }
                     }
                 }
                 .offset(x: horizontalOffset(in: proxy.size.width))
@@ -1350,15 +1369,31 @@ private struct IslandModuleSelector: View {
             .frame(width: proxy.size.width, height: proxy.size.height, alignment: .leading)
         }
         .clipped()
+        .onPreferenceChange(IslandModuleSelectorItemWidthPreferenceKey.self) { widths in
+            updateItemWidths(widths)
+        }
         .accessibilityElement(children: .contain)
     }
 
     private func horizontalOffset(in width: CGFloat) -> CGFloat {
-        let selectedIndex = modules.firstIndex(of: selectedModule) ?? 0
-        let selectedCenterX = moduleSelectorItemWidth / 2
-            + CGFloat(selectedIndex) * (moduleSelectorItemWidth + moduleSelectorItemSpacing)
+        let selectedCenterX = PulseIslandModuleInteractionGeometry.itemCenterX(
+            module: selectedModule,
+            modules: modules,
+            itemWidths: itemWidths
+        )
 
         return width / 2 - selectedCenterX
+    }
+}
+
+private struct IslandModuleSelectorItemWidthPreferenceKey: PreferenceKey {
+    static var defaultValue: [PulseIslandModule: CGFloat] = [:]
+
+    static func reduce(
+        value: inout [PulseIslandModule: CGFloat],
+        nextValue: () -> [PulseIslandModule: CGFloat]
+    ) {
+        value.merge(nextValue(), uniquingKeysWith: { _, next in next })
     }
 }
 
@@ -1383,7 +1418,7 @@ private struct IslandModuleSelectorItem: View {
                 .minimumScaleFactor(0.8)
         }
         .foregroundStyle(.white.opacity(isSelected ? 0.94 : 0.54))
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxHeight: .infinity)
         .contentShape(Rectangle())
         .accessibilityLabel(title)
         .accessibilityAddTraits(.isButton)
@@ -1443,25 +1478,34 @@ enum PulseIslandModuleInteractionGeometry {
         at point: CGPoint,
         bounds: CGRect,
         selectedModule: PulseIslandModule,
-        moduleRowHeight: CGFloat
+        moduleRowHeight: CGFloat,
+        itemWidths: [PulseIslandModule: CGFloat] = [:]
     ) -> PulseIslandModule? {
         guard
             point.y >= bounds.minY,
-            point.y <= bounds.minY + moduleRowHeight,
-            let selectedIndex = PulseIslandModule.allCases.firstIndex(of: selectedModule)
+            point.y <= bounds.minY + moduleRowHeight
         else {
             return nil
         }
 
         let modules = PulseIslandModule.allCases
-        let step = moduleSelectorItemWidth + moduleSelectorItemSpacing
-        let selectedCenterX = moduleSelectorItemWidth / 2 + CGFloat(selectedIndex) * step
+        let selectedCenterX = itemCenterX(
+            module: selectedModule,
+            modules: modules,
+            itemWidths: itemWidths
+        )
         let rowOffsetX = bounds.midX - selectedCenterX
+        var cursor = rowOffsetX
 
         for (index, module) in modules.enumerated() {
-            let itemMinX = rowOffsetX + CGFloat(index) * step
-            let itemMaxX = itemMinX + moduleSelectorItemWidth
+            if index > 0 {
+                cursor += moduleSelectorItemSpacing
+            }
+
+            let itemMinX = cursor
+            let itemMaxX = itemMinX + itemWidth(for: module, itemWidths: itemWidths)
             guard point.x >= itemMinX, point.x <= itemMaxX else {
+                cursor = itemMaxX
                 continue
             }
 
@@ -1469,6 +1513,36 @@ enum PulseIslandModuleInteractionGeometry {
         }
 
         return nil
+    }
+
+    static func itemCenterX(
+        module selectedModule: PulseIslandModule,
+        modules: [PulseIslandModule],
+        itemWidths: [PulseIslandModule: CGFloat]
+    ) -> CGFloat {
+        var cursor: CGFloat = 0
+
+        for (index, module) in modules.enumerated() {
+            if index > 0 {
+                cursor += moduleSelectorItemSpacing
+            }
+
+            let width = itemWidth(for: module, itemWidths: itemWidths)
+            if module == selectedModule {
+                return cursor + width / 2
+            }
+
+            cursor += width
+        }
+
+        return moduleSelectorFallbackItemWidth / 2
+    }
+
+    private static func itemWidth(
+        for module: PulseIslandModule,
+        itemWidths: [PulseIslandModule: CGFloat]
+    ) -> CGFloat {
+        itemWidths[module] ?? moduleSelectorFallbackItemWidth
     }
 
     private static func isHeaderControlRegion(
@@ -1487,6 +1561,7 @@ enum PulseIslandModuleInteractionGeometry {
 private struct IslandModuleInteractionBridge: NSViewRepresentable {
     var selectedModule: PulseIslandModule
     var moduleRowHeight: CGFloat
+    var itemWidths: [PulseIslandModule: CGFloat]
     var switchAction: (Int) -> Void
     var selectAction: (PulseIslandModule) -> Void
 
@@ -1496,6 +1571,7 @@ private struct IslandModuleInteractionBridge: NSViewRepresentable {
         view.layer?.backgroundColor = NSColor.clear.cgColor
         view.selectedModule = selectedModule
         view.moduleRowHeight = moduleRowHeight
+        view.itemWidths = itemWidths
         view.switchAction = switchAction
         view.selectAction = selectAction
         return view
@@ -1504,6 +1580,7 @@ private struct IslandModuleInteractionBridge: NSViewRepresentable {
     func updateNSView(_ nsView: InteractionView, context: Context) {
         nsView.selectedModule = selectedModule
         nsView.moduleRowHeight = moduleRowHeight
+        nsView.itemWidths = itemWidths
         nsView.switchAction = switchAction
         nsView.selectAction = selectAction
     }
@@ -1511,6 +1588,7 @@ private struct IslandModuleInteractionBridge: NSViewRepresentable {
     final class InteractionView: NSView {
         var selectedModule: PulseIslandModule = .resourceMonitor
         var moduleRowHeight: CGFloat = PulseIslandLayout.expandedHeaderRowHeight
+        var itemWidths: [PulseIslandModule: CGFloat] = [:]
         var switchAction: ((Int) -> Void)?
         var selectAction: ((PulseIslandModule) -> Void)?
 
@@ -1637,7 +1715,8 @@ private struct IslandModuleInteractionBridge: NSViewRepresentable {
                 at: point,
                 bounds: bounds,
                 selectedModule: selectedModule,
-                moduleRowHeight: moduleRowHeight
+                moduleRowHeight: moduleRowHeight,
+                itemWidths: itemWidths
             )
         }
 
