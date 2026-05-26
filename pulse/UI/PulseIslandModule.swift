@@ -156,6 +156,7 @@ struct PulseIslandCriticalAlertPreviewRequest: Equatable, Sendable {
 enum PulseIslandModule: CaseIterable, Equatable, Hashable {
     case resourceMonitor
     case applications
+    case clipboard
 
     var titleKey: PulseStrings.Key {
         switch self {
@@ -163,6 +164,8 @@ enum PulseIslandModule: CaseIterable, Equatable, Hashable {
             .resourceMonitoring
         case .applications:
             .applications
+        case .clipboard:
+            .clipboard
         }
     }
 
@@ -172,6 +175,8 @@ enum PulseIslandModule: CaseIterable, Equatable, Hashable {
             "IslandResourceMonitorIcon"
         case .applications:
             "IslandApplicationsIcon"
+        case .clipboard:
+            "IslandClipboardIcon"
         }
     }
 

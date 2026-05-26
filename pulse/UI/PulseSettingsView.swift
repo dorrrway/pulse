@@ -85,6 +85,67 @@ struct PulseSettingsView: View {
                     .frame(maxWidth: .infinity, alignment: .center)
                 }
 
+                Section(strings.text(.clipboardSettings)) {
+                    HStack(alignment: .center) {
+                        Text(strings.text(.clipboardOCR))
+                        Spacer()
+
+                        Toggle(
+                            "",
+                            isOn: Binding(
+                                get: { store.clipboardHistory.ocrEnabled },
+                                set: { store.clipboardHistory.ocrEnabled = $0 }
+                            )
+                        )
+                        .labelsHidden()
+                        .controlSize(.small)
+                        .frame(height: settingsControlHeight)
+                    }
+                    .frame(height: settingsControlHeight)
+
+                    HStack(alignment: .center) {
+                        Text(strings.text(.clipboardRetentionLimit))
+
+                        Picker(
+                            "",
+                            selection: Binding(
+                                get: { store.clipboardHistory.retentionLimit },
+                                set: { store.clipboardHistory.retentionLimit = $0 }
+                            )
+                        ) {
+                            ForEach(ClipboardHistoryStore.retentionLimitOptions, id: \.self) { limit in
+                                Text(strings.clipboardRetentionLimitLabel(limit))
+                                    .tag(limit)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .controlSize(.small)
+                        .frame(height: settingsControlHeight)
+                    }
+                    .frame(height: settingsControlHeight)
+
+                    HStack(alignment: .center) {
+                        Text(strings.text(.clipboardRetentionDays))
+
+                        Picker(
+                            "",
+                            selection: Binding(
+                                get: { store.clipboardHistory.retentionDays },
+                                set: { store.clipboardHistory.retentionDays = $0 }
+                            )
+                        ) {
+                            ForEach(ClipboardHistoryStore.retentionDayOptions, id: \.self) { days in
+                                Text(strings.clipboardRetentionDaysLabel(days))
+                                    .tag(days)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .controlSize(.small)
+                        .frame(height: settingsControlHeight)
+                    }
+                    .frame(height: settingsControlHeight)
+                }
+
                 #if DEBUG
                 Section {
                     VStack(alignment: .leading, spacing: 8) {
@@ -164,9 +225,9 @@ private extension PulseSettingsView {
 
     var settingsWindowHeight: CGFloat {
         #if DEBUG
-        return 384
+        return 500
         #else
-        return 326
+        return 442
         #endif
     }
 

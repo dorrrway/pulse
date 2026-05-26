@@ -650,7 +650,7 @@ final class PulseIslandPanelController {
     }
 
     private func makePanel(store: PulseStore, updateController: PulseUpdateController) -> NSPanel {
-        let panel = NSPanel(
+        let panel = PulseIslandPanel(
             contentRect: targetFrame(screen: anchorScreen),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
@@ -659,6 +659,7 @@ final class PulseIslandPanelController {
         panel.title = "Pulse Dynamic Island-style entry"
         panel.isReleasedWhenClosed = false
         panel.isFloatingPanel = true
+        panel.becomesKeyOnlyIfNeeded = true
         panel.hidesOnDeactivate = false
         panel.level = .statusBar
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle, .stationary]
@@ -798,6 +799,12 @@ final class PulseIslandPanelController {
         return panel?.screen ?? anchorScreen ?? NSScreen.main
     }
 
+}
+
+private final class PulseIslandPanel: NSPanel {
+    override var canBecomeKey: Bool {
+        true
+    }
 }
 
 @MainActor

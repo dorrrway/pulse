@@ -33,7 +33,10 @@ struct PulseApp: App {
 
     init() {
         let isRunningUnitTests = Self.isRunningUnitTests
-        let store = PulseStore(startSamplingImmediately: !isRunningUnitTests)
+        let store = PulseStore(
+            startSamplingImmediately: !isRunningUnitTests,
+            startClipboardImmediately: !isRunningUnitTests
+        )
         let pinnedPanelController = PulsePinnedPanelController()
         let islandPanelController = PulseIslandPanelController()
         let updateController = PulseUpdateController(startingUpdater: !isRunningUnitTests)

@@ -17,9 +17,11 @@ private let moduleSwitchAnimation = Animation.smooth(duration: 0.22)
 private let moduleSwitchInputLockDuration: TimeInterval = 0.24
 private let moduleSelectorItemWidth: CGFloat = 156
 private let moduleSelectorItemSpacing: CGFloat = PulseDesign.Spacing.sm
+private let moduleSelectorClickMovementTolerance: CGFloat = 6
 private let seedMetricRollAnimation = Animation.spring(response: 0.50, dampingFraction: 0.86, blendDuration: 0)
 private let seedMetricFadeAnimation = Animation.easeInOut(duration: 0.16)
 private let criticalSeedAnimation = Animation.spring(response: 0.42, dampingFraction: 0.84, blendDuration: 0)
+private let clipboardRecordReminderDuration: TimeInterval = 1.5
 
 struct PulseIslandView: View {
     var controller: PulseIslandPanelController
@@ -42,6 +44,8 @@ struct PulseIslandView: View {
     @State private var selectedSeedMetric: PulseIslandSeedMetric = .memory
     @State private var activeCriticalAlert: PulseIslandCriticalAlert?
     @State private var acknowledgedCriticalAlerts: Set<PulseIslandCriticalAlert> = []
+    @State private var activeClipboardReminder: ClipboardIslandReminder?
+    @State private var clipboardReminderGeneration = 0
     #if DEBUG
     @State private var activePreviewCriticalAlerts: [PulseIslandCriticalAlert] = []
     @State private var acknowledgedPreviewCriticalAlerts: Set<PulseIslandCriticalAlert> = []
@@ -84,8 +88,7 @@ struct PulseIslandView: View {
         let criticalAlerts = PulseIslandCriticalAlert.active(core: store.coreMetrics, signal: store.signalMetrics)
         let rotationMetrics = PulseIslandSeedMetric.rotationMetrics(for: store.signalMetrics.power)
         let activeSeedMetric = selectedSeedMetric.normalized(in: rotationMetrics)
-        let activity = activeCriticalAlert.map { visibleCriticalActivity(alert: $0, strings: strings) }
-            ?? seedActivity(metric: activeSeedMetric, strings: strings)
+        let presentation = seedPresentation(metric: activeSeedMetric, strings: strings)
 
         ZStack(alignment: .top) {
             morphingIslandChrome()
@@ -100,7 +103,7 @@ struct PulseIslandView: View {
             }
 
             surfaceLayer(for: .seed) {
-                seedSurface(activity: activity)
+                seedSurface(presentation: presentation)
             }
             .opacity(usesExpandedVisualState ? 0 : 1)
             .scaleEffect(usesExpandedVisualState ? 0.82 : 1, anchor: .top)
@@ -129,6 +132,9 @@ struct PulseIslandView: View {
         }
         .onChange(of: criticalAlerts) { _, alerts in
             reconcileVisibleCriticalAlerts(alerts)
+        }
+        .onChange(of: store.clipboardHistory.latestRecordNotice) { _, notice in
+            handleClipboardRecordNotice(notice, strings: store.strings)
         }
         #if DEBUG
         .onChange(of: controller.criticalAlertPreviewRequest) { _, request in
@@ -260,7 +266,7 @@ struct PulseIslandView: View {
         }
     }
 
-    private func seedSurface(activity: IslandActivity) -> some View {
+    private func seedSurface(presentation: IslandSeedPresentation) -> some View {
         let seedStyle: PulseIslandStyle = usesCriticalSeedState ? .criticalSeed : .seed
         let visibleSize = PulseIslandLayout.seedVisibleSize(for: seedStyle, metrics: layoutMetrics)
         let contentSize = PulseIslandLayout.contentSize(for: seedStyle, metrics: layoutMetrics)
@@ -269,7 +275,7 @@ struct PulseIslandView: View {
             Color.clear
                 .frame(height: PulseIslandLayout.topAttachmentDepth(for: seedStyle))
 
-            seedContent(activity: activity)
+            seedContent(presentation: presentation)
                 .frame(
                     width: visibleSize.width,
                     height: visibleSize.height
@@ -287,57 +293,71 @@ struct PulseIslandView: View {
         .onTapGesture(perform: expandAction)
     }
 
-    private func seedContent(activity: IslandActivity) -> some View {
+    private func seedContent(presentation: IslandSeedPresentation) -> some View {
         if usesCriticalSeedState {
+            guard case .activity(let activity) = presentation else {
+                return AnyView(EmptyView())
+            }
+
             return AnyView(criticalSeedContent(activity: activity))
         }
 
         let notchGapWidth = PulseIslandLayout.notchContentGapWidth(metrics: layoutMetrics)
 
         if notchGapWidth > 0 {
-            return AnyView(notchAwareSeedContent(activity: activity, notchGapWidth: notchGapWidth))
+            return AnyView(notchAwareSeedContent(presentation: presentation, notchGapWidth: notchGapWidth))
         }
 
-        return AnyView(standardSeedContent(activity: activity))
+        return AnyView(standardSeedContent(presentation: presentation))
     }
 
-    private func standardSeedContent(activity: IslandActivity) -> some View {
+    private func standardSeedContent(presentation: IslandSeedPresentation) -> some View {
         let rowHeight = PulseIslandLayout.seedVisibleSize(for: .seed, metrics: layoutMetrics).height
 
         return HStack(spacing: 9) {
-            rollingSeedMetricIcon(
-                activity: activity,
-                width: PulseDesign.Control.symbolSize,
-                rowHeight: rowHeight
-            )
+            Color.clear
+                .frame(
+                    width: PulseDesign.Control.symbolSize,
+                    height: rowHeight
+                )
+                .accessibilityHidden(true)
 
             ZStack {
-                HStack(spacing: 9) {
-                    IslandPulseDots(tint: activity.tint, progress: activity.progress)
-
-                    Spacer(minLength: 0)
-
-                    seedValueText(activity.value, font: PulseDesign.Typography.islandSeed)
-                }
+                standardSeedTrailingContent(presentation: presentation, rowHeight: rowHeight)
                 .frame(height: rowHeight)
-                .id(activity.transitionIdentity)
+                .id(presentation.transitionIdentity)
                 .transition(seedMetricTransition)
             }
             .frame(maxWidth: .infinity, maxHeight: rowHeight)
             .clipped()
         }
         .frame(height: rowHeight)
+        .overlay(alignment: .leading) {
+            ZStack(alignment: .leading) {
+                standardSeedLeadingContent(
+                    presentation: presentation,
+                    rowHeight: rowHeight
+                )
+                .fixedSize(horizontal: true, vertical: false)
+                .frame(height: rowHeight, alignment: .leading)
+                .id(presentation.transitionIdentity)
+                .transition(seedMetricTransition)
+            }
+            .frame(maxWidth: .infinity, maxHeight: rowHeight, alignment: .leading)
+            .clipped()
+            .allowsHitTesting(false)
+        }
         .padding(.horizontal, PulseIslandLayout.seedContentHorizontalPadding)
     }
 
-    private func notchAwareSeedContent(activity: IslandActivity, notchGapWidth: CGFloat) -> some View {
+    private func notchAwareSeedContent(presentation: IslandSeedPresentation, notchGapWidth: CGFloat) -> some View {
         let sideLaneWidth = PulseIslandLayout.notchedSeedContentSideLaneWidth(metrics: layoutMetrics)
         let rowHeight = PulseIslandLayout.seedVisibleSize(for: .seed, metrics: layoutMetrics).height
 
         return HStack(spacing: 0) {
             ZStack(alignment: .leading) {
-                rollingSeedMetricIcon(
-                    activity: activity,
+                rollingSeedPresentationIcon(
+                    presentation: presentation,
                     width: sideLaneWidth,
                     rowHeight: rowHeight,
                     alignment: .leading
@@ -350,9 +370,9 @@ struct PulseIslandView: View {
                 .frame(width: notchGapWidth)
 
             ZStack(alignment: .trailing) {
-                seedValueText(activity.value, font: PulseDesign.Typography.islandNotchedSeed)
+                notchedSeedTrailingContent(presentation: presentation, rowHeight: rowHeight)
                     .frame(width: sideLaneWidth, height: rowHeight, alignment: .trailing)
-                    .id(activity.transitionIdentity)
+                    .id(presentation.transitionIdentity)
                     .transition(seedMetricTransition)
             }
             .frame(width: sideLaneWidth, height: rowHeight, alignment: .trailing)
@@ -362,8 +382,16 @@ struct PulseIslandView: View {
         .padding(.horizontal, PulseIslandLayout.notchedSeedContentHorizontalPadding)
     }
 
-    private func seedMetricIcon(activity: IslandActivity) -> some View {
-        Image(activity.iconAssetName ?? "PulseStatusIcon")
+    private func seedPresentationIcon(_ presentation: IslandSeedPresentation) -> some View {
+        seedAssetIcon(
+            presentation.leadingIconAssetName,
+            title: presentation.title,
+            tint: presentation.leadingTint
+        )
+    }
+
+    private func seedAssetIcon(_ assetName: String, title: String, tint: Color) -> some View {
+        Image(assetName)
             .renderingMode(.template)
             .resizable()
             .scaledToFit()
@@ -371,21 +399,21 @@ struct PulseIslandView: View {
                 width: PulseDesign.Control.symbolSize,
                 height: PulseDesign.Control.symbolSize
             )
-            .foregroundStyle(activity.tint.opacity(0.96))
-            .accessibilityLabel(activity.title)
-            .help(activity.title)
+            .foregroundStyle(tint.opacity(0.96))
+            .accessibilityLabel(title)
+            .help(title)
     }
 
-    private func rollingSeedMetricIcon(
-        activity: IslandActivity,
+    private func rollingSeedPresentationIcon(
+        presentation: IslandSeedPresentation,
         width: CGFloat,
         rowHeight: CGFloat,
         alignment: Alignment = .center
     ) -> some View {
         ZStack(alignment: alignment) {
-            seedMetricIcon(activity: activity)
+            seedPresentationIcon(presentation)
                 .frame(width: width, height: rowHeight, alignment: alignment)
-                .id(activity.transitionIdentity)
+                .id(presentation.transitionIdentity)
                 .transition(seedMetricTransition)
         }
         .frame(
@@ -394,6 +422,82 @@ struct PulseIslandView: View {
             alignment: alignment
         )
         .clipped()
+    }
+
+    @ViewBuilder
+    private func standardSeedLeadingContent(
+        presentation: IslandSeedPresentation,
+        rowHeight: CGFloat
+    ) -> some View {
+        switch presentation {
+        case .activity:
+            seedPresentationIcon(presentation)
+                .frame(
+                    width: PulseDesign.Control.symbolSize,
+                    height: rowHeight
+                )
+        case .clipboard(let reminder):
+            HStack(spacing: PulseDesign.Spacing.fine) {
+                seedPresentationIcon(presentation)
+                    .frame(
+                        width: PulseDesign.Control.symbolSize,
+                        height: rowHeight
+                    )
+
+                Text(reminder.copyLabel)
+                    .font(PulseDesign.Typography.islandSeed)
+                    .foregroundStyle(.white.opacity(0.92))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
+            }
+            .frame(height: rowHeight)
+        }
+    }
+
+    @ViewBuilder
+    private func standardSeedTrailingContent(
+        presentation: IslandSeedPresentation,
+        rowHeight: CGFloat
+    ) -> some View {
+        switch presentation {
+        case .activity(let activity):
+            HStack(spacing: 9) {
+                IslandPulseDots(tint: activity.tint, progress: activity.progress)
+
+                Spacer(minLength: 0)
+
+                seedValueText(activity.value, font: PulseDesign.Typography.islandSeed)
+            }
+            .frame(height: rowHeight)
+        case .clipboard(let reminder):
+            HStack(spacing: 0) {
+                Spacer(minLength: 0)
+
+                seedAssetIcon(
+                    reminder.confirmationIconAssetName,
+                    title: reminder.confirmationTitle,
+                    tint: reminder.confirmationTint
+                )
+            }
+            .frame(height: rowHeight)
+        }
+    }
+
+    @ViewBuilder
+    private func notchedSeedTrailingContent(
+        presentation: IslandSeedPresentation,
+        rowHeight: CGFloat
+    ) -> some View {
+        switch presentation {
+        case .activity(let activity):
+            seedValueText(activity.value, font: PulseDesign.Typography.islandNotchedSeed)
+        case .clipboard(let reminder):
+            seedAssetIcon(
+                reminder.confirmationIconAssetName,
+                title: reminder.confirmationTitle,
+                tint: reminder.confirmationTint
+            )
+        }
     }
 
     private func criticalSeedContent(activity: IslandActivity) -> some View {
@@ -469,6 +573,9 @@ struct PulseIslandView: View {
                 case .applications:
                     InstalledAppsPanelView()
                         .environment(store)
+                case .clipboard:
+                    ClipboardPanelView()
+                        .environment(store)
                 }
             }
             .id(selectedModule)
@@ -512,6 +619,9 @@ struct PulseIslandView: View {
         case .applications:
             installedAppsAttachedPanelShape
                 .fill(fill, style: FillStyle(eoFill: true))
+        case .clipboard:
+            RoundedRectangle(cornerRadius: PulsePanelLayout.panelCornerRadius, style: .continuous)
+                .fill(fill)
         }
     }
 
@@ -524,6 +634,9 @@ struct PulseIslandView: View {
         case .applications:
             installedAppsAttachedPanelShape
                 .fill(.black, style: FillStyle(eoFill: true))
+        case .clipboard:
+            RoundedRectangle(cornerRadius: PulsePanelLayout.panelCornerRadius, style: .continuous)
+                .fill(.black)
         }
     }
 
@@ -569,7 +682,8 @@ struct PulseIslandView: View {
                 quitHelp: strings.text(.quitHelp),
                 quitAction: {
                     NSApplication.shared.terminate(nil)
-                }
+                },
+                selectModule: switchModule(to:)
             )
             .opacity(isExpandedHeaderRevealed ? 1 : 0)
             .allowsHitTesting(isExpandedHeaderRevealed)
@@ -582,9 +696,13 @@ struct PulseIslandView: View {
             )
             .overlay(alignment: .bottom) {
                 IslandModuleInteractionBridge(
-                    switchAction: { switchModule(by: $0) }
+                    selectedModule: selectedModule,
+                    moduleRowHeight: headerRowHeight,
+                    switchAction: { switchModule(by: $0) },
+                    selectAction: { switchModule(to: $0) }
                 )
-                .frame(height: headerRowHeight)
+                .frame(width: PulseIslandLayout.expandedSurfaceWidth, height: headerContentHeight)
+                .accessibilityHidden(true)
             }
 
             Color.clear
@@ -603,17 +721,25 @@ struct PulseIslandView: View {
 
     private func switchModule(by offset: Int) {
         let nextModule = selectedModule.shifted(by: offset)
-        guard !isModuleSwitchLocked, nextModule != selectedModule else {
+        switchModule(to: nextModule, direction: offset >= 0 ? 1 : -1)
+    }
+
+    private func switchModule(to module: PulseIslandModule) {
+        switchModule(to: module, direction: moduleSwitchDirection(to: module))
+    }
+
+    private func switchModule(to module: PulseIslandModule, direction: Int) {
+        guard !isModuleSwitchLocked, module != selectedModule else {
             return
         }
 
         isModuleSwitchLocked = true
         moduleSwitchLockGeneration &+= 1
         let lockGeneration = moduleSwitchLockGeneration
-        moduleSwitchDirection = offset >= 0 ? 1 : -1
+        moduleSwitchDirection = direction >= 0 ? 1 : -1
 
         withAnimation(moduleSwitchAnimation) {
-            selectedModule = nextModule
+            selectedModule = module
         }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + moduleSwitchInputLockDuration) {
@@ -623,6 +749,18 @@ struct PulseIslandView: View {
 
             isModuleSwitchLocked = false
         }
+    }
+
+    private func moduleSwitchDirection(to module: PulseIslandModule) -> Int {
+        let modules = PulseIslandModule.allCases
+        guard
+            let currentIndex = modules.firstIndex(of: selectedModule),
+            let targetIndex = modules.firstIndex(of: module)
+        else {
+            return 1
+        }
+
+        return targetIndex >= currentIndex ? 1 : -1
     }
 
     private func reconcileVisibleCriticalAlerts(_ activeAlerts: [PulseIslandCriticalAlert]) {
@@ -699,6 +837,33 @@ struct PulseIslandView: View {
     }
     #endif
 
+    private func handleClipboardRecordNotice(_ notice: ClipboardHistoryRecordNotice?, strings: PulseStrings) {
+        guard let notice, style == .seed, activeCriticalAlert == nil else {
+            return
+        }
+
+        clipboardReminderGeneration &+= 1
+        let generation = clipboardReminderGeneration
+        let reminder = ClipboardIslandReminder(notice: notice, strings: strings)
+
+        withAnimation(seedMetricAnimation) {
+            activeClipboardReminder = reminder
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + clipboardRecordReminderDuration) {
+            guard
+                clipboardReminderGeneration == generation,
+                activeClipboardReminder?.id == reminder.id
+            else {
+                return
+            }
+
+            withAnimation(seedMetricAnimation) {
+                activeClipboardReminder = nil
+            }
+        }
+    }
+
     private func rotateSeedMetric() async {
         while !Task.isCancelled {
             do {
@@ -712,6 +877,18 @@ struct PulseIslandView: View {
                 selectedSeedMetric = selectedSeedMetric.next(in: rotationMetrics)
             }
         }
+    }
+
+    private func seedPresentation(metric: PulseIslandSeedMetric, strings: PulseStrings) -> IslandSeedPresentation {
+        if let activeCriticalAlert {
+            return .activity(visibleCriticalActivity(alert: activeCriticalAlert, strings: strings))
+        }
+
+        if let activeClipboardReminder, style == .seed {
+            return .clipboard(activeClipboardReminder)
+        }
+
+        return .activity(seedActivity(metric: metric, strings: strings))
     }
 
     private var seedMetricAnimation: Animation {
@@ -951,6 +1128,99 @@ struct PulseIslandView: View {
     }
 }
 
+private enum IslandSeedPresentation {
+    case activity(IslandActivity)
+    case clipboard(ClipboardIslandReminder)
+
+    var title: String {
+        switch self {
+        case .activity(let activity):
+            activity.title
+        case .clipboard(let reminder):
+            reminder.title
+        }
+    }
+
+    var leadingIconAssetName: String {
+        switch self {
+        case .activity(let activity):
+            activity.iconAssetName ?? "PulseStatusIcon"
+        case .clipboard(let reminder):
+            reminder.iconAssetName
+        }
+    }
+
+    var leadingTint: Color {
+        switch self {
+        case .activity(let activity):
+            activity.tint
+        case .clipboard(let reminder):
+            reminder.tint
+        }
+    }
+
+    var transitionIdentity: IslandActivityTransitionIdentity {
+        switch self {
+        case .activity(let activity):
+            activity.transitionIdentity
+        case .clipboard(let reminder):
+            IslandActivityTransitionIdentity(
+                activity: AnyHashable(reminder.id),
+                iconAssetName: reminder.iconAssetName
+            )
+        }
+    }
+}
+
+private struct ClipboardIslandReminder: Equatable, Identifiable {
+    var id: UUID
+    var kind: ClipboardContentKind
+    var title: String
+    var copyLabel: String
+    var confirmationTitle: String
+
+    init(notice: ClipboardHistoryRecordNotice, strings: PulseStrings) {
+        self.id = notice.id
+        self.kind = notice.kind
+        self.title = strings.clipboardKind(notice.kind)
+        self.copyLabel = strings.text(.copied)
+        self.confirmationTitle = strings.text(.clipboardRecorded)
+    }
+
+    var iconAssetName: String {
+        kind.islandReminderIconAssetName
+    }
+
+    var confirmationIconAssetName: String {
+        "IslandClipboardSavedIcon"
+    }
+
+    var tint: Color {
+        .white
+    }
+
+    var confirmationTint: Color {
+        .green
+    }
+}
+
+private extension ClipboardContentKind {
+    var islandReminderIconAssetName: String {
+        switch self {
+        case .text:
+            "ClipboardTextFilterIcon"
+        case .url:
+            "ClipboardLinkFilterIcon"
+        case .file:
+            "ClipboardFileFilterIcon"
+        case .image:
+            "ClipboardImageFilterIcon"
+        case .mixed, .data:
+            "IslandClipboardIcon"
+        }
+    }
+}
+
 private struct IslandActivity {
     var identity: AnyHashable
     var title: String
@@ -1008,6 +1278,7 @@ private struct IslandModuleHeader: View {
     var quitTitle: String
     var quitHelp: String
     var quitAction: () -> Void
+    var selectModule: (PulseIslandModule) -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -1040,7 +1311,8 @@ private struct IslandModuleHeader: View {
 
             IslandModuleSelector(
                 selectedModule: selectedModule,
-                moduleTitle: moduleTitle
+                moduleTitle: moduleTitle,
+                selectModule: selectModule
             )
             .frame(height: rowHeight, alignment: .center)
         }
@@ -1052,24 +1324,30 @@ private struct IslandModuleHeader: View {
 private struct IslandModuleSelector: View {
     var selectedModule: PulseIslandModule
     var moduleTitle: (PulseIslandModule) -> String
+    var selectModule: (PulseIslandModule) -> Void
 
     private let modules = PulseIslandModule.allCases
 
     var body: some View {
         GeometryReader { proxy in
-            HStack(spacing: moduleSelectorItemSpacing) {
-                ForEach(modules, id: \.self) { module in
-                    IslandModuleSelectorItem(
-                        module: module,
-                        title: moduleTitle(module),
-                        isSelected: module == selectedModule
-                    )
-                    .frame(width: moduleSelectorItemWidth, height: proxy.size.height)
+            ZStack(alignment: .leading) {
+                HStack(spacing: moduleSelectorItemSpacing) {
+                    ForEach(modules, id: \.self) { module in
+                        IslandModuleSelectorItem(
+                            module: module,
+                            title: moduleTitle(module),
+                            isSelected: module == selectedModule,
+                            selectAction: {
+                                selectModule(module)
+                            }
+                        )
+                        .frame(width: moduleSelectorItemWidth, height: proxy.size.height)
+                    }
                 }
+                .offset(x: horizontalOffset(in: proxy.size.width))
+                .animation(moduleSwitchAnimation, value: selectedModule)
             }
-            .offset(x: horizontalOffset(in: proxy.size.width))
             .frame(width: proxy.size.width, height: proxy.size.height, alignment: .leading)
-            .animation(moduleSwitchAnimation, value: selectedModule)
         }
         .clipped()
         .accessibilityElement(children: .contain)
@@ -1088,6 +1366,7 @@ private struct IslandModuleSelectorItem: View {
     var module: PulseIslandModule
     var title: String
     var isSelected: Bool
+    var selectAction: () -> Void
 
     var body: some View {
         HStack(spacing: PulseDesign.Spacing.xs) {
@@ -1105,7 +1384,12 @@ private struct IslandModuleSelectorItem: View {
         }
         .foregroundStyle(.white.opacity(isSelected ? 0.94 : 0.54))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .contentShape(Rectangle())
         .accessibilityLabel(title)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction {
+            selectAction()
+        }
     }
 }
 
@@ -1142,69 +1426,235 @@ private struct IslandHeaderIconButton: View {
     }
 }
 
+enum PulseIslandModuleInteractionGeometry {
+    static func isModuleSwitchRegion(
+        point: CGPoint,
+        bounds: CGRect,
+        moduleRowHeight: CGFloat
+    ) -> Bool {
+        bounds.contains(point) && !isHeaderControlRegion(
+            point: point,
+            bounds: bounds,
+            moduleRowHeight: moduleRowHeight
+        )
+    }
+
+    static func module(
+        at point: CGPoint,
+        bounds: CGRect,
+        selectedModule: PulseIslandModule,
+        moduleRowHeight: CGFloat
+    ) -> PulseIslandModule? {
+        guard
+            point.y >= bounds.minY,
+            point.y <= bounds.minY + moduleRowHeight,
+            let selectedIndex = PulseIslandModule.allCases.firstIndex(of: selectedModule)
+        else {
+            return nil
+        }
+
+        let modules = PulseIslandModule.allCases
+        let step = moduleSelectorItemWidth + moduleSelectorItemSpacing
+        let selectedCenterX = moduleSelectorItemWidth / 2 + CGFloat(selectedIndex) * step
+        let rowOffsetX = bounds.midX - selectedCenterX
+
+        for (index, module) in modules.enumerated() {
+            let itemMinX = rowOffsetX + CGFloat(index) * step
+            let itemMaxX = itemMinX + moduleSelectorItemWidth
+            guard point.x >= itemMinX, point.x <= itemMaxX else {
+                continue
+            }
+
+            return module
+        }
+
+        return nil
+    }
+
+    private static func isHeaderControlRegion(
+        point: CGPoint,
+        bounds: CGRect,
+        moduleRowHeight: CGFloat
+    ) -> Bool {
+        let controlWidth = PulseDesign.Control.buttonSide * 2 + PulseDesign.Spacing.xs
+        let minX = bounds.maxX - PulseIslandLayout.expandedContentHorizontalPadding - controlWidth
+        let minY = bounds.maxY - moduleRowHeight
+
+        return point.x >= minX && point.y >= minY
+    }
+}
+
 private struct IslandModuleInteractionBridge: NSViewRepresentable {
+    var selectedModule: PulseIslandModule
+    var moduleRowHeight: CGFloat
     var switchAction: (Int) -> Void
+    var selectAction: (PulseIslandModule) -> Void
 
     func makeNSView(context: Context) -> InteractionView {
         let view = InteractionView()
+        view.wantsLayer = true
+        view.layer?.backgroundColor = NSColor.clear.cgColor
+        view.selectedModule = selectedModule
+        view.moduleRowHeight = moduleRowHeight
         view.switchAction = switchAction
+        view.selectAction = selectAction
         return view
     }
 
     func updateNSView(_ nsView: InteractionView, context: Context) {
+        nsView.selectedModule = selectedModule
+        nsView.moduleRowHeight = moduleRowHeight
         nsView.switchAction = switchAction
+        nsView.selectAction = selectAction
     }
 
     final class InteractionView: NSView {
+        var selectedModule: PulseIslandModule = .resourceMonitor
+        var moduleRowHeight: CGFloat = PulseIslandLayout.expandedHeaderRowHeight
         var switchAction: ((Int) -> Void)?
+        var selectAction: ((PulseIslandModule) -> Void)?
 
         private var mouseDownPoint: CGPoint?
         private var didSwitchDuringMouseDown = false
         private var didSwitchDuringScrollGesture = false
         private var accumulatedScrollDeltaX: CGFloat = 0
         private var lastScrollSwitchTime: TimeInterval = 0
+        private var localEventMonitor: Any?
 
-        override var acceptsFirstResponder: Bool {
-            true
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+
+            if window == nil {
+                removeLocalEventMonitor()
+            } else {
+                installLocalEventMonitorIfNeeded()
+            }
         }
 
-        override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
-            true
+        override func hitTest(_ point: NSPoint) -> NSView? {
+            nil
         }
 
-        override func mouseDown(with event: NSEvent) {
-            mouseDownPoint = convert(event.locationInWindow, from: nil)
-            didSwitchDuringMouseDown = false
-        }
-
-        override func mouseDragged(with event: NSEvent) {
-            guard let mouseDownPoint, !didSwitchDuringMouseDown else {
+        private func installLocalEventMonitorIfNeeded() {
+            guard localEventMonitor == nil else {
                 return
             }
 
-            let currentPoint = convert(event.locationInWindow, from: nil)
+            localEventMonitor = NSEvent.addLocalMonitorForEvents(
+                matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp, .scrollWheel]
+            ) { [weak self] event in
+                self?.handleLocalEvent(event) ?? event
+            }
+        }
+
+        private func removeLocalEventMonitor() {
+            guard let localEventMonitor else {
+                return
+            }
+
+            NSEvent.removeMonitor(localEventMonitor)
+            self.localEventMonitor = nil
+        }
+
+        private func handleLocalEvent(_ event: NSEvent) -> NSEvent? {
+            guard event.window === window else {
+                return event
+            }
+
+            let point = convert(event.locationInWindow, from: nil)
+
+            switch event.type {
+            case .leftMouseDown:
+                handleMouseDown(at: point)
+                return event
+            case .leftMouseDragged:
+                return handleMouseDragged(at: point) ? nil : event
+            case .leftMouseUp:
+                handleMouseUp(at: point)
+                return event
+            case .scrollWheel:
+                return handleScrollWheel(event, at: point) ? nil : event
+            default:
+                return event
+            }
+        }
+
+        private func handleMouseDown(at point: CGPoint) {
+            guard isModuleSwitchRegion(point) else {
+                mouseDownPoint = nil
+                didSwitchDuringMouseDown = false
+                return
+            }
+
+            mouseDownPoint = point
+            didSwitchDuringMouseDown = false
+        }
+
+        private func handleMouseDragged(at point: CGPoint) -> Bool {
+            guard let mouseDownPoint, !didSwitchDuringMouseDown else {
+                return false
+            }
+
             let translation = CGSize(
-                width: currentPoint.x - mouseDownPoint.x,
-                height: currentPoint.y - mouseDownPoint.y
+                width: point.x - mouseDownPoint.x,
+                height: point.y - mouseDownPoint.y
             )
 
             guard
                 abs(translation.width) >= abs(translation.height),
                 abs(translation.width) >= moduleSwitchHorizontalDragThreshold
             else {
-                return
+                return false
             }
 
             switchAction?(translation.width < 0 ? 1 : -1)
             didSwitchDuringMouseDown = true
+            return true
         }
 
-        override func mouseUp(with event: NSEvent) {
-            mouseDownPoint = nil
-            didSwitchDuringMouseDown = false
+        private func handleMouseUp(at point: CGPoint) {
+            defer {
+                mouseDownPoint = nil
+                didSwitchDuringMouseDown = false
+            }
+
+            guard let mouseDownPoint, !didSwitchDuringMouseDown else {
+                return
+            }
+
+            let movement = hypot(point.x - mouseDownPoint.x, point.y - mouseDownPoint.y)
+            guard movement <= moduleSelectorClickMovementTolerance else {
+                return
+            }
+
+            if let module = module(at: point) {
+                selectAction?(module)
+            }
         }
 
-        override func scrollWheel(with event: NSEvent) {
+        private func module(at point: CGPoint) -> PulseIslandModule? {
+            PulseIslandModuleInteractionGeometry.module(
+                at: point,
+                bounds: bounds,
+                selectedModule: selectedModule,
+                moduleRowHeight: moduleRowHeight
+            )
+        }
+
+        private func isModuleSwitchRegion(_ point: CGPoint) -> Bool {
+            PulseIslandModuleInteractionGeometry.isModuleSwitchRegion(
+                point: point,
+                bounds: bounds,
+                moduleRowHeight: moduleRowHeight
+            )
+        }
+
+        private func handleScrollWheel(_ event: NSEvent, at point: CGPoint) -> Bool {
+            guard isModuleSwitchRegion(point) else {
+                resetScrollGesture()
+                return false
+            }
+
             if event.phase.contains(.began) || event.phase.contains(.mayBegin) {
                 resetScrollGesture()
             }
@@ -1213,7 +1663,7 @@ private struct IslandModuleInteractionBridge: NSViewRepresentable {
                 if event.momentumPhase.contains(.ended) || event.momentumPhase.contains(.cancelled) {
                     resetScrollGesture()
                 }
-                return
+                return true
             }
 
             let endsScrollGesture = event.phase.contains(.ended) || event.phase.contains(.cancelled)
@@ -1228,25 +1678,25 @@ private struct IslandModuleInteractionBridge: NSViewRepresentable {
                 abs(deltaX) >= abs(event.scrollingDeltaY),
                 abs(deltaX) > 0
             else {
-                super.scrollWheel(with: event)
-                return
+                return false
             }
 
             let isPhasedGesture = !event.phase.isEmpty
             guard shouldAcceptScrollSwitch(isPhasedGesture: isPhasedGesture) else {
-                return
+                return true
             }
 
             accumulatedScrollDeltaX += deltaX
 
             guard abs(accumulatedScrollDeltaX) >= moduleSwitchHorizontalScrollThreshold else {
-                return
+                return true
             }
 
             switchAction?(accumulatedScrollDeltaX > 0 ? 1 : -1)
             didSwitchDuringScrollGesture = isPhasedGesture
             lastScrollSwitchTime = ProcessInfo.processInfo.systemUptime
             accumulatedScrollDeltaX = 0
+            return true
         }
 
         private func shouldAcceptScrollSwitch(isPhasedGesture: Bool) -> Bool {

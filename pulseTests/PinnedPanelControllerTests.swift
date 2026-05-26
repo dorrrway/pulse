@@ -297,9 +297,80 @@ final class PinnedPanelControllerTests: XCTestCase {
     @MainActor
     func testIslandModulesCycleHorizontally() {
         XCTAssertEqual(PulseIslandModule.resourceMonitor.shifted(by: 1), .applications)
-        XCTAssertEqual(PulseIslandModule.applications.shifted(by: 1), .resourceMonitor)
-        XCTAssertEqual(PulseIslandModule.resourceMonitor.shifted(by: -1), .applications)
+        XCTAssertEqual(PulseIslandModule.applications.shifted(by: 1), .clipboard)
+        XCTAssertEqual(PulseIslandModule.clipboard.shifted(by: 1), .resourceMonitor)
+        XCTAssertEqual(PulseIslandModule.resourceMonitor.shifted(by: -1), .clipboard)
         XCTAssertEqual(PulseIslandModule.applications.shifted(by: -1), .resourceMonitor)
+        XCTAssertEqual(PulseIslandModule.clipboard.shifted(by: -1), .applications)
+    }
+
+    @MainActor
+    func testIslandModuleInteractionRegionIncludesHeaderBlankSpace() {
+        let bounds = CGRect(x: 0, y: 0, width: PulseIslandLayout.expandedSurfaceWidth, height: 60)
+        let moduleRowHeight: CGFloat = 30
+
+        XCTAssertTrue(
+            PulseIslandModuleInteractionGeometry.isModuleSwitchRegion(
+                point: CGPoint(x: 24, y: 15),
+                bounds: bounds,
+                moduleRowHeight: moduleRowHeight
+            )
+        )
+        XCTAssertTrue(
+            PulseIslandModuleInteractionGeometry.isModuleSwitchRegion(
+                point: CGPoint(x: 24, y: 45),
+                bounds: bounds,
+                moduleRowHeight: moduleRowHeight
+            )
+        )
+        XCTAssertFalse(
+            PulseIslandModuleInteractionGeometry.isModuleSwitchRegion(
+                point: CGPoint(x: 540, y: 45),
+                bounds: bounds,
+                moduleRowHeight: moduleRowHeight
+            )
+        )
+    }
+
+    @MainActor
+    func testIslandModuleClickGeometryMatchesCenteredSelector() {
+        let bounds = CGRect(x: 0, y: 0, width: PulseIslandLayout.expandedSurfaceWidth, height: 60)
+        let moduleRowHeight: CGFloat = 30
+
+        XCTAssertEqual(
+            PulseIslandModuleInteractionGeometry.module(
+                at: CGPoint(x: 280, y: 15),
+                bounds: bounds,
+                selectedModule: .resourceMonitor,
+                moduleRowHeight: moduleRowHeight
+            ),
+            .resourceMonitor
+        )
+        XCTAssertEqual(
+            PulseIslandModuleInteractionGeometry.module(
+                at: CGPoint(x: 448, y: 15),
+                bounds: bounds,
+                selectedModule: .resourceMonitor,
+                moduleRowHeight: moduleRowHeight
+            ),
+            .applications
+        )
+        XCTAssertNil(
+            PulseIslandModuleInteractionGeometry.module(
+                at: CGPoint(x: 24, y: 15),
+                bounds: bounds,
+                selectedModule: .resourceMonitor,
+                moduleRowHeight: moduleRowHeight
+            )
+        )
+        XCTAssertNil(
+            PulseIslandModuleInteractionGeometry.module(
+                at: CGPoint(x: 280, y: 45),
+                bounds: bounds,
+                selectedModule: .resourceMonitor,
+                moduleRowHeight: moduleRowHeight
+            )
+        )
     }
 
     @MainActor

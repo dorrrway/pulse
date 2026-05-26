@@ -12,6 +12,7 @@ final class PulseStore {
     var isRefreshingInstalledApplications = false
     var installedApplicationsRefreshedAt: Date?
     var runningApplications: RunningApplicationState
+    var clipboardHistory: ClipboardHistoryStore
     var capturedAt: Date = .distantPast
     var deviceName: String?
     var languagePreference: PulseLanguagePreference {
@@ -63,14 +64,20 @@ final class PulseStore {
         userDefaults: UserDefaults = .standard,
         launchAtLoginService: PulseLoginItemService = .live,
         installedAppCatalog: InstalledAppCatalog = InstalledAppCatalog(),
+        clipboardHistory: ClipboardHistoryStore? = nil,
         deviceName: String? = nil,
         reconcileLaunchAtLogin: Bool? = nil,
-        startSamplingImmediately: Bool = false
+        startSamplingImmediately: Bool = false,
+        startClipboardImmediately: Bool = false
     ) {
         self.userDefaults = userDefaults
         self.launchAtLoginService = launchAtLoginService
         self.installedAppCatalog = installedAppCatalog
         let isRunningUnitTests = Self.isRunningUnitTests
+        self.clipboardHistory = clipboardHistory ?? Self.makeClipboardHistory(
+            userDefaults: userDefaults,
+            isRunningUnitTests: isRunningUnitTests
+        )
         self.deviceName = Self.normalizedDeviceName(deviceName) ?? Self.currentDeviceName()
         self.languagePreference = Self.loadLanguagePreference(from: userDefaults, key: Self.languagePreferenceKey)
         self.appearancePreference = Self.loadAppearancePreference(from: userDefaults, key: Self.appearancePreferenceKey)
@@ -100,6 +107,10 @@ final class PulseStore {
 
         if startSamplingImmediately {
             startSampling()
+        }
+
+        if startClipboardImmediately {
+            self.clipboardHistory.startMonitoring()
         }
     }
 
@@ -510,6 +521,23 @@ final class PulseStore {
 
     private static func loadFavoriteApplicationPaths(from userDefaults: UserDefaults, key: String) -> [String] {
         sanitizedFavoriteApplicationPaths(userDefaults.stringArray(forKey: key) ?? [])
+    }
+
+    private static func makeClipboardHistory(
+        userDefaults: UserDefaults,
+        isRunningUnitTests: Bool
+    ) -> ClipboardHistoryStore {
+        guard isRunningUnitTests else {
+            return ClipboardHistoryStore(userDefaults: userDefaults)
+        }
+
+        let temporaryRootURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent("PulseClipboardTests-\(UUID().uuidString)", isDirectory: true)
+
+        return ClipboardHistoryStore(
+            userDefaults: userDefaults,
+            persistence: ClipboardHistoryPersistence(rootURL: temporaryRootURL)
+        )
     }
 
     private nonisolated static func sanitizedFavoriteApplicationPaths(_ paths: [String]) -> [String] {
