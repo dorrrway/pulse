@@ -37,7 +37,6 @@ struct PulseIslandView: View {
     @State private var expandedSurfaceMountGeneration = 0
     @State private var isExpandedHeaderRevealed = false
     @State private var isAttachedPanelRevealed = false
-    @State private var selectedModule: PulseIslandModule = .resourceMonitor
     @State private var moduleSwitchDirection = 1
     @State private var isModuleSwitchLocked = false
     @State private var moduleSwitchLockGeneration = 0
@@ -59,6 +58,10 @@ struct PulseIslandView: View {
 
     private var layoutMetrics: PulseIslandLayoutMetrics {
         controller.layoutMetrics
+    }
+
+    private var selectedModule: PulseIslandModule {
+        controller.selectedModule
     }
 
     private var usesExpandedVisualState: Bool {
@@ -743,7 +746,7 @@ struct PulseIslandView: View {
         moduleSwitchDirection = direction >= 0 ? 1 : -1
 
         withAnimation(moduleSwitchAnimation) {
-            selectedModule = module
+            controller.selectModule(module)
         }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + moduleSwitchInputLockDuration) {

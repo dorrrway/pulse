@@ -146,6 +146,22 @@ struct PulseSettingsView: View {
                     .frame(height: settingsControlHeight)
                 }
 
+                Section(strings.text(.shortcutsSettings)) {
+                    shortcutRow(
+                        title: strings.text(.wakeClipboardShortcut),
+                        action: .wakeClipboard,
+                        shortcut: store.wakeClipboardShortcut,
+                        strings: strings
+                    )
+
+                    shortcutRow(
+                        title: strings.text(.wakeApplicationsShortcut),
+                        action: .wakeApplications,
+                        shortcut: store.wakeApplicationsShortcut,
+                        strings: strings
+                    )
+                }
+
                 #if DEBUG
                 Section {
                     VStack(alignment: .leading, spacing: 8) {
@@ -223,11 +239,47 @@ private extension PulseSettingsView {
         return "\(strings.text(.appVersion)) \(version ?? "Unknown")"
     }
 
+    func shortcutRow(
+        title: String,
+        action: PulseShortcutAction,
+        shortcut: PulseKeyboardShortcut?,
+        strings: PulseStrings
+    ) -> some View {
+        HStack(alignment: .center) {
+            Text(title)
+            Spacer()
+
+            PulseShortcutRecorder(
+                shortcut: shortcut,
+                placeholder: strings.text(.shortcutNotSet),
+                recordingTitle: strings.text(.shortcutRecording),
+                onChange: { store.setShortcut($0, for: action) }
+            )
+            .frame(width: 150, height: settingsControlHeight)
+
+            Button {
+                store.setShortcut(nil, for: action)
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 16, height: 16)
+            }
+            .buttonStyle(.plain)
+            .help(strings.text(.clearShortcut))
+            .accessibilityLabel(strings.text(.clearShortcut))
+            .opacity(shortcut == nil ? 0 : 1)
+            .disabled(shortcut == nil)
+        }
+        .frame(height: settingsControlHeight)
+        .frame(maxWidth: .infinity, alignment: .center)
+    }
+
     var settingsWindowHeight: CGFloat {
         #if DEBUG
-        return 500
+        return 580
         #else
-        return 442
+        return 522
         #endif
     }
 

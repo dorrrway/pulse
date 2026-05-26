@@ -126,6 +126,11 @@ verification notes that would make the public changelog too noisy.
 - The expanded header selector now measures module button content widths and
   uses 24 point inter-item spacing, keeping visual layout and local-event
   hit-testing aligned for click, drag, and horizontal scroll switching.
+- Settings now includes a Shortcuts section with two local preferences for
+  waking Clipboard and Applications. The runtime registers those shortcuts with
+  Carbon `RegisterEventHotKey`, keeps duplicate assignments exclusive between
+  the two actions, and routes each wake action through the island controller so
+  the surface opens directly on the matching module.
 
 ## 2.0.0 - 2026-05-25
 

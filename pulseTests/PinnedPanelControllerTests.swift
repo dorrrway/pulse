@@ -860,6 +860,30 @@ final class PinnedPanelControllerTests: XCTestCase {
     }
 
     @MainActor
+    func testIslandPanelWakeSelectsModuleAndExpands() {
+        let controller = PulseIslandPanelController()
+        let store = PulseStore(
+            userDefaults: makeUserDefaults(),
+            launchAtLoginService: makeLoginItemService(),
+            reconcileLaunchAtLogin: false
+        )
+        let updateController = PulseUpdateController(startingUpdater: false)
+
+        controller.wake(
+            module: .clipboard,
+            store: store,
+            updateController: updateController
+        )
+        defer {
+            controller.dismiss()
+        }
+
+        XCTAssertTrue(controller.isPresented)
+        XCTAssertEqual(controller.style, .expanded)
+        XCTAssertEqual(controller.selectedModule, .clipboard)
+    }
+
+    @MainActor
     func testIslandHoverCollapseDefersWhileMouseButtonIsPressed() {
         XCTAssertFalse(PulseIslandPanelController.shouldDeferHoverCollapse(pressedMouseButtons: 0))
         XCTAssertTrue(PulseIslandPanelController.shouldDeferHoverCollapse(pressedMouseButtons: 1))

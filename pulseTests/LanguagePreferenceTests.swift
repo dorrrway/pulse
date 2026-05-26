@@ -1,4 +1,5 @@
 import AppKit
+import Carbon
 import SwiftUI
 import XCTest
 @testable import pulse
@@ -155,6 +156,59 @@ final class LanguagePreferenceTests: XCTestCase {
             reconcileLaunchAtLogin: false
         )
         XCTAssertEqual(reloadedStore.installedAppsDisplayMode, .list)
+    }
+
+    @MainActor
+    func testPersistsWakeShortcuts() {
+        let defaults = makeUserDefaults()
+        let clipboardShortcut = PulseKeyboardShortcut(
+            keyCode: UInt16(kVK_ANSI_C),
+            modifierFlags: [.command, .option],
+            keyEquivalent: "C"
+        )
+        let applicationsShortcut = PulseKeyboardShortcut(
+            keyCode: UInt16(kVK_ANSI_A),
+            modifierFlags: [.control, .option],
+            keyEquivalent: "A"
+        )
+        let store = PulseStore(
+            userDefaults: defaults,
+            launchAtLoginService: makeLoginItemService(),
+            reconcileLaunchAtLogin: false
+        )
+
+        store.setShortcut(clipboardShortcut, for: .wakeClipboard)
+        store.setShortcut(applicationsShortcut, for: .wakeApplications)
+
+        let reloadedStore = PulseStore(
+            userDefaults: defaults,
+            launchAtLoginService: makeLoginItemService(),
+            reconcileLaunchAtLogin: false
+        )
+        XCTAssertEqual(reloadedStore.wakeClipboardShortcut, clipboardShortcut)
+        XCTAssertEqual(reloadedStore.wakeApplicationsShortcut, applicationsShortcut)
+        XCTAssertEqual(reloadedStore.shortcutPreferences.wakeClipboard?.displayTitle, "⌥⌘C")
+    }
+
+    @MainActor
+    func testDuplicateWakeShortcutMovesToMostRecentAction() {
+        let defaults = makeUserDefaults()
+        let shortcut = PulseKeyboardShortcut(
+            keyCode: UInt16(kVK_ANSI_C),
+            modifierFlags: [.command, .option],
+            keyEquivalent: "C"
+        )
+        let store = PulseStore(
+            userDefaults: defaults,
+            launchAtLoginService: makeLoginItemService(),
+            reconcileLaunchAtLogin: false
+        )
+
+        store.setShortcut(shortcut, for: .wakeClipboard)
+        store.setShortcut(shortcut, for: .wakeApplications)
+
+        XCTAssertNil(store.wakeClipboardShortcut)
+        XCTAssertEqual(store.wakeApplicationsShortcut, shortcut)
     }
 
     @MainActor

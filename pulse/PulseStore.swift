@@ -35,6 +35,18 @@ final class PulseStore {
             userDefaults.set(installedAppsDisplayMode.rawValue, forKey: Self.installedAppsDisplayModeKey)
         }
     }
+    var wakeClipboardShortcut: PulseKeyboardShortcut? {
+        didSet {
+            saveKeyboardShortcut(wakeClipboardShortcut, key: Self.wakeClipboardShortcutKey)
+            notifyShortcutPreferencesDidChange()
+        }
+    }
+    var wakeApplicationsShortcut: PulseKeyboardShortcut? {
+        didSet {
+            saveKeyboardShortcut(wakeApplicationsShortcut, key: Self.wakeApplicationsShortcutKey)
+            notifyShortcutPreferencesDidChange()
+        }
+    }
     var favoriteApplicationPaths: [String] {
         didSet {
             userDefaults.set(favoriteApplicationPaths, forKey: Self.favoriteApplicationPathsKey)
@@ -50,6 +62,7 @@ final class PulseStore {
     private let userDefaults: UserDefaults
     private let launchAtLoginService: PulseLoginItemService
     @ObservationIgnored private var runningApplicationObservationTokens: [NSObjectProtocol] = []
+    @ObservationIgnored var shortcutPreferencesDidChange: ((PulseShortcutPreferences) -> Void)?
 
     private static let snapshotRefreshInterval: Duration = .seconds(1)
     private static let installedApplicationsRefreshInterval: TimeInterval = 300
@@ -58,6 +71,8 @@ final class PulseStore {
     private static let launchAtLoginKey = "pulse.settings.launchAtLogin"
     private static let launchAtLoginDefaultAppliedKey = "pulse.settings.launchAtLoginDefaultApplied"
     private static let installedAppsDisplayModeKey = "pulse.settings.installedApps.displayMode"
+    private static let wakeClipboardShortcutKey = "pulse.settings.shortcuts.wakeClipboard"
+    private static let wakeApplicationsShortcutKey = "pulse.settings.shortcuts.wakeApplications"
     private static let favoriteApplicationPathsKey = "pulse.settings.installedApps.favoritePaths"
 
     init(
@@ -89,6 +104,14 @@ final class PulseStore {
         self.installedAppsDisplayMode = Self.loadInstalledAppsDisplayMode(
             from: userDefaults,
             key: Self.installedAppsDisplayModeKey
+        )
+        self.wakeClipboardShortcut = Self.loadKeyboardShortcut(
+            from: userDefaults,
+            key: Self.wakeClipboardShortcutKey
+        )
+        self.wakeApplicationsShortcut = Self.loadKeyboardShortcut(
+            from: userDefaults,
+            key: Self.wakeApplicationsShortcutKey
         )
         self.favoriteApplicationPaths = Self.loadFavoriteApplicationPaths(
             from: userDefaults,
@@ -122,6 +145,13 @@ final class PulseStore {
         Self.favoriteApplications(
             from: installedApplications,
             favoritePaths: favoriteApplicationPaths
+        )
+    }
+
+    var shortcutPreferences: PulseShortcutPreferences {
+        PulseShortcutPreferences(
+            wakeClipboard: wakeClipboardShortcut,
+            wakeApplications: wakeApplicationsShortcut
         )
     }
 
@@ -209,6 +239,21 @@ final class PulseStore {
 
     func setInstalledAppsDisplayMode(_ mode: PulseInstalledAppsDisplayMode) {
         installedAppsDisplayMode = mode
+    }
+
+    func setShortcut(_ shortcut: PulseKeyboardShortcut?, for action: PulseShortcutAction) {
+        switch action {
+        case .wakeClipboard:
+            wakeClipboardShortcut = shortcut
+            if let shortcut, wakeApplicationsShortcut == shortcut {
+                wakeApplicationsShortcut = nil
+            }
+        case .wakeApplications:
+            wakeApplicationsShortcut = shortcut
+            if let shortcut, wakeClipboardShortcut == shortcut {
+                wakeClipboardShortcut = nil
+            }
+        }
     }
 
     func isFavoriteApplication(_ application: InstalledApplication) -> Bool {
@@ -521,6 +566,31 @@ final class PulseStore {
 
     private static func loadFavoriteApplicationPaths(from userDefaults: UserDefaults, key: String) -> [String] {
         sanitizedFavoriteApplicationPaths(userDefaults.stringArray(forKey: key) ?? [])
+    }
+
+    private static func loadKeyboardShortcut(from userDefaults: UserDefaults, key: String) -> PulseKeyboardShortcut? {
+        guard let data = userDefaults.data(forKey: key) else {
+            return nil
+        }
+
+        return try? JSONDecoder().decode(PulseKeyboardShortcut.self, from: data)
+    }
+
+    private func saveKeyboardShortcut(_ shortcut: PulseKeyboardShortcut?, key: String) {
+        guard let shortcut else {
+            userDefaults.removeObject(forKey: key)
+            return
+        }
+
+        guard let data = try? JSONEncoder().encode(shortcut) else {
+            return
+        }
+
+        userDefaults.set(data, forKey: key)
+    }
+
+    private func notifyShortcutPreferencesDidChange() {
+        shortcutPreferencesDidChange?(shortcutPreferences)
     }
 
     private static func makeClipboardHistory(

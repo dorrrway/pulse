@@ -30,6 +30,7 @@ struct PulseApp: App {
     @State private var pinnedPanelController: PulsePinnedPanelController
     @State private var islandPanelController: PulseIslandPanelController
     @State private var updateController: PulseUpdateController
+    @State private var shortcutController: PulseGlobalShortcutController
 
     init() {
         let isRunningUnitTests = Self.isRunningUnitTests
@@ -40,6 +41,7 @@ struct PulseApp: App {
         let pinnedPanelController = PulsePinnedPanelController()
         let islandPanelController = PulseIslandPanelController()
         let updateController = PulseUpdateController(startingUpdater: !isRunningUnitTests)
+        let shortcutController = PulseGlobalShortcutController(isEnabled: !isRunningUnitTests)
         pinnedPanelController.presentationDidChange = { [weak islandPanelController] isPresented in
             islandPanelController?.setPinnedPanelPresented(isPresented)
         }
@@ -48,6 +50,7 @@ struct PulseApp: App {
         _pinnedPanelController = State(initialValue: pinnedPanelController)
         _islandPanelController = State(initialValue: islandPanelController)
         _updateController = State(initialValue: updateController)
+        _shortcutController = State(initialValue: shortcutController)
 
         guard !Self.isRunningUnitTests else {
             return
@@ -56,6 +59,22 @@ struct PulseApp: App {
         guard Self.instanceLock.acquire() else {
             Darwin.exit(EXIT_SUCCESS)
         }
+
+        shortcutController.actionHandler = { action in
+            islandPanelController.wake(
+                module: action.islandModule,
+                store: store,
+                updateController: updateController,
+                pinAction: {
+                    pinnedPanelController.toggle(store: store, updateController: updateController)
+                },
+                isPinnedPanelPresented: pinnedPanelController.isPresented
+            )
+        }
+        store.shortcutPreferencesDidChange = { [weak shortcutController] preferences in
+            shortcutController?.configure(preferences: preferences)
+        }
+        shortcutController.configure(preferences: store.shortcutPreferences)
 
         PulseAppDelegate.didFinishLaunching = {
             islandPanelController.present(

@@ -798,6 +798,12 @@ extension PulseStrings {
         case clipboardMarkerRemote
         case clipboardMarkerSource
         case clipboardMarkerTemporary
+        case shortcutsSettings
+        case wakeClipboardShortcut
+        case wakeApplicationsShortcut
+        case shortcutNotSet
+        case shortcutRecording
+        case clearShortcut
         case startup
         case launchAtLogin
         case launchAtLoginDescription
@@ -983,6 +989,18 @@ private extension PulseStrings {
             "Source"
         case .clipboardMarkerTemporary:
             "Temporary"
+        case .shortcutsSettings:
+            "Shortcuts"
+        case .wakeClipboardShortcut:
+            "Wake Clipboard"
+        case .wakeApplicationsShortcut:
+            "Wake Applications"
+        case .shortcutNotSet:
+            "Not set"
+        case .shortcutRecording:
+            "Type shortcut"
+        case .clearShortcut:
+            "Clear shortcut"
         case .startup:
             "Startup"
         case .launchAtLogin:
@@ -1176,6 +1194,18 @@ private extension PulseStrings {
             "来源"
         case .clipboardMarkerTemporary:
             "临时"
+        case .shortcutsSettings:
+            "快捷键"
+        case .wakeClipboardShortcut:
+            "唤醒剪贴板"
+        case .wakeApplicationsShortcut:
+            "唤醒应用程序"
+        case .shortcutNotSet:
+            "未设置"
+        case .shortcutRecording:
+            "输入快捷键"
+        case .clearShortcut:
+            "清除快捷键"
         case .startup:
             "启动"
         case .launchAtLogin:

@@ -460,6 +460,7 @@ final class PulseIslandPanelController {
     private(set) var style: PulseIslandStyle = .seed
     private(set) var layoutMetrics: PulseIslandLayoutMetrics = .fallback
     private(set) var isPinnedPanelPresented = false
+    private(set) var selectedModule: PulseIslandModule = .resourceMonitor
     #if DEBUG
     private(set) var criticalAlertPreviewRequest: PulseIslandCriticalAlertPreviewRequest?
     #endif
@@ -504,8 +505,29 @@ final class PulseIslandPanelController {
         startScreenTracking()
     }
 
+    func wake(
+        module: PulseIslandModule,
+        store: PulseStore,
+        updateController: PulseUpdateController,
+        pinAction: (() -> Void)? = nil,
+        isPinnedPanelPresented: Bool? = nil
+    ) {
+        selectModule(module)
+        present(
+            store: store,
+            updateController: updateController,
+            pinAction: pinAction,
+            isPinnedPanelPresented: isPinnedPanelPresented
+        )
+        expand()
+    }
+
     func setPinnedPanelPresented(_ isPresented: Bool) {
         isPinnedPanelPresented = isPresented
+    }
+
+    func selectModule(_ module: PulseIslandModule) {
+        selectedModule = module
     }
 
     func dismiss() {

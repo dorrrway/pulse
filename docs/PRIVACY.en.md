@@ -48,4 +48,4 @@ As with ordinary HTTPS requests, the appcast request may be processed with stand
 
 ## Local Preferences
 
-Pulse may store local preferences, such as language, appearance, launch-at-login, Applications display mode, Favorite Apps bundle paths, the Clipboard OCR setting, the Clipboard entry limit, and the Clipboard retention-day limit, using macOS local storage.
+Pulse may store local preferences, such as language, appearance, launch-at-login, Applications display mode, Favorite Apps bundle paths, the Clipboard OCR setting, the Clipboard entry limit, the Clipboard retention-day limit, and the shortcuts for waking Clipboard or Applications, using macOS local storage.
