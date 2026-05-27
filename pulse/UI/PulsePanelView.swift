@@ -35,7 +35,7 @@ extension EnvironmentValues {
     }
 }
 
-private enum PanelControlIcon {
+enum PanelControlIcon {
     static let pin = "PanelPinIcon"
     static let pinFilled = "PanelPinFilledIcon"
     static let expand = "PanelExpandIcon"
@@ -43,7 +43,7 @@ private enum PanelControlIcon {
     static let runtimePulse = "RuntimePulseIcon"
 }
 
-private struct PanelControlIconImage: View {
+struct PanelControlIconImage: View {
     var name: String
     var side: CGFloat
 

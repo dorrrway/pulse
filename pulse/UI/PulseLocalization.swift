@@ -67,6 +67,17 @@ nonisolated struct PulseStrings: Sendable {
         }
     }
 
+    func screenshotModeTitle(_ mode: PulseScreenshotMode) -> String {
+        switch mode {
+        case .fullScreen:
+            text(.screenshotFullScreen)
+        case .window:
+            text(.screenshotWindow)
+        case .selection:
+            text(.screenshotSelection)
+        }
+    }
+
     func cores(_ count: Int) -> String {
         switch language {
         case .english:
@@ -725,6 +736,21 @@ extension PulseStrings {
         case resourceMonitoring
         case applications
         case clipboard
+        case screenshots
+        case screenshotCaptured
+        case screenshotSaveAction
+        case screenshotShareAction
+        case screenshotPinAction
+        case screenshotUnpinAction
+        case screenshotRecognizeTextAction
+        case screenshotRecognizingText
+        case screenshotNoRecognizedText
+        case screenshotRecognizedTextTitle
+        case screenshotRecognizedTextDetail
+        case screenshotCopyRecognizedText
+        case screenshotCloseRecognizedText
+        case screenshotTextCopied
+        case translation
         case applicationsListView
         case applicationsIconView
         case favoriteApplications
@@ -798,9 +824,33 @@ extension PulseStrings {
         case clipboardMarkerRemote
         case clipboardMarkerSource
         case clipboardMarkerTemporary
+        case translationSourceLanguage
+        case translationAutomaticLanguage
+        case translationSwapLanguages
+        case translationTargetLanguage
+        case translationSourceText
+        case translationClearText
+        case translationInputPlaceholder
+        case translationResult
+        case translationCopyResult
+        case translationOutputPlaceholder
+        case translationTranslateAction
+        case translationSameLanguage
+        case translationReady
+        case translationCheckingAvailability
+        case translationPreparing
+        case translationTranslating
+        case translationUnableToDetectLanguage
+        case translationUnsupportedLanguagePair
         case shortcutsSettings
         case wakeClipboardShortcut
         case wakeApplicationsShortcut
+        case captureFullScreenShortcut
+        case captureWindowShortcut
+        case captureSelectionShortcut
+        case screenshotFullScreen
+        case screenshotWindow
+        case screenshotSelection
         case shortcutNotSet
         case shortcutRecording
         case clearShortcut
@@ -815,6 +865,47 @@ extension PulseStrings {
         case pulseSettings
     }
 }
+
+#if DEBUG
+extension PulseStrings {
+    nonisolated func translationLanguageName(_ language: PulseTranslationLanguage) -> String {
+        switch language {
+        case .chineseSimplified:
+            return self.language == .chinese ? "简体中文" : "Chinese (Simplified)"
+        case .english:
+            return self.language == .chinese ? "英语" : "English"
+        case .japanese:
+            return self.language == .chinese ? "日语" : "Japanese"
+        case .korean:
+            return self.language == .chinese ? "韩语" : "Korean"
+        case .french:
+            return self.language == .chinese ? "法语" : "French"
+        case .german:
+            return self.language == .chinese ? "德语" : "German"
+        case .spanish:
+            return self.language == .chinese ? "西班牙语" : "Spanish"
+        }
+    }
+
+    nonisolated func translationDetectedLanguage(_ identifier: String) -> String {
+        switch language {
+        case .english:
+            "Detected \(identifier)"
+        case .chinese:
+            "检测到 \(identifier)"
+        }
+    }
+
+    nonisolated func translationFailureMessage(_ message: String) -> String {
+        switch language {
+        case .english:
+            "Translation failed: \(message)"
+        case .chinese:
+            "翻译失败：\(message)"
+        }
+    }
+}
+#endif
 
 private extension PulseStrings {
     nonisolated func englishText(for key: Key) -> String {
@@ -843,6 +934,36 @@ private extension PulseStrings {
             "Applications"
         case .clipboard:
             "Clipboard"
+        case .screenshots:
+            "Screenshots"
+        case .screenshotCaptured:
+            "Screenshot"
+        case .screenshotSaveAction:
+            "Save"
+        case .screenshotShareAction:
+            "Share"
+        case .screenshotPinAction:
+            "Pin"
+        case .screenshotUnpinAction:
+            "Close pinned screenshot"
+        case .screenshotRecognizeTextAction:
+            "Recognize Text"
+        case .screenshotRecognizingText:
+            "Recognizing"
+        case .screenshotNoRecognizedText:
+            "No text"
+        case .screenshotRecognizedTextTitle:
+            "Recognized Text"
+        case .screenshotRecognizedTextDetail:
+            "Review the text before copying it to the clipboard."
+        case .screenshotCopyRecognizedText:
+            "Copy Text"
+        case .screenshotCloseRecognizedText:
+            "Close"
+        case .screenshotTextCopied:
+            "Text copied"
+        case .translation:
+            "Translate"
         case .applicationsListView:
             "List view"
         case .applicationsIconView:
@@ -989,12 +1110,60 @@ private extension PulseStrings {
             "Source"
         case .clipboardMarkerTemporary:
             "Temporary"
+        case .translationSourceLanguage:
+            "Source"
+        case .translationAutomaticLanguage:
+            "Automatic"
+        case .translationSwapLanguages:
+            "Swap languages"
+        case .translationTargetLanguage:
+            "Target"
+        case .translationSourceText:
+            "Source text"
+        case .translationClearText:
+            "Clear text"
+        case .translationInputPlaceholder:
+            "Type or paste text to translate"
+        case .translationResult:
+            "Result"
+        case .translationCopyResult:
+            "Copy result"
+        case .translationOutputPlaceholder:
+            "Translation appears here"
+        case .translationTranslateAction:
+            "Translate"
+        case .translationSameLanguage:
+            "Choose different languages"
+        case .translationReady:
+            "Ready"
+        case .translationCheckingAvailability:
+            "Checking availability"
+        case .translationPreparing:
+            "Preparing translation"
+        case .translationTranslating:
+            "Translating"
+        case .translationUnableToDetectLanguage:
+            "Unable to detect the source language"
+        case .translationUnsupportedLanguagePair:
+            "This language pair is not supported"
         case .shortcutsSettings:
             "Shortcuts"
         case .wakeClipboardShortcut:
             "Wake Clipboard"
         case .wakeApplicationsShortcut:
             "Wake Applications"
+        case .captureFullScreenShortcut:
+            "Capture Full Screen"
+        case .captureWindowShortcut:
+            "Capture Window"
+        case .captureSelectionShortcut:
+            "Capture Selection"
+        case .screenshotFullScreen:
+            "Full Screen"
+        case .screenshotWindow:
+            "Window"
+        case .screenshotSelection:
+            "Selection"
         case .shortcutNotSet:
             "Not set"
         case .shortcutRecording:
@@ -1048,6 +1217,36 @@ private extension PulseStrings {
             "应用程序"
         case .clipboard:
             "剪贴板"
+        case .screenshots:
+            "截图"
+        case .screenshotCaptured:
+            "截图"
+        case .screenshotSaveAction:
+            "保存"
+        case .screenshotShareAction:
+            "分享"
+        case .screenshotPinAction:
+            "图钉"
+        case .screenshotUnpinAction:
+            "关闭钉图"
+        case .screenshotRecognizeTextAction:
+            "识别文字"
+        case .screenshotRecognizingText:
+            "识别中"
+        case .screenshotNoRecognizedText:
+            "无文字"
+        case .screenshotRecognizedTextTitle:
+            "已识别文字"
+        case .screenshotRecognizedTextDetail:
+            "确认内容后，可选择复制到剪贴板。"
+        case .screenshotCopyRecognizedText:
+            "复制文字"
+        case .screenshotCloseRecognizedText:
+            "关闭"
+        case .screenshotTextCopied:
+            "文字已复制"
+        case .translation:
+            "翻译"
         case .applicationsListView:
             "列表视图"
         case .applicationsIconView:
@@ -1194,12 +1393,60 @@ private extension PulseStrings {
             "来源"
         case .clipboardMarkerTemporary:
             "临时"
+        case .translationSourceLanguage:
+            "源语言"
+        case .translationAutomaticLanguage:
+            "自动"
+        case .translationSwapLanguages:
+            "交换语言"
+        case .translationTargetLanguage:
+            "目标语言"
+        case .translationSourceText:
+            "原文"
+        case .translationClearText:
+            "清空文本"
+        case .translationInputPlaceholder:
+            "输入或粘贴要翻译的文本"
+        case .translationResult:
+            "译文"
+        case .translationCopyResult:
+            "复制译文"
+        case .translationOutputPlaceholder:
+            "翻译结果会显示在这里"
+        case .translationTranslateAction:
+            "翻译"
+        case .translationSameLanguage:
+            "请选择不同的语言"
+        case .translationReady:
+            "已就绪"
+        case .translationCheckingAvailability:
+            "正在检查可用性"
+        case .translationPreparing:
+            "正在准备翻译"
+        case .translationTranslating:
+            "正在翻译"
+        case .translationUnableToDetectLanguage:
+            "无法识别源语言"
+        case .translationUnsupportedLanguagePair:
+            "当前语言组合暂不支持"
         case .shortcutsSettings:
             "快捷键"
         case .wakeClipboardShortcut:
             "唤醒剪贴板"
         case .wakeApplicationsShortcut:
             "唤醒应用程序"
+        case .captureFullScreenShortcut:
+            "全屏截图"
+        case .captureWindowShortcut:
+            "窗口截图"
+        case .captureSelectionShortcut:
+            "区域截图"
+        case .screenshotFullScreen:
+            "全屏"
+        case .screenshotWindow:
+            "窗口"
+        case .screenshotSelection:
+            "自定义区域"
         case .shortcutNotSet:
             "未设置"
         case .shortcutRecording:

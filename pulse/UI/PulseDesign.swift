@@ -64,6 +64,8 @@ enum PulseDesign {
     enum Island {
         static let seedVisibleWidth: CGFloat = 164
         static let criticalSeedVisibleWidth: CGFloat = 380
+        static let screenshotPreviewVisibleWidth: CGFloat = 420
+        static let screenshotPreviewVisibleHeight: CGFloat = 226
         static let notchLaneSafetyInset = Spacing.xxs
         static let notchedSeedSideLaneWidth: CGFloat = 40
         static let notchedSeedContentHorizontalPadding = Spacing.sm

@@ -49,6 +49,10 @@ final class PulseShortcutRecorderButton: NSButton {
         true
     }
 
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        true
+    }
+
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         setButtonType(.momentaryPushIn)
@@ -84,17 +88,12 @@ final class PulseShortcutRecorderButton: NSButton {
             return
         }
 
-        if shouldClearShortcut(for: event) {
-            onChange?(nil)
-            endRecording()
-            return
-        }
-
         guard let shortcut = PulseKeyboardShortcut(event: event) else {
             NSSound.beep()
             return
         }
 
+        self.shortcut = shortcut
         onChange?(shortcut)
         endRecording()
     }
@@ -102,6 +101,7 @@ final class PulseShortcutRecorderButton: NSButton {
     @objc private func beginRecording() {
         isRecording = true
         updateTitle()
+        window?.makeKey()
         window?.makeFirstResponder(self)
     }
 
@@ -109,16 +109,6 @@ final class PulseShortcutRecorderButton: NSButton {
         isRecording = false
         window?.makeFirstResponder(nil)
         updateTitle()
-    }
-
-    private func shouldClearShortcut(for event: NSEvent) -> Bool {
-        let modifiers = event.modifierFlags.intersection([.control, .option, .shift, .command])
-        guard modifiers.isEmpty else {
-            return false
-        }
-
-        return event.keyCode == UInt16(kVK_Delete)
-            || event.keyCode == UInt16(kVK_ForwardDelete)
     }
 
     private func updateTitle() {

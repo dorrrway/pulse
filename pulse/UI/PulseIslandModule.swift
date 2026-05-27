@@ -157,6 +157,18 @@ enum PulseIslandModule: CaseIterable, Equatable, Hashable {
     case resourceMonitor
     case applications
     case clipboard
+    case screenshots
+    #if DEBUG
+    case translation
+    #endif
+
+    static var allCases: [PulseIslandModule] {
+        #if DEBUG
+        [.resourceMonitor, .applications, .clipboard, .screenshots, .translation]
+        #else
+        [.resourceMonitor, .applications, .clipboard, .screenshots]
+        #endif
+    }
 
     var titleKey: PulseStrings.Key {
         switch self {
@@ -166,6 +178,12 @@ enum PulseIslandModule: CaseIterable, Equatable, Hashable {
             .applications
         case .clipboard:
             .clipboard
+        case .screenshots:
+            .screenshots
+        #if DEBUG
+        case .translation:
+            .translation
+        #endif
         }
     }
 
@@ -177,6 +195,12 @@ enum PulseIslandModule: CaseIterable, Equatable, Hashable {
             "IslandApplicationsIcon"
         case .clipboard:
             "IslandClipboardIcon"
+        case .screenshots:
+            "IslandScreenshotIcon"
+        #if DEBUG
+        case .translation:
+            "IslandTranslateIcon"
+        #endif
         }
     }
 

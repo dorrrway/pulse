@@ -171,6 +171,21 @@ final class LanguagePreferenceTests: XCTestCase {
             modifierFlags: [.control, .option],
             keyEquivalent: "A"
         )
+        let fullScreenShortcut = PulseKeyboardShortcut(
+            keyCode: UInt16(kVK_ANSI_1),
+            modifierFlags: [.command, .shift],
+            keyEquivalent: "1"
+        )
+        let windowShortcut = PulseKeyboardShortcut(
+            keyCode: UInt16(kVK_ANSI_2),
+            modifierFlags: [.command, .shift],
+            keyEquivalent: "2"
+        )
+        let selectionShortcut = PulseKeyboardShortcut(
+            keyCode: UInt16(kVK_ANSI_3),
+            modifierFlags: [.command, .shift],
+            keyEquivalent: "3"
+        )
         let store = PulseStore(
             userDefaults: defaults,
             launchAtLoginService: makeLoginItemService(),
@@ -179,6 +194,9 @@ final class LanguagePreferenceTests: XCTestCase {
 
         store.setShortcut(clipboardShortcut, for: .wakeClipboard)
         store.setShortcut(applicationsShortcut, for: .wakeApplications)
+        store.setShortcut(fullScreenShortcut, for: .captureFullScreen)
+        store.setShortcut(windowShortcut, for: .captureWindow)
+        store.setShortcut(selectionShortcut, for: .captureSelection)
 
         let reloadedStore = PulseStore(
             userDefaults: defaults,
@@ -187,11 +205,65 @@ final class LanguagePreferenceTests: XCTestCase {
         )
         XCTAssertEqual(reloadedStore.wakeClipboardShortcut, clipboardShortcut)
         XCTAssertEqual(reloadedStore.wakeApplicationsShortcut, applicationsShortcut)
+        XCTAssertEqual(reloadedStore.captureFullScreenShortcut, fullScreenShortcut)
+        XCTAssertEqual(reloadedStore.captureWindowShortcut, windowShortcut)
+        XCTAssertEqual(reloadedStore.captureSelectionShortcut, selectionShortcut)
         XCTAssertEqual(reloadedStore.shortcutPreferences.wakeClipboard?.displayTitle, "⌥⌘C")
+        XCTAssertEqual(reloadedStore.shortcutPreferences.captureSelection?.displayTitle, "⇧⌘3")
     }
 
     @MainActor
-    func testDuplicateWakeShortcutMovesToMostRecentAction() {
+    func testKeyboardShortcutsAllowUnmodifiedKeys() throws {
+        let letterEvent = try XCTUnwrap(
+            NSEvent.keyEvent(
+                with: .keyDown,
+                location: .zero,
+                modifierFlags: [],
+                timestamp: 0,
+                windowNumber: 0,
+                context: nil,
+                characters: "a",
+                charactersIgnoringModifiers: "a",
+                isARepeat: false,
+                keyCode: UInt16(kVK_ANSI_A)
+            )
+        )
+        let functionEvent = try XCTUnwrap(
+            NSEvent.keyEvent(
+                with: .keyDown,
+                location: .zero,
+                modifierFlags: [],
+                timestamp: 0,
+                windowNumber: 0,
+                context: nil,
+                characters: "",
+                charactersIgnoringModifiers: "",
+                isARepeat: false,
+                keyCode: UInt16(kVK_F13)
+            )
+        )
+        let escapeEvent = try XCTUnwrap(
+            NSEvent.keyEvent(
+                with: .keyDown,
+                location: .zero,
+                modifierFlags: [],
+                timestamp: 0,
+                windowNumber: 0,
+                context: nil,
+                characters: "\u{1b}",
+                charactersIgnoringModifiers: "\u{1b}",
+                isARepeat: false,
+                keyCode: UInt16(kVK_Escape)
+            )
+        )
+
+        XCTAssertEqual(PulseKeyboardShortcut(event: letterEvent)?.displayTitle, "A")
+        XCTAssertEqual(PulseKeyboardShortcut(event: functionEvent)?.displayTitle, "F13")
+        XCTAssertEqual(PulseKeyboardShortcut(event: escapeEvent)?.displayTitle, "Esc")
+    }
+
+    @MainActor
+    func testDuplicateShortcutMovesToMostRecentAction() {
         let defaults = makeUserDefaults()
         let shortcut = PulseKeyboardShortcut(
             keyCode: UInt16(kVK_ANSI_C),
@@ -205,10 +277,10 @@ final class LanguagePreferenceTests: XCTestCase {
         )
 
         store.setShortcut(shortcut, for: .wakeClipboard)
-        store.setShortcut(shortcut, for: .wakeApplications)
+        store.setShortcut(shortcut, for: .captureSelection)
 
         XCTAssertNil(store.wakeClipboardShortcut)
-        XCTAssertEqual(store.wakeApplicationsShortcut, shortcut)
+        XCTAssertEqual(store.captureSelectionShortcut, shortcut)
     }
 
     @MainActor
@@ -437,6 +509,18 @@ final class LanguagePreferenceTests: XCTestCase {
         XCTAssertEqual(PulseStrings(language: .chinese).text(.topIsland), "Pulse 灵动岛入口")
         XCTAssertEqual(PulseStrings(language: .english).text(.applications), "Applications")
         XCTAssertEqual(PulseStrings(language: .chinese).text(.applications), "应用程序")
+        XCTAssertEqual(PulseStrings(language: .english).text(.screenshots), "Screenshots")
+        XCTAssertEqual(PulseStrings(language: .chinese).text(.screenshots), "截图")
+        XCTAssertEqual(PulseStrings(language: .english).text(.screenshotCaptured), "Screenshot")
+        XCTAssertEqual(PulseStrings(language: .chinese).text(.screenshotCaptured), "截图")
+        XCTAssertEqual(PulseStrings(language: .english).text(.screenshotSaveAction), "Save")
+        XCTAssertEqual(PulseStrings(language: .chinese).text(.screenshotShareAction), "分享")
+        XCTAssertEqual(PulseStrings(language: .english).text(.screenshotRecognizeTextAction), "Recognize Text")
+        XCTAssertEqual(PulseStrings(language: .chinese).text(.screenshotTextCopied), "文字已复制")
+        XCTAssertEqual(PulseStrings(language: .english).text(.captureFullScreenShortcut), "Capture Full Screen")
+        XCTAssertEqual(PulseStrings(language: .chinese).text(.captureSelectionShortcut), "区域截图")
+        XCTAssertEqual(PulseStrings(language: .english).screenshotModeTitle(.window), "Window")
+        XCTAssertEqual(PulseStrings(language: .chinese).screenshotModeTitle(.selection), "自定义区域")
         XCTAssertEqual(PulseStrings(language: .english).text(.applicationsListView), "List view")
         XCTAssertEqual(PulseStrings(language: .chinese).text(.applicationsIconView), "图标视图")
         XCTAssertEqual(PulseStrings(language: .english).text(.favoriteApplications), "Favorite Apps")

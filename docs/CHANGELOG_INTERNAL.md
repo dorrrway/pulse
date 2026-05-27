@@ -5,6 +5,55 @@ This file is for maintainers. Keep the public changelog in `README.md` and
 implementation context, product decisions, privacy boundaries, thresholds, and
 verification notes that would make the public changelog too noisy.
 
+## Unreleased
+
+### Screenshots
+
+- Added Screenshots as an island module using the native macOS `screencapture`
+  tool. Full-screen capture uses `-c -i -w -S -x` so the user can choose and
+  confirm the target display before copying; window capture uses
+  `-c -i -w -o -x` so macOS omits the selected window's system shadow;
+  custom selection uses `-c -i -s -x`.
+- Screenshot actions temporarily order out the Pulse island panel before
+  capture, then restore the seed panel after `screencapture` exits so Pulse does
+  not appear in its own screenshots.
+- Screenshot actions now preflight and request macOS Screen Recording access
+  before hiding the island. If `screencapture` still reports a TCC denial, Pulse
+  restores the island and opens the Screen Recording privacy pane instead of
+  failing silently.
+- Added local shortcut preferences and global hot key IDs for full-screen,
+  window, and selection capture. Duplicate shortcut assignment still moves the
+  shortcut to the most recently edited action.
+- Screenshot shortcut recorders are also available directly in the Screenshots
+  island panel so users can assign or clear each capture shortcut next to the
+  action it triggers.
+- Shortcut recording no longer requires Command, Option, Control, or Shift.
+  Single-key shortcuts, including extended function keys such as F13-F19, are
+  accepted when macOS delivers them as key events.
+- After a successful Pulse screenshot, the island reads the image from the
+  system clipboard and shows a dedicated screenshot preview reminder with a
+  taller compact surface; it auto-collapses after 3 seconds only when the
+  reminder is not hovered.
+- The screenshot preview reminder now includes explicit Save, Share, and
+  Recognize Text buttons below the image. Save uses `NSSavePanel` and writes a
+  PNG only to the user-selected URL, Share uses the native
+  `NSSharingServicePicker`, and Recognize Text runs local Vision OCR on demand
+  before showing a selectable result dialog with an explicit Copy Text action.
+- The screenshot preview reminder now includes a Pin action that opens the
+  current image in a separate borderless floating `NSPanel`. Pinned screenshot
+  windows show only the image, can be dragged, reveal a pin close control on
+  hover, and support multiple simultaneous pinned images.
+- Dragging the screenshot preview image now creates an `NSItemProvider` with PNG
+  data plus a temporary PNG file representation, so Finder, chat windows, and
+  document editors can accept the preview without adding another visible
+  control. Temporary drag exports are kept under the system temporary directory
+  and stale exports are cleaned up by later drags.
+- Screenshot mode buttons now use the provided vector PDF assets for full
+  screen, window, and custom selection instead of SF Symbols.
+- Public README, English README, and both privacy policies now document that
+  screenshots are user-triggered, written to the system clipboard, and may enter
+  local Clipboard history when clipboard monitoring is enabled.
+
 ## 2.2.0 - 2026-05-27
 
 ### Compatibility

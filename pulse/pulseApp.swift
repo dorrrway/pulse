@@ -61,8 +61,17 @@ struct PulseApp: App {
         }
 
         shortcutController.actionHandler = { action in
+            if let screenshotMode = action.screenshotMode {
+                islandPanelController.captureScreenshot(mode: screenshotMode)
+                return
+            }
+
+            guard let islandModule = action.islandModule else {
+                return
+            }
+
             islandPanelController.wake(
-                module: action.islandModule,
+                module: islandModule,
                 store: store,
                 updateController: updateController,
                 pinAction: {

@@ -19,7 +19,7 @@
   <img alt="notarized" src="https://img.shields.io/badge/Developer%20ID-notarized-34C759">
 </p>
 
-Pulse is a lightweight Dynamic Island-style Mac utility that stays at the top of the screen, with quick access to Resource Monitor, Applications, and clipboard history.
+Pulse is a lightweight Dynamic Island-style Mac utility that stays at the top of the screen, with quick access to Resource Monitor, Applications, clipboard history, and screenshots.
 
 <p align="center">
   <img src="assets/pulse-preview-combined.gif" width="640" alt="Pulse status panel preview in Light and Dark Mode">
@@ -56,13 +56,19 @@ This version includes the updater and checks for updates in the background. When
 
 ## Privacy
 
-Pulse reads local system metrics, such as CPU, memory, disk, network byte counters, battery, thermal state, disk I/O, and the system's last boot time. To show usage rankings, Pulse also reads the names of running local processes, their CPU and memory usage, and local app bundle paths used to display app icons. To show the Applications list, Pulse reads app names, bundle IDs, versions, and bundle paths from standard application locations, and reads those apps' running state; when the user adds an app to Favorite Apps, Pulse stores that app bundle path locally. The Clipboard module reads system clipboard changes and stores text, links, file URL/path representations, images, original pasteboard representations, source-app hints, and sensitive or transient markers in local history; when files are copied, Pulse does not proactively read or store the file contents themselves. Sensitive entries are masked by default but remain searchable and copyable. Double-clicking a clipboard entry can send one paste shortcut to the currently focused target after macOS Accessibility permission is granted; Pulse does not read the target app's input contents. OCR is off by default; when enabled, Vision processes image text locally on the Mac.
+Pulse reads local system metrics, such as CPU, memory, disk, network byte counters, battery, thermal state, disk I/O, and the system's last boot time. To show usage rankings, Pulse also reads the names of running local processes, their CPU and memory usage, and local app bundle paths used to display app icons. To show the Applications list, Pulse reads app names, bundle IDs, versions, and bundle paths from standard application locations, and reads those apps' running state; when the user adds an app to Favorite Apps, Pulse stores that app bundle path locally. The Clipboard module reads system clipboard changes and stores text, links, file URL/path representations, images, original pasteboard representations, source-app hints, and sensitive or transient markers in local history; when files are copied, Pulse does not proactively read or store the file contents themselves. Sensitive entries are masked by default but remain searchable and copyable. Double-clicking a clipboard entry can send one paste shortcut to the currently focused target after macOS Accessibility permission is granted; Pulse does not read the target app's input contents. OCR is off by default; when enabled, Vision processes image text locally on the Mac. The Screenshots module calls the native macOS screenshot flow only when the user clicks an action or triggers a shortcut; first use requires macOS Screen Recording permission. Captures are written to the system clipboard, and if clipboard history is enabled, that image follows the existing local Clipboard history rules. The screenshot completion reminder's Save, Share, Pin, and Recognize Text actions run only after the user clicks them: Save writes a PNG to the user-selected location, Share hands the image to the macOS share sheet, Pin keeps the current screenshot in a local foreground floating window until the user closes it, and Recognize Text uses local Vision before letting the user choose whether to copy text to the clipboard. Dragging the screenshot preview to Finder, chat windows, or documents provides PNG data for that drag and prepares a PNG file representation in the system temporary directory; old temporary drag files are cleaned up by later drags.
 
 Pulse requests the TimeLikeSilver-hosted appcast to check for new versions and downloads a release archive when the user clicks Update. This update-check request may be used to aggregate runtime trends, but it does not attach files, personal data, system metrics, process lists, application lists, app bundle paths, persistent tracking identifiers, or Sparkle system profiling data.
 
 See [Privacy Policy](PRIVACY.en.md) for details.
 
 ## Changelog
+
+### Unreleased
+
+- Added a Screenshots module with native macOS full-screen, window, and selection capture modes; full-screen capture opens the native display picker for confirmation first, window capture omits the system window shadow, captures are written to the system clipboard, the island shows an image preview reminder after capture and auto-collapses after 3 seconds only when it is not hovered, the reminder exposes explicit Save, Share, foreground pinning, local text-recognition, and direct preview-drag export actions, and each mode can have its global shortcut set directly in the Screenshots panel without requiring modifier keys.
+- Added a Copy item action to the Clipboard record context menu, letting users write a saved record back to the system clipboard from right-click.
+- Fixed a case where launching some apps from the Applications module could collapse the island panel and immediately reopen it from a stale hover event.
 
 ### 2.2.0 - 2026-05-27
 

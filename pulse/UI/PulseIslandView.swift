@@ -21,7 +21,13 @@ private let moduleSelectorClickMovementTolerance: CGFloat = 6
 private let seedMetricRollAnimation = Animation.spring(response: 0.50, dampingFraction: 0.86, blendDuration: 0)
 private let seedMetricFadeAnimation = Animation.easeInOut(duration: 0.16)
 private let criticalSeedAnimation = Animation.spring(response: 0.42, dampingFraction: 0.84, blendDuration: 0)
+private let screenshotPreviewAnimation = Animation.spring(response: 0.38, dampingFraction: 0.84, blendDuration: 0)
 private let clipboardRecordReminderDuration: TimeInterval = 1.5
+
+private enum ScreenshotPreviewActionIcon {
+    case system(String)
+    case asset(String)
+}
 
 struct PulseIslandView: View {
     var controller: PulseIslandPanelController
@@ -72,6 +78,14 @@ struct PulseIslandView: View {
         style == .criticalSeed
     }
 
+    private var usesScreenshotPreviewState: Bool {
+        style == .screenshotPreview
+    }
+
+    private var usesSeedVisualState: Bool {
+        style == .seed || style == .criticalSeed
+    }
+
     private var shouldRenderExpandedSurface: Bool {
         usesExpandedVisualState || keepsExpandedSurfaceMounted
     }
@@ -80,6 +94,8 @@ struct PulseIslandView: View {
         switch style {
         case .expanded:
             islandOpenAnimation
+        case .screenshotPreview:
+            screenshotPreviewAnimation
         case .criticalSeed:
             criticalSeedAnimation
         case .seed:
@@ -106,12 +122,24 @@ struct PulseIslandView: View {
                 .allowsHitTesting(usesExpandedVisualState)
             }
 
+            if let screenshotPreviewReminder = controller.screenshotPreviewReminder {
+                surfaceLayer(for: .screenshotPreview) {
+                    screenshotPreviewSurface(
+                        reminder: screenshotPreviewReminder,
+                        title: strings.text(.screenshotCaptured)
+                    )
+                }
+                .opacity(usesScreenshotPreviewState ? 1 : 0)
+                .scaleEffect(usesScreenshotPreviewState ? 1 : 0.92, anchor: .top)
+                .allowsHitTesting(usesScreenshotPreviewState)
+            }
+
             surfaceLayer(for: .seed) {
                 seedSurface(presentation: presentation)
             }
-            .opacity(usesExpandedVisualState ? 0 : 1)
-            .scaleEffect(usesExpandedVisualState ? 0.82 : 1, anchor: .top)
-            .allowsHitTesting(!usesExpandedVisualState)
+            .opacity(usesSeedVisualState ? 1 : 0)
+            .scaleEffect(usesSeedVisualState ? 1 : 0.82, anchor: .top)
+            .allowsHitTesting(usesSeedVisualState)
         }
         .frame(
             width: PulseIslandLayout.panelContentSize(metrics: layoutMetrics).width,
@@ -246,7 +274,7 @@ struct PulseIslandView: View {
                     isAttachedPanelRevealed = true
                 }
             }
-        case .seed, .criticalSeed:
+        case .seed, .criticalSeed, .screenshotPreview:
             withAnimation(expandedHeaderConcealAnimation) {
                 isExpandedHeaderRevealed = false
             }
@@ -552,6 +580,161 @@ struct PulseIslandView: View {
         }
     }
 
+    private func screenshotPreviewSurface(reminder: PulseScreenshotPreviewReminder, title: String) -> some View {
+        let visibleSize = PulseIslandLayout.seedVisibleSize(for: .screenshotPreview, metrics: layoutMetrics)
+        let contentSize = PulseIslandLayout.contentSize(for: .screenshotPreview, metrics: layoutMetrics)
+
+        return VStack(spacing: 0) {
+            Color.clear
+                .frame(height: PulseIslandLayout.topAttachmentDepth(for: .screenshotPreview))
+
+            VStack(spacing: PulseDesign.Spacing.xs) {
+                HStack(alignment: .center, spacing: PulseDesign.Spacing.xs) {
+                    Image("ClipboardImageFilterIcon")
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(
+                            width: PulseDesign.Control.iconFrameSide,
+                            height: PulseDesign.Control.iconFrameSide
+                        )
+                        .foregroundStyle(.white.opacity(0.94))
+                        .accessibilityHidden(true)
+
+                    Text(title)
+                        .font(.system(.callout, design: .rounded, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.94))
+                        .lineLimit(1)
+
+                    Spacer(minLength: PulseDesign.Spacing.sm)
+
+                    Image("IslandClipboardSavedIcon")
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(
+                            width: PulseDesign.Control.iconFrameSide,
+                            height: PulseDesign.Control.iconFrameSide
+                        )
+                        .foregroundStyle(.green.opacity(0.96))
+                        .accessibilityHidden(true)
+                }
+                .frame(height: 34)
+
+                Image(nsImage: reminder.image)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: visibleSize.width - PulseDesign.Spacing.md * 2, maxHeight: 112)
+                    .clipShape(RoundedRectangle(cornerRadius: PulseDesign.Radius.card, style: .continuous))
+                    .accessibilityLabel(title)
+                    .onDrag {
+                        controller.screenshotPreviewDragItemProvider()
+                    }
+
+                screenshotPreviewActions(strings: store.strings)
+            }
+            .padding(.horizontal, PulseDesign.Spacing.md)
+            .padding(.top, PulseDesign.Spacing.compact)
+            .padding(.bottom, PulseDesign.Spacing.md)
+            .frame(width: visibleSize.width, height: visibleSize.height, alignment: .top)
+        }
+        .frame(width: contentSize.width, height: contentSize.height, alignment: .top)
+        .clipShape(surfaceShape(for: .screenshotPreview))
+        .contentShape(surfaceShape(for: .screenshotPreview))
+        .onHover { hovering in
+            controller.setHovering(hovering)
+        }
+    }
+
+    private func screenshotPreviewActions(strings: PulseStrings) -> some View {
+        HStack(spacing: PulseDesign.Spacing.xs) {
+            screenshotPreviewActionButton(
+                title: strings.text(.screenshotSaveAction),
+                icon: .system("square.and.arrow.down")
+            ) {
+                controller.saveScreenshotPreview()
+            }
+
+            screenshotPreviewActionButton(
+                title: strings.text(.screenshotShareAction),
+                icon: .system("square.and.arrow.up")
+            ) {
+                controller.shareScreenshotPreview()
+            }
+
+            screenshotPreviewActionButton(
+                title: strings.text(.screenshotPinAction),
+                icon: .asset(PanelControlIcon.pin)
+            ) {
+                controller.pinScreenshotPreview(strings: strings)
+            }
+
+            screenshotPreviewActionButton(
+                title: screenshotRecognizeTextActionTitle(strings: strings),
+                icon: .system("text.viewfinder"),
+                isDisabled: controller.screenshotPreviewActionState == .recognizingText
+            ) {
+                controller.recognizeTextInScreenshotPreview(strings: strings)
+            }
+        }
+        .frame(height: 30)
+    }
+
+    private func screenshotRecognizeTextActionTitle(strings: PulseStrings) -> String {
+        switch controller.screenshotPreviewActionState {
+        case .idle:
+            strings.text(.screenshotRecognizeTextAction)
+        case .recognizingText:
+            strings.text(.screenshotRecognizingText)
+        case .noRecognizedText:
+            strings.text(.screenshotNoRecognizedText)
+        case .textCopied:
+            strings.text(.screenshotTextCopied)
+        }
+    }
+
+    private func screenshotPreviewActionButton(
+        title: String,
+        icon: ScreenshotPreviewActionIcon,
+        isDisabled: Bool = false,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: PulseDesign.Spacing.xxs) {
+                screenshotPreviewActionIcon(icon)
+
+                Text(title)
+                    .font(.system(.caption, design: .rounded, weight: .semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
+            }
+            .foregroundStyle(.white.opacity(isDisabled ? 0.42 : 0.88))
+            .frame(maxWidth: .infinity)
+            .frame(height: 30)
+            .background(
+                .white.opacity(isDisabled ? 0.05 : 0.10),
+                in: RoundedRectangle(cornerRadius: PulseDesign.Radius.control, style: .continuous)
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(isDisabled)
+        .accessibilityLabel(title)
+    }
+
+    @ViewBuilder
+    private func screenshotPreviewActionIcon(_ icon: ScreenshotPreviewActionIcon) -> some View {
+        switch icon {
+        case .system(let name):
+            Image(systemName: name)
+                .font(.system(size: 12, weight: .semibold))
+                .frame(width: 14, height: 14)
+                .accessibilityHidden(true)
+        case .asset(let name):
+            PanelControlIconImage(name: name, side: 14)
+                .frame(width: 14, height: 14)
+        }
+    }
+
     private func expandedIsland(strings: PulseStrings) -> some View {
         VStack(spacing: PulseIslandLayout.attachedPanelTopGap) {
             expandedSurface(strings: strings)
@@ -575,11 +758,23 @@ struct PulseIslandView: View {
                         .environment(\.pulsePanelIsPinned, controller.isPinnedPanelPresented)
                         .environment(\.pulsePanelPinAction, pinAction)
                 case .applications:
-                    InstalledAppsPanelView(openApplication: .live(afterLaunch: collapseAction))
+                    InstalledAppsPanelView(openApplication: .live(afterLaunch: {
+                        controller.collapseAfterLaunchingApplication()
+                    }))
                         .environment(store)
                 case .clipboard:
                     ClipboardPanelView()
                         .environment(store)
+                case .screenshots:
+                    PulseScreenshotPanelView { mode in
+                        controller.captureScreenshot(mode: mode)
+                    }
+                    .environment(store)
+                #if DEBUG
+                case .translation:
+                    TranslationPanelView()
+                        .environment(store)
+                #endif
                 }
             }
             .id(selectedModule)
@@ -623,9 +818,14 @@ struct PulseIslandView: View {
         case .applications:
             installedAppsAttachedPanelShape
                 .fill(fill, style: FillStyle(eoFill: true))
-        case .clipboard:
+        case .clipboard, .screenshots:
             RoundedRectangle(cornerRadius: PulsePanelLayout.panelCornerRadius, style: .continuous)
                 .fill(fill)
+        #if DEBUG
+        case .translation:
+            RoundedRectangle(cornerRadius: PulsePanelLayout.panelCornerRadius, style: .continuous)
+                .fill(fill)
+        #endif
         }
     }
 
@@ -638,9 +838,14 @@ struct PulseIslandView: View {
         case .applications:
             installedAppsAttachedPanelShape
                 .fill(.black, style: FillStyle(eoFill: true))
-        case .clipboard:
+        case .clipboard, .screenshots:
             RoundedRectangle(cornerRadius: PulsePanelLayout.panelCornerRadius, style: .continuous)
                 .fill(.black)
+        #if DEBUG
+        case .translation:
+            RoundedRectangle(cornerRadius: PulsePanelLayout.panelCornerRadius, style: .continuous)
+                .fill(.black)
+        #endif
         }
     }
 

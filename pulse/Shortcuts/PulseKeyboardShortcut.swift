@@ -5,6 +5,9 @@ import Foundation
 enum PulseShortcutAction: String, CaseIterable, Codable, Sendable {
     case wakeClipboard
     case wakeApplications
+    case captureFullScreen
+    case captureWindow
+    case captureSelection
 
     var hotKeyID: UInt32 {
         switch self {
@@ -12,6 +15,12 @@ enum PulseShortcutAction: String, CaseIterable, Codable, Sendable {
             1
         case .wakeApplications:
             2
+        case .captureFullScreen:
+            3
+        case .captureWindow:
+            4
+        case .captureSelection:
+            5
         }
     }
 
@@ -21,17 +30,38 @@ enum PulseShortcutAction: String, CaseIterable, Codable, Sendable {
             self = .wakeClipboard
         case Self.wakeApplications.hotKeyID:
             self = .wakeApplications
+        case Self.captureFullScreen.hotKeyID:
+            self = .captureFullScreen
+        case Self.captureWindow.hotKeyID:
+            self = .captureWindow
+        case Self.captureSelection.hotKeyID:
+            self = .captureSelection
         default:
             return nil
         }
     }
 
-    var islandModule: PulseIslandModule {
+    var islandModule: PulseIslandModule? {
         switch self {
         case .wakeClipboard:
             .clipboard
         case .wakeApplications:
             .applications
+        case .captureFullScreen, .captureWindow, .captureSelection:
+            nil
+        }
+    }
+
+    var screenshotMode: PulseScreenshotMode? {
+        switch self {
+        case .wakeClipboard, .wakeApplications:
+            nil
+        case .captureFullScreen:
+            .fullScreen
+        case .captureWindow:
+            .window
+        case .captureSelection:
+            .selection
         }
     }
 }
@@ -39,13 +69,22 @@ enum PulseShortcutAction: String, CaseIterable, Codable, Sendable {
 struct PulseShortcutPreferences: Equatable, Sendable {
     var wakeClipboard: PulseKeyboardShortcut?
     var wakeApplications: PulseKeyboardShortcut?
+    var captureFullScreen: PulseKeyboardShortcut?
+    var captureWindow: PulseKeyboardShortcut?
+    var captureSelection: PulseKeyboardShortcut?
 
     init(
         wakeClipboard: PulseKeyboardShortcut? = nil,
-        wakeApplications: PulseKeyboardShortcut? = nil
+        wakeApplications: PulseKeyboardShortcut? = nil,
+        captureFullScreen: PulseKeyboardShortcut? = nil,
+        captureWindow: PulseKeyboardShortcut? = nil,
+        captureSelection: PulseKeyboardShortcut? = nil
     ) {
         self.wakeClipboard = wakeClipboard
         self.wakeApplications = wakeApplications
+        self.captureFullScreen = captureFullScreen
+        self.captureWindow = captureWindow
+        self.captureSelection = captureSelection
     }
 
     func shortcut(for action: PulseShortcutAction) -> PulseKeyboardShortcut? {
@@ -54,6 +93,12 @@ struct PulseShortcutPreferences: Equatable, Sendable {
             wakeClipboard
         case .wakeApplications:
             wakeApplications
+        case .captureFullScreen:
+            captureFullScreen
+        case .captureWindow:
+            captureWindow
+        case .captureSelection:
+            captureSelection
         }
     }
 }
@@ -71,7 +116,7 @@ struct PulseKeyboardShortcut: Codable, Equatable, Hashable, Sendable {
 
     init?(event: NSEvent) {
         let modifierFlags = Self.normalizedModifierFlags(event.modifierFlags)
-        guard !modifierFlags.isEmpty, let displayKey = Self.displayKey(for: event) else {
+        guard let displayKey = Self.displayKey(for: event) else {
             return nil
         }
 
@@ -166,6 +211,8 @@ struct PulseKeyboardShortcut: Codable, Equatable, Hashable, Sendable {
             "Return"
         case kVK_Tab:
             "Tab"
+        case kVK_Escape:
+            "Esc"
         case kVK_Delete:
             "Delete"
         case kVK_ForwardDelete:

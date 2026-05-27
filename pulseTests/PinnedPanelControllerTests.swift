@@ -1,3 +1,4 @@
+import AppKit
 import XCTest
 @testable import pulse
 
@@ -192,6 +193,7 @@ final class PinnedPanelControllerTests: XCTestCase {
     func testIslandLayoutKeepsTopAttachmentOffscreen() {
         XCTAssertGreaterThan(PulseIslandLayout.topAttachmentDepth(for: .seed), 0)
         XCTAssertGreaterThan(PulseIslandLayout.topAttachmentDepth(for: .criticalSeed), 0)
+        XCTAssertGreaterThan(PulseIslandLayout.topAttachmentDepth(for: .screenshotPreview), 0)
         XCTAssertGreaterThan(PulseIslandLayout.topAttachmentDepth(for: .expanded), 0)
         XCTAssertLessThan(
             PulseIslandLayout.visibleHeight(for: .seed),
@@ -200,6 +202,10 @@ final class PinnedPanelControllerTests: XCTestCase {
         XCTAssertLessThan(
             PulseIslandLayout.visibleHeight(for: .criticalSeed),
             PulseIslandLayout.contentSize(for: .criticalSeed).height
+        )
+        XCTAssertLessThan(
+            PulseIslandLayout.visibleHeight(for: .screenshotPreview),
+            PulseIslandLayout.contentSize(for: .screenshotPreview).height
         )
         XCTAssertLessThan(
             PulseIslandLayout.visibleHeight(for: .expanded),
@@ -295,13 +301,58 @@ final class PinnedPanelControllerTests: XCTestCase {
     }
 
     @MainActor
+    func testScreenshotPreviewReminderUsesTallerCompactSurface() {
+        let metrics = PulseIslandLayoutMetrics(seedVisibleHeight: 38, notchUnsafeWidth: 220)
+
+        XCTAssertEqual(PulseIslandLayout.visibleHeight(for: .screenshotPreview, metrics: metrics), 226)
+        XCTAssertGreaterThan(
+            PulseIslandLayout.visibleHeight(for: .screenshotPreview, metrics: metrics),
+            PulseIslandLayout.visibleHeight(for: .criticalSeed, metrics: metrics) * 2
+        )
+        XCTAssertEqual(
+            PulseIslandLayout.seedVisibleSize(for: .screenshotPreview, metrics: metrics).width,
+            PulseIslandLayout.screenshotPreviewVisibleWidth
+        )
+    }
+
+    @MainActor
+    func testScreenshotPreviewReminderSuspendsAutoDismissWhileHovered() async throws {
+        let controller = PulseIslandPanelController()
+        let reminder = PulseScreenshotPreviewReminder(image: NSImage(size: NSSize(width: 8, height: 8)))
+
+        controller.presentScreenshotPreview(reminder, autoDismissDuration: .milliseconds(50))
+        controller.setHovering(true)
+
+        try await Task.sleep(for: .milliseconds(120))
+
+        XCTAssertEqual(controller.style, .screenshotPreview)
+        XCTAssertEqual(controller.screenshotPreviewReminder, reminder)
+
+        controller.setHovering(false)
+
+        try await Task.sleep(for: .milliseconds(120))
+
+        XCTAssertEqual(controller.style, .seed)
+        XCTAssertNil(controller.screenshotPreviewReminder)
+    }
+
+    @MainActor
     func testIslandModulesCycleHorizontally() {
         XCTAssertEqual(PulseIslandModule.resourceMonitor.shifted(by: 1), .applications)
         XCTAssertEqual(PulseIslandModule.applications.shifted(by: 1), .clipboard)
-        XCTAssertEqual(PulseIslandModule.clipboard.shifted(by: 1), .resourceMonitor)
-        XCTAssertEqual(PulseIslandModule.resourceMonitor.shifted(by: -1), .clipboard)
+        XCTAssertEqual(PulseIslandModule.clipboard.shifted(by: 1), .screenshots)
+        #if DEBUG
+        XCTAssertEqual(PulseIslandModule.screenshots.shifted(by: 1), .translation)
+        XCTAssertEqual(PulseIslandModule.translation.shifted(by: 1), .resourceMonitor)
+        XCTAssertEqual(PulseIslandModule.resourceMonitor.shifted(by: -1), .translation)
+        XCTAssertEqual(PulseIslandModule.translation.shifted(by: -1), .screenshots)
+        #else
+        XCTAssertEqual(PulseIslandModule.screenshots.shifted(by: 1), .resourceMonitor)
+        XCTAssertEqual(PulseIslandModule.resourceMonitor.shifted(by: -1), .screenshots)
+        #endif
         XCTAssertEqual(PulseIslandModule.applications.shifted(by: -1), .resourceMonitor)
         XCTAssertEqual(PulseIslandModule.clipboard.shifted(by: -1), .applications)
+        XCTAssertEqual(PulseIslandModule.screenshots.shifted(by: -1), .clipboard)
     }
 
     @MainActor
@@ -867,6 +918,25 @@ final class PinnedPanelControllerTests: XCTestCase {
     }
 
     @MainActor
+    func testIslandControllerSuppressesPostLaunchHoverUntilDeadlinePasses() {
+        let now = Date()
+        let deadline = now.addingTimeInterval(0.45)
+
+        XCTAssertTrue(PulseIslandPanelController.shouldAcceptHoverExpansion(
+            now: now,
+            suppressionDeadline: nil
+        ))
+        XCTAssertFalse(PulseIslandPanelController.shouldAcceptHoverExpansion(
+            now: now,
+            suppressionDeadline: deadline
+        ))
+        XCTAssertTrue(PulseIslandPanelController.shouldAcceptHoverExpansion(
+            now: deadline,
+            suppressionDeadline: deadline
+        ))
+    }
+
+    @MainActor
     func testIslandPanelExpandsWhenHoverBegins() {
         let controller = PulseIslandPanelController()
         let store = PulseStore(
@@ -883,6 +953,30 @@ final class PinnedPanelControllerTests: XCTestCase {
 
         controller.setHovering(true)
 
+        XCTAssertEqual(controller.style, .expanded)
+    }
+
+    @MainActor
+    func testIslandPanelSuppressesImmediateHoverAfterLaunchingApplication() {
+        let controller = PulseIslandPanelController()
+        let store = PulseStore(
+            userDefaults: makeUserDefaults(),
+            launchAtLoginService: makeLoginItemService(),
+            reconcileLaunchAtLogin: false
+        )
+        let updateController = PulseUpdateController(startingUpdater: false)
+        let now = Date()
+
+        controller.present(store: store, updateController: updateController)
+        defer {
+            controller.dismiss()
+        }
+
+        controller.collapseAfterLaunchingApplication(now: now)
+        controller.setHovering(true, now: now)
+        XCTAssertEqual(controller.style, .seed)
+
+        controller.setHovering(true, now: now.addingTimeInterval(1))
         XCTAssertEqual(controller.style, .expanded)
     }
 

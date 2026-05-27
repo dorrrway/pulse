@@ -47,6 +47,24 @@ final class PulseStore {
             notifyShortcutPreferencesDidChange()
         }
     }
+    var captureFullScreenShortcut: PulseKeyboardShortcut? {
+        didSet {
+            saveKeyboardShortcut(captureFullScreenShortcut, key: Self.captureFullScreenShortcutKey)
+            notifyShortcutPreferencesDidChange()
+        }
+    }
+    var captureWindowShortcut: PulseKeyboardShortcut? {
+        didSet {
+            saveKeyboardShortcut(captureWindowShortcut, key: Self.captureWindowShortcutKey)
+            notifyShortcutPreferencesDidChange()
+        }
+    }
+    var captureSelectionShortcut: PulseKeyboardShortcut? {
+        didSet {
+            saveKeyboardShortcut(captureSelectionShortcut, key: Self.captureSelectionShortcutKey)
+            notifyShortcutPreferencesDidChange()
+        }
+    }
     var favoriteApplicationPaths: [String] {
         didSet {
             userDefaults.set(favoriteApplicationPaths, forKey: Self.favoriteApplicationPathsKey)
@@ -73,6 +91,9 @@ final class PulseStore {
     private static let installedAppsDisplayModeKey = "pulse.settings.installedApps.displayMode"
     private static let wakeClipboardShortcutKey = "pulse.settings.shortcuts.wakeClipboard"
     private static let wakeApplicationsShortcutKey = "pulse.settings.shortcuts.wakeApplications"
+    private static let captureFullScreenShortcutKey = "pulse.settings.shortcuts.captureFullScreen"
+    private static let captureWindowShortcutKey = "pulse.settings.shortcuts.captureWindow"
+    private static let captureSelectionShortcutKey = "pulse.settings.shortcuts.captureSelection"
     private static let favoriteApplicationPathsKey = "pulse.settings.installedApps.favoritePaths"
 
     init(
@@ -113,6 +134,18 @@ final class PulseStore {
             from: userDefaults,
             key: Self.wakeApplicationsShortcutKey
         )
+        self.captureFullScreenShortcut = Self.loadKeyboardShortcut(
+            from: userDefaults,
+            key: Self.captureFullScreenShortcutKey
+        )
+        self.captureWindowShortcut = Self.loadKeyboardShortcut(
+            from: userDefaults,
+            key: Self.captureWindowShortcutKey
+        )
+        self.captureSelectionShortcut = Self.loadKeyboardShortcut(
+            from: userDefaults,
+            key: Self.captureSelectionShortcutKey
+        )
         self.favoriteApplicationPaths = Self.loadFavoriteApplicationPaths(
             from: userDefaults,
             key: Self.favoriteApplicationPathsKey
@@ -151,7 +184,10 @@ final class PulseStore {
     var shortcutPreferences: PulseShortcutPreferences {
         PulseShortcutPreferences(
             wakeClipboard: wakeClipboardShortcut,
-            wakeApplications: wakeApplicationsShortcut
+            wakeApplications: wakeApplicationsShortcut,
+            captureFullScreen: captureFullScreenShortcut,
+            captureWindow: captureWindowShortcut,
+            captureSelection: captureSelectionShortcut
         )
     }
 
@@ -242,17 +278,31 @@ final class PulseStore {
     }
 
     func setShortcut(_ shortcut: PulseKeyboardShortcut?, for action: PulseShortcutAction) {
+        assignShortcut(shortcut, for: action)
+
+        guard let shortcut else {
+            return
+        }
+
+        for otherAction in PulseShortcutAction.allCases where otherAction != action {
+            if shortcutPreferences.shortcut(for: otherAction) == shortcut {
+                assignShortcut(nil, for: otherAction)
+            }
+        }
+    }
+
+    private func assignShortcut(_ shortcut: PulseKeyboardShortcut?, for action: PulseShortcutAction) {
         switch action {
         case .wakeClipboard:
             wakeClipboardShortcut = shortcut
-            if let shortcut, wakeApplicationsShortcut == shortcut {
-                wakeApplicationsShortcut = nil
-            }
         case .wakeApplications:
             wakeApplicationsShortcut = shortcut
-            if let shortcut, wakeClipboardShortcut == shortcut {
-                wakeClipboardShortcut = nil
-            }
+        case .captureFullScreen:
+            captureFullScreenShortcut = shortcut
+        case .captureWindow:
+            captureWindowShortcut = shortcut
+        case .captureSelection:
+            captureSelectionShortcut = shortcut
         }
     }
 

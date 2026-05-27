@@ -634,6 +634,12 @@ private struct ClipboardEntryRow: View {
                 .exclusively(before: TapGesture(count: 1).onEnded { copyAction() })
         )
         .contextMenu {
+            Button {
+                copyAction()
+            } label: {
+                Label(strings.text(.copyClipboardItem), systemImage: "doc.on.doc")
+            }
+
             if entry.shouldMaskByDefault {
                 Button {
                     revealAction()
@@ -643,9 +649,9 @@ private struct ClipboardEntryRow: View {
                         systemImage: isRevealed ? "eye.slash" : "eye"
                     )
                 }
-
-                Divider()
             }
+
+            Divider()
 
             Button(role: .destructive) {
                 deleteAction()
