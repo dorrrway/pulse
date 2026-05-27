@@ -13,7 +13,7 @@
 </h3>
 
 <p align="center">
-  <img alt="release" src="https://img.shields.io/badge/release-v2.0.0-0A84FF">
+  <img alt="release" src="https://img.shields.io/badge/release-v2.1.0-0A84FF">
   <img alt="platform" src="https://img.shields.io/badge/platform-macOS-147EFB">
   <img alt="Swift" src="https://img.shields.io/badge/Swift-6-FA7343">
   <img alt="notarized" src="https://img.shields.io/badge/Developer%20ID-notarized-34C759">
@@ -29,18 +29,18 @@ Pulse is a lightweight Dynamic Island-style Mac utility that stays at the top of
 
 Latest release:
 
-- [Pulse 2.0.0](https://github.com/dorrrway/pulse/releases/tag/v2.0.0)
-- DMG: [Pulse-2.0.0.dmg](https://github.com/dorrrway/pulse/releases/download/v2.0.0/Pulse-2.0.0.dmg)
+- [Pulse 2.1.0](https://github.com/dorrrway/pulse/releases/tag/v2.1.0)
+- DMG: [Pulse-2.1.0.dmg](https://github.com/dorrrway/pulse/releases/download/v2.1.0/Pulse-2.1.0.dmg)
 
 SHA-256:
 
 ```text
-eb19283e73273f8df1f70e466888aa95f95ef25dec227eaa129a4ca21ac46028  Pulse-2.0.0.dmg
+fd784f829c28e672fd88f94024ecd9a4fe08ca60492154d632040a9274249017  Pulse-2.1.0.dmg
 ```
 
 ## Installation
 
-1. Download `Pulse-2.0.0.dmg`.
+1. Download `Pulse-2.1.0.dmg`.
 2. Open the DMG.
 3. Follow the bilingual DMG guide and drag `Pulse.app` to Applications.
 4. Launch Pulse from Applications.
@@ -64,19 +64,24 @@ See [Privacy Policy](PRIVACY.en.md) for details.
 
 ## Changelog
 
-### Unreleased
+### 2.1.0 - 2026-05-27
 
 - Refined the transition from resting state to expanded state: the header text, icon, and common action buttons now fade in after the island begins opening, making the expansion feel less abrupt.
 - Moved common actions into the expanded-state header: Settings and Quit now sit at the top right, while the Resource Monitor footer only keeps panel-specific controls; pinned panels now place Minimize at the bottom right.
 - Simplified the Resource Monitor panel by removing the repeated Pulse title, device name, and pixel icon; the expanded-state Resource Monitor footer now shows the refresh time, while pinned panels no longer show time.
 - Improved multi-display behavior: the Dynamic Island-style entry and pinned Resource Monitor panel now follow the current display, so switching between external monitors feels more consistent.
-- Changed expanded-state module switching to a horizontal selector: Resource Monitor and Applications now sit in one row, click or row-wide left/right swipes switch modules, and the selected module stays centered.
+- Changed expanded-state module switching to a horizontal selector: Resource Monitor and Applications now sit in one row, click or row-wide left/right swipes switch modules, the selected module stays centered, and swipe direction follows natural paging.
+- After first launch or restart, expanding the island now defaults to the Applications module so users can launch favorite apps directly.
 - Added the Clipboard module: Pulse records text, links, files, images, and sensitive or transient markers by default, keeps history locally, supports filtering by all/text/images/links/files plus search, copy, reveal, delete, and clear actions, supports double-click direct paste into the currently focused target when Accessibility permission allows it, and lets users adjust entry and time retention in Settings; duplicate payloads are merged into one history entry, copying from Clipboard history does not add another entry, sensitive entries are masked by default while copying the complete original payload, and OCR is off by default and local-only.
+- Fixed mojibake when some apps provide clipboard text as UTF-16 without a byte-order mark; matching local history entries repair their display text on next launch.
 - Added a Shortcuts area in Settings for separate global shortcuts that wake Clipboard or Applications; shortcuts are stored only in local preferences.
+- Shortcut wake now reuses the mounted island panel and opens directly into the target module, making the expansion feel closer to pointer hover.
 - The resting island now shows a 1.5-second minimal confirmation when Clipboard saves a new record, using a content-type icon, Copied label on non-notched screens, and completion checkmark without opening the panel or changing the data boundary.
 - Clearing clipboard history now asks for confirmation inline in the footer, preventing accidental removal of all records.
 - Added a single-row Favorite Apps panel in the Applications module: the module now opens in icon view by default, icon view supports dragging apps into favorites, list view uses a pin button to add or remove favorites quickly, favorites can be reordered by dragging or removed by dragging them back to the app area, and running apps show a highlighted dot below their icons.
+- Opening an app from the Applications module now returns Pulse to its resting state, reducing overlap while the target app launches.
 - Smoothed Favorite Apps drop placement: dragging or reordering an app between two favorites now reserves the real landing width, reducing the jump after release.
+- Release archive: [Pulse-2.1.0.dmg](https://github.com/dorrrway/pulse/releases/download/v2.1.0/Pulse-2.1.0.dmg); SHA-256: `fd784f829c28e672fd88f94024ecd9a4fe08ca60492154d632040a9274249017`.
 
 ### 2.0.0 - 2026-05-25
 

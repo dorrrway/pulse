@@ -69,7 +69,7 @@ enum PulseDesign {
         static let notchedSeedContentHorizontalPadding = Spacing.sm
         static let defaultSeedVisibleHeight: CGFloat = 30
         static let expandedSurfaceHeightMultiplier: CGFloat = 2
-        static let expandedHeaderExtraHeight: CGFloat = 24
+        static let expandedHeaderExtraHeight: CGFloat = 12
         static let expandedSurfaceWidth: CGFloat = 560
         static let attachedPanelTopGap = Spacing.xs
         static let screenEdgeInset = Spacing.md

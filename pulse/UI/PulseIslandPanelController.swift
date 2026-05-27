@@ -460,7 +460,7 @@ final class PulseIslandPanelController {
     private(set) var style: PulseIslandStyle = .seed
     private(set) var layoutMetrics: PulseIslandLayoutMetrics = .fallback
     private(set) var isPinnedPanelPresented = false
-    private(set) var selectedModule: PulseIslandModule = .resourceMonitor
+    private(set) var selectedModule: PulseIslandModule = .applications
     #if DEBUG
     private(set) var criticalAlertPreviewRequest: PulseIslandCriticalAlertPreviewRequest?
     #endif
@@ -486,23 +486,13 @@ final class PulseIslandPanelController {
         pinAction: (() -> Void)? = nil,
         isPinnedPanelPresented: Bool? = nil
     ) {
-        updatePinnedPanelBridge(
+        presentPanel(
+            store: store,
+            updateController: updateController,
             pinAction: pinAction,
-            isPinnedPanelPresented: isPinnedPanelPresented
+            isPinnedPanelPresented: isPinnedPanelPresented,
+            resetToSeed: true
         )
-        style = .seed
-        criticalAlertTask?.cancel()
-        criticalAlertTask = nil
-        anchorScreen = currentScreen()
-        layoutMetrics = PulseIslandLayout.metrics(for: anchorScreen)
-
-        let panel = panel ?? makePanel(store: store, updateController: updateController)
-        self.panel = panel
-        installRootView(in: panel, store: store, updateController: updateController)
-        panel.setFrame(targetFrame(screen: anchorScreen), display: true)
-        panel.orderFrontRegardless()
-        isPresented = true
-        startScreenTracking()
     }
 
     func wake(
@@ -513,11 +503,12 @@ final class PulseIslandPanelController {
         isPinnedPanelPresented: Bool? = nil
     ) {
         selectModule(module)
-        present(
+        presentPanel(
             store: store,
             updateController: updateController,
             pinAction: pinAction,
-            isPinnedPanelPresented: isPinnedPanelPresented
+            isPinnedPanelPresented: isPinnedPanelPresented,
+            resetToSeed: !isPresented
         )
         expand()
     }
@@ -622,6 +613,41 @@ final class PulseIslandPanelController {
         setStyle(.seed)
     }
 
+    private func presentPanel(
+        store: PulseStore,
+        updateController: PulseUpdateController,
+        pinAction: (() -> Void)?,
+        isPinnedPanelPresented: Bool?,
+        resetToSeed: Bool
+    ) {
+        updatePinnedPanelBridge(
+            pinAction: pinAction,
+            isPinnedPanelPresented: isPinnedPanelPresented
+        )
+
+        if resetToSeed {
+            style = .seed
+        }
+        criticalAlertTask?.cancel()
+        criticalAlertTask = nil
+        anchorScreen = currentScreen()
+        layoutMetrics = PulseIslandLayout.metrics(for: anchorScreen)
+
+        let panel: NSPanel
+        if let existingPanel = self.panel {
+            panel = existingPanel
+        } else {
+            panel = makePanel()
+            self.panel = panel
+            installRootView(in: panel, store: store, updateController: updateController)
+        }
+
+        panel.setFrame(targetFrame(screen: anchorScreen), display: true)
+        panel.orderFrontRegardless()
+        isPresented = true
+        startScreenTracking()
+    }
+
     private func scheduleHoverCollapse() {
         collapseTask = Task { @MainActor [weak self] in
             do {
@@ -671,7 +697,7 @@ final class PulseIslandPanelController {
         isPresented = true
     }
 
-    private func makePanel(store: PulseStore, updateController: PulseUpdateController) -> NSPanel {
+    private func makePanel() -> NSPanel {
         let panel = PulseIslandPanel(
             contentRect: targetFrame(screen: anchorScreen),
             styleMask: [.borderless, .nonactivatingPanel],
@@ -690,7 +716,6 @@ final class PulseIslandPanelController {
         panel.hasShadow = false
         panel.appearance = NSAppearance(named: .darkAqua)
         panel.acceptsMouseMovedEvents = true
-        installRootView(in: panel, store: store, updateController: updateController)
 
         return panel
     }

@@ -575,7 +575,7 @@ struct PulseIslandView: View {
                         .environment(\.pulsePanelIsPinned, controller.isPinnedPanelPresented)
                         .environment(\.pulsePanelPinAction, pinAction)
                 case .applications:
-                    InstalledAppsPanelView()
+                    InstalledAppsPanelView(openApplication: .live(afterLaunch: collapseAction))
                         .environment(store)
                 case .clipboard:
                     ClipboardPanelView()
@@ -1465,6 +1465,14 @@ private struct IslandHeaderIconButton: View {
 }
 
 enum PulseIslandModuleInteractionGeometry {
+    static func switchOffset(forHorizontalDragTranslation translation: CGFloat) -> Int {
+        translation < 0 ? 1 : -1
+    }
+
+    static func switchOffset(forHorizontalScrollDelta delta: CGFloat) -> Int {
+        delta < 0 ? 1 : -1
+    }
+
     static func isModuleSwitchRegion(
         point: CGPoint,
         bounds: CGRect,
@@ -1688,7 +1696,9 @@ private struct IslandModuleInteractionBridge: NSViewRepresentable {
                 return false
             }
 
-            switchAction?(translation.width < 0 ? 1 : -1)
+            switchAction?(PulseIslandModuleInteractionGeometry.switchOffset(
+                forHorizontalDragTranslation: translation.width
+            ))
             didSwitchDuringMouseDown = true
             return true
         }
@@ -1774,7 +1784,9 @@ private struct IslandModuleInteractionBridge: NSViewRepresentable {
                 return true
             }
 
-            switchAction?(accumulatedScrollDeltaX > 0 ? 1 : -1)
+            switchAction?(PulseIslandModuleInteractionGeometry.switchOffset(
+                forHorizontalScrollDelta: accumulatedScrollDeltaX
+            ))
             didSwitchDuringScrollGesture = isPhasedGesture
             lastScrollSwitchTime = ProcessInfo.processInfo.systemUptime
             accumulatedScrollDeltaX = 0

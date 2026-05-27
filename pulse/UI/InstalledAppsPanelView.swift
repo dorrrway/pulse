@@ -68,6 +68,8 @@ struct InstalledAppsPanelView: View {
     @State private var favoriteRemovalEffect: FavoriteApplicationRemovalEffect?
     @State private var activeDragPayload: InstalledApplicationDragPayload?
 
+    var openApplication: InstalledApplicationOpenAction = .live()
+
     var body: some View {
         let strings = store.strings
 
@@ -115,7 +117,7 @@ struct InstalledAppsPanelView: View {
             activeDragPayload: activeDragPayload,
             isRunning: { store.isApplicationRunning($0) }
         ) { application in
-            InstalledApplicationLauncher.open(application)
+            openApplication(application)
         } removeAction: { application in
             store.removeFavoriteApplication(application)
         } dropAction: { bundlePath, index in
@@ -190,7 +192,7 @@ struct InstalledAppsPanelView: View {
                     ) {
                         store.toggleFavoriteApplication(application)
                     } openAction: {
-                        InstalledApplicationLauncher.open(application)
+                        openApplication(application)
                     }
                     .onHover { isHovering in
                         hoveredApplicationID = isHovering ? application.id : nil
@@ -219,7 +221,7 @@ struct InstalledAppsPanelView: View {
                     ) {
                         store.toggleFavoriteApplication(application)
                     } openAction: {
-                        InstalledApplicationLauncher.open(application)
+                        openApplication(application)
                     }
                     .onDrag {
                         dragItemProvider(for: InstalledApplicationDragPayload(
@@ -264,6 +266,32 @@ struct InstalledAppsPanelView: View {
             }
         }
         .frame(height: PulsePanelLayout.footerHeight, alignment: .center)
+    }
+}
+
+@MainActor
+struct InstalledApplicationOpenAction {
+    private var launch: (InstalledApplication) -> Void
+    private var afterLaunch: () -> Void
+
+    init(
+        launch: @escaping (InstalledApplication) -> Void,
+        afterLaunch: @escaping () -> Void = {}
+    ) {
+        self.launch = launch
+        self.afterLaunch = afterLaunch
+    }
+
+    static func live(afterLaunch: @escaping () -> Void = {}) -> Self {
+        Self(
+            launch: InstalledApplicationLauncher.open,
+            afterLaunch: afterLaunch
+        )
+    }
+
+    func callAsFunction(_ application: InstalledApplication) {
+        launch(application)
+        afterLaunch()
     }
 }
 

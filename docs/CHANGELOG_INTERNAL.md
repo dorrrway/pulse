@@ -5,7 +5,7 @@ This file is for maintainers. Keep the public changelog in `README.md` and
 implementation context, product decisions, privacy boundaries, thresholds, and
 verification notes that would make the public changelog too noisy.
 
-## Unreleased
+## 2.1.0 - 2026-05-27
 
 ### Clipboard
 
@@ -70,6 +70,10 @@ verification notes that would make the public changelog too noisy.
   source so remote WeChat images can use the local WeChat icon when available,
   including existing stored entries that still retain those raw pasteboard
   representations.
+- Clipboard text decoding now treats `public.utf16-plain-text` payloads without
+  a byte-order mark as little-endian text. Stored text entries with blob-backed
+  representations are reparsed on load so matching local history repairs
+  automatically.
 
 ### Dynamic Island-style Surface
 
@@ -118,6 +122,10 @@ verification notes that would make the public changelog too noisy.
 - The Applications module now tracks `NSWorkspace` running-app launch and
   termination notifications, rendering running apps with a non-gray highlighted
   dot below the app icon. The state is kept in memory only and is not persisted.
+- Application launch requests now flow through an injectable open action. The
+  island passes its existing collapse action into the Applications panel, so
+  favorite tiles, list rows, and icon-grid tiles all return the surface to the
+  resting state after requesting `NSWorkspace` to open the selected app.
 - Expanded-state module switching now uses horizontal drag and horizontal scroll
   input across the full module row, plus click-to-switch on each module item.
   The header renders all modules in a horizontal selector and offsets the row so
@@ -126,11 +134,21 @@ verification notes that would make the public changelog too noisy.
 - The expanded header selector now measures module button content widths and
   uses 24 point inter-item spacing, keeping visual layout and local-event
   hit-testing aligned for click, drag, and horizontal scroll switching.
+- Header horizontal scroll switching now maps negative `scrollingDeltaX` to the
+  next module, matching the existing drag direction and natural paging behavior
+  after AppKit applies the user's scroll-direction preference to scroll deltas.
+- New island controllers now default to the Applications module, so a fresh
+  install or process restart opens the expanded island on the app-launching
+  surface unless a shortcut explicitly selects another module.
 - Settings now includes a Shortcuts section with two local preferences for
   waking Clipboard and Applications. The runtime registers those shortcuts with
   Carbon `RegisterEventHotKey`, keeps duplicate assignments exclusive between
   the two actions, and routes each wake action through the island controller so
   the surface opens directly on the matching module.
+- Shortcut wake no longer routes through the full seed presentation path when
+  the island panel is already mounted. The controller keeps the existing root
+  view alive, updates the target module, and expands through the same state
+  transition used by pointer hover.
 
 ## 2.0.0 - 2026-05-25
 

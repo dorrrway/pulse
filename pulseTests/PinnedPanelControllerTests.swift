@@ -273,10 +273,10 @@ final class PinnedPanelControllerTests: XCTestCase {
         let metrics = PulseIslandLayoutMetrics(seedVisibleHeight: 38, notchUnsafeWidth: 220)
 
         XCTAssertEqual(PulseIslandLayout.expandedSurfaceHeightMultiplier, 2)
-        XCTAssertEqual(PulseIslandLayout.expandedHeaderExtraHeight, 24)
+        XCTAssertEqual(PulseIslandLayout.expandedHeaderExtraHeight, 12)
         XCTAssertEqual(PulseIslandLayout.expandedHeaderRowHeight(metrics: metrics), 38)
         XCTAssertEqual(PulseIslandLayout.expandedHeaderContentHeight(metrics: metrics), 76)
-        XCTAssertEqual(PulseIslandLayout.expandedSurfaceVisibleHeight(metrics: metrics), 100)
+        XCTAssertEqual(PulseIslandLayout.expandedSurfaceVisibleHeight(metrics: metrics), 88)
         XCTAssertEqual(PulseIslandLayout.visibleHeight(for: .criticalSeed, metrics: metrics), 76)
         XCTAssertGreaterThan(
             PulseIslandLayout.seedVisibleSize(for: .criticalSeed, metrics: metrics).width,
@@ -302,6 +302,33 @@ final class PinnedPanelControllerTests: XCTestCase {
         XCTAssertEqual(PulseIslandModule.resourceMonitor.shifted(by: -1), .clipboard)
         XCTAssertEqual(PulseIslandModule.applications.shifted(by: -1), .resourceMonitor)
         XCTAssertEqual(PulseIslandModule.clipboard.shifted(by: -1), .applications)
+    }
+
+    @MainActor
+    func testIslandDefaultsToApplicationsModule() {
+        let controller = PulseIslandPanelController()
+
+        XCTAssertEqual(controller.selectedModule, .applications)
+    }
+
+    @MainActor
+    func testIslandModuleHorizontalInputDirectionMatchesNaturalPaging() {
+        XCTAssertEqual(
+            PulseIslandModuleInteractionGeometry.switchOffset(forHorizontalDragTranslation: -20),
+            1
+        )
+        XCTAssertEqual(
+            PulseIslandModuleInteractionGeometry.switchOffset(forHorizontalDragTranslation: 20),
+            -1
+        )
+        XCTAssertEqual(
+            PulseIslandModuleInteractionGeometry.switchOffset(forHorizontalScrollDelta: -20),
+            1
+        )
+        XCTAssertEqual(
+            PulseIslandModuleInteractionGeometry.switchOffset(forHorizontalScrollDelta: 20),
+            -1
+        )
     }
 
     @MainActor

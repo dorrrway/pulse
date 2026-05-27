@@ -70,7 +70,10 @@ final class ClipboardHistoryStore {
         self.ocrEnabled = userDefaults.object(forKey: Self.ocrEnabledKey) as? Bool ?? false
         self.retentionLimit = Self.loadRetentionLimit(from: userDefaults)
         self.retentionDays = Self.loadRetentionDays(from: userDefaults)
-        self.entries = Self.restoringStoredEntries(in: (try? persistence.loadEntries()) ?? [])
+        self.entries = Self.restoringStoredEntries(
+            in: (try? persistence.loadEntries()) ?? [],
+            blobData: { persistence.loadBlob(id: $0) }
+        )
         trimHistoryAndPersist()
     }
 
@@ -342,12 +345,16 @@ final class ClipboardHistoryStore {
     }
 
     private static func restoringStoredEntries(
-        in entries: [ClipboardHistoryEntry]
+        in entries: [ClipboardHistoryEntry],
+        blobData: (String) -> Data?
     ) -> [ClipboardHistoryEntry] {
         entries.map { entry in
             repairingStoredPlainTextURLFileEntry(
                 repairingStoredRemoteImageFileEntry(
-                    restoringStoredDeclaredSource(in: entry)
+                    repairingStoredDecodedTextEntry(
+                        restoringStoredDeclaredSource(in: entry),
+                        blobData: blobData
+                    )
                 )
             )
         }
@@ -376,6 +383,68 @@ final class ClipboardHistoryStore {
             inferredSource: restoredEntry.inferredSource
         )
         return restoredEntry
+    }
+
+    private static func repairingStoredDecodedTextEntry(
+        _ entry: ClipboardHistoryEntry,
+        blobData: (String) -> Data?
+    ) -> ClipboardHistoryEntry {
+        var repairedEntry = entry
+        var didRepair = false
+
+        for index in repairedEntry.items.indices {
+            guard
+                repairedEntry.items[index].kind == .text,
+                storedItemHasPlainTextContent(repairedEntry.items[index])
+            else {
+                continue
+            }
+
+            let representations = repairedEntry.items[index].representations.compactMap { representation in
+                blobData(representation.blobID).map {
+                    ClipboardCapturedRepresentation(type: representation.type, data: $0)
+                }
+            }
+            guard !representations.isEmpty else {
+                continue
+            }
+
+            let parsedContent = parsedContent(
+                from: representations,
+                markerTypes: repairedEntry.items[index].markerTypes
+            )
+            guard parsedContent.kind == .text || parsedContent.kind == .url || parsedContent.kind == .file else {
+                continue
+            }
+
+            guard
+                parsedContent.kind != repairedEntry.items[index].kind
+                    || parsedContent.displayText != repairedEntry.items[index].displayText
+                    || parsedContent.searchableText != repairedEntry.items[index].searchableText
+            else {
+                continue
+            }
+
+            repairedEntry.items[index].kind = parsedContent.kind
+            repairedEntry.items[index].displayText = parsedContent.displayText
+            repairedEntry.items[index].searchableText = parsedContent.searchableText
+            didRepair = true
+        }
+
+        guard didRepair else {
+            return repairedEntry
+        }
+
+        repairedEntry.kind = entryKind(for: repairedEntry.items)
+        repairedEntry.displayText = repairedEntry.items.first(where: { !$0.displayText.isEmpty })?.displayText
+            ?? fallbackDisplayText(for: repairedEntry.kind)
+        repairedEntry.searchableText = entrySearchableText(
+            items: repairedEntry.items,
+            markerTypes: repairedEntry.markerTypes,
+            declaredSource: repairedEntry.declaredSource,
+            inferredSource: repairedEntry.inferredSource
+        )
+        return repairedEntry
     }
 
     private static func repairingStoredRemoteImageFileEntry(
@@ -679,7 +748,7 @@ final class ClipboardHistoryStore {
                 return nil
             }
 
-            return decodedString(from: representation.data)
+            return decodedString(from: representation)
         }
     }
 
@@ -697,11 +766,19 @@ final class ClipboardHistoryStore {
     private static func attributedStringValues(in representations: [ClipboardCapturedRepresentation]) -> [String] {
         representations.compactMap { representation in
             if ClipboardPasteboardTypeClassifier.isHTML(representation.type) {
-                return attributedStringValue(from: representation.data, documentType: .html)
+                return attributedStringValue(
+                    from: representation.data,
+                    documentType: .html,
+                    pasteboardType: representation.type
+                )
             }
 
             if ClipboardPasteboardTypeClassifier.isRichText(representation.type) {
-                return attributedStringValue(from: representation.data, documentType: .rtf)
+                return attributedStringValue(
+                    from: representation.data,
+                    documentType: .rtf,
+                    pasteboardType: representation.type
+                )
             }
 
             return nil
@@ -714,7 +791,8 @@ final class ClipboardHistoryStore {
 
     private static func attributedStringValue(
         from data: Data,
-        documentType: NSAttributedString.DocumentType
+        documentType: NSAttributedString.DocumentType,
+        pasteboardType: String
     ) -> String? {
         guard
             let attributedString = try? NSAttributedString(
@@ -723,25 +801,61 @@ final class ClipboardHistoryStore {
                 documentAttributes: nil
             )
         else {
-            return decodedString(from: data)
+            return decodedString(from: data, pasteboardType: pasteboardType)
         }
 
         let string = attributedString.string.trimmingCharacters(in: .whitespacesAndNewlines)
         return string.isEmpty ? nil : string
     }
 
-    private static func decodedString(from data: Data) -> String? {
-        if let string = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !string.isEmpty {
+    private static func decodedString(from representation: ClipboardCapturedRepresentation) -> String? {
+        decodedString(from: representation.data, pasteboardType: representation.type)
+    }
+
+    private static func decodedString(from data: Data, pasteboardType: String) -> String? {
+        let normalizedType = pasteboardType.lowercased()
+
+        if normalizedType == "public.utf16-plain-text" {
+            return decodedUTF16PlainText(from: data)
+        }
+
+        if normalizedType == "public.utf8-plain-text" {
+            return trimmedString(from: data, encoding: .utf8)
+        }
+
+        if let string = trimmedString(from: data, encoding: .utf8) {
             return string
         }
 
-        if let string = String(data: data, encoding: .utf16)?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !string.isEmpty {
-            return string
+        if hasUTF16ByteOrderMark(data) {
+            return trimmedString(from: data, encoding: .utf16)
         }
 
         return nil
+    }
+
+    private static func decodedUTF16PlainText(from data: Data) -> String? {
+        if hasUTF16ByteOrderMark(data), let string = trimmedString(from: data, encoding: .utf16) {
+            return string
+        }
+
+        return trimmedString(from: data, encoding: .utf16LittleEndian)
+            ?? trimmedString(from: data, encoding: .utf16BigEndian)
+    }
+
+    private static func trimmedString(from data: Data, encoding: String.Encoding) -> String? {
+        guard let string = String(data: data, encoding: encoding) else {
+            return nil
+        }
+
+        let trimmed = string.trimmingCharacters(
+            in: .whitespacesAndNewlines.union(CharacterSet(charactersIn: "\u{feff}"))
+        )
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private static func hasUTF16ByteOrderMark(_ data: Data) -> Bool {
+        data.starts(with: [0xff, 0xfe]) || data.starts(with: [0xfe, 0xff])
     }
 
     private static func fileValue(in representations: [ClipboardCapturedRepresentation]) -> String? {

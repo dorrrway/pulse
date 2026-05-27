@@ -6,7 +6,7 @@
   <a href="PRIVACY.zh-CN.md">中文</a>
 </h3>
 
-Last updated: May 26, 2026
+Last updated: May 27, 2026
 
 Pulse is a local Dynamic Island-style Mac utility. It is designed to show system status, the Applications list, and clipboard history on the Mac where it is running.
 

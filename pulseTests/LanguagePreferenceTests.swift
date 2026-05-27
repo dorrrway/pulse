@@ -349,6 +349,28 @@ final class LanguagePreferenceTests: XCTestCase {
     }
 
     @MainActor
+    func testInstalledApplicationOpenActionCollapsesAfterLaunchRequest() {
+        let application = makeInstalledApplication(name: "Alpha", path: "/Applications/Alpha.app")
+        var launchedApplication: InstalledApplication?
+        var events: [String] = []
+
+        let openAction = InstalledApplicationOpenAction(
+            launch: { application in
+                launchedApplication = application
+                events.append("launch")
+            },
+            afterLaunch: {
+                events.append("collapse")
+            }
+        )
+
+        openAction(application)
+
+        XCTAssertEqual(launchedApplication, application)
+        XCTAssertEqual(events, ["launch", "collapse"])
+    }
+
+    @MainActor
     func testPersistsLaunchAtLoginPreferenceAndAppliesServiceState() {
         let defaults = makeUserDefaults()
         var appliedValues: [Bool] = []

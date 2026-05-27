@@ -627,6 +627,113 @@ final class ClipboardHistoryStoreTests: XCTestCase {
         XCTAssertEqual(store.filteredEntries.map(\.changeCount), [1])
     }
 
+    func testUTF16PlainTextWithoutBOMDecodesAsLittleEndian() throws {
+        let store = makeStore()
+        let text = "中文剪贴板测试"
+
+        store.record(ClipboardPasteboardSnapshot(
+            changeCount: 1,
+            capturedAt: Date(),
+            declaredSource: ClipboardApplicationSource(
+                name: "微信",
+                bundleIdentifier: "com.tencent.xinWeChat",
+                bundlePath: nil,
+                rawValue: "com.trolltech.anymime.WeChat_RichEdit_Format"
+            ),
+            inferredSource: nil,
+            items: [
+                ClipboardCapturedItem(
+                    markerTypes: [],
+                    representations: [
+                        ClipboardCapturedRepresentation(
+                            type: "public.utf16-plain-text",
+                            data: utf16LittleEndianData(for: text)
+                        ),
+                        ClipboardCapturedRepresentation(
+                            type: "public.utf8-plain-text",
+                            data: Data(text.utf8)
+                        ),
+                    ]
+                ),
+            ]
+        ))
+
+        let entry = try XCTUnwrap(store.entries.first)
+        XCTAssertEqual(entry.kind, .text)
+        XCTAssertEqual(entry.displayText, text)
+        XCTAssertTrue(entry.matches(searchText: "剪贴板"))
+    }
+
+    func testLoadedHistoryRepairsUTF16LittleEndianMojibakeFromStoredBlobs() throws {
+        let rootURL = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent("PulseClipboardStoreTests-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: rootURL) }
+
+        let text = "中文剪贴板测试"
+        let corruptedText = "mojibake"
+        let persistence = ClipboardHistoryPersistence(rootURL: rootURL)
+        try persistence.storeBlobs([
+            "utf16-text": utf16LittleEndianData(for: text),
+            "utf8-text": Data(text.utf8),
+        ])
+        try persistence.save(entries: [
+            ClipboardHistoryEntry(
+                id: UUID(),
+                changeCount: 8,
+                createdAt: Date(),
+                kind: .text,
+                displayText: corruptedText,
+                searchableText: corruptedText,
+                markerTypes: [],
+                declaredSource: ClipboardApplicationSource(
+                    name: "微信",
+                    bundleIdentifier: "com.tencent.xinWeChat",
+                    bundlePath: nil,
+                    rawValue: "com.trolltech.anymime.WeChat_RichEdit_Format"
+                ),
+                inferredSource: nil,
+                items: [
+                    ClipboardHistoryItem(
+                        id: UUID(),
+                        kind: .text,
+                        displayText: corruptedText,
+                        searchableText: corruptedText,
+                        markerTypes: [],
+                        representations: [
+                            ClipboardStoredRepresentation(
+                                type: "public.utf16-plain-text",
+                                blobID: "utf16-text",
+                                byteCount: utf16LittleEndianData(for: text).count
+                            ),
+                            ClipboardStoredRepresentation(
+                                type: "public.utf8-plain-text",
+                                blobID: "utf8-text",
+                                byteCount: Data(text.utf8).count
+                            ),
+                        ],
+                        imageBlobID: nil,
+                        imagePixelWidth: nil,
+                        imagePixelHeight: nil
+                    ),
+                ],
+                fingerprint: "stored-wechat-mojibake"
+            ),
+        ])
+
+        let store = ClipboardHistoryStore(
+            userDefaults: UserDefaults(suiteName: "PulseClipboardStoreTests-\(UUID().uuidString)") ?? .standard,
+            client: FakeClipboardPasteboardClient(),
+            persistence: persistence,
+            pasteCommandPoster: FakeClipboardFocusedPasteCommandPoster()
+        )
+
+        let entry = try XCTUnwrap(store.entries.first)
+        XCTAssertEqual(entry.displayText, text)
+        XCTAssertEqual(entry.items.first?.displayText, text)
+        XCTAssertTrue(entry.matches(searchText: "剪贴板"))
+        XCTAssertFalse(entry.matches(searchText: corruptedText))
+    }
+
     func testLegacyFilenamePasteboardTypeParsesAsFileWithoutImagePreview() throws {
         let store = makeStore()
         let paths = ["/tmp/pulse-report.pdf", "/tmp/pulse-notes.txt"]
@@ -800,6 +907,17 @@ final class ClipboardHistoryStoreTests: XCTestCase {
                 ),
             ]
         )
+    }
+
+    private func utf16LittleEndianData(for text: String) -> Data {
+        var data = Data()
+        for codeUnit in text.utf16 {
+            var littleEndianCodeUnit = codeUnit.littleEndian
+            withUnsafeBytes(of: &littleEndianCodeUnit) { buffer in
+                data.append(contentsOf: buffer)
+            }
+        }
+        return data
     }
 }
 

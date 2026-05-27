@@ -3,6 +3,22 @@
     <channel>
         <title>Pulse</title>
         <item>
+            <title>2.1.0</title>
+            <pubDate>Wed, 27 May 2026 15:26:20 +0800</pubDate>
+            <sparkle:version>9</sparkle:version>
+            <sparkle:shortVersionString>2.1.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[# Pulse 2.1.0
+
+- Added the Clipboard module with local history, filtering, search, copy, reveal, delete, clear, direct paste, configurable retention, sensitive masking, and local-only OCR.
+- Added global shortcuts for waking Clipboard and Applications directly, stored only in local preferences.
+- Added Favorite Apps, icon/list app browsing, running-state indicators, smoother app launching, and better drag placement in the Applications module.
+- Refined the Dynamic Island-style surface with smoother open transitions, header actions, multi-display tracking, natural horizontal switching, and Applications as the default expanded module.
+- Fixed UTF-16 clipboard text decoding when apps provide text without a byte-order mark.
+]]></description>
+            <enclosure url="https://github.com/dorrrway/pulse/releases/download/v2.1.0/Pulse-2.1.0.dmg" length="3611523" type="application/octet-stream" sparkle:edSignature="m9NUWVqCtq20IE42vGxyC7u3JB/BMWwjzwxApC3m6g4cyzMYraZn40t9s9LY11TGNsCDLmN4OoUG7/oeuPSgDg=="/>
+        </item>
+        <item>
             <title>2.0.0</title>
             <pubDate>Mon, 25 May 2026 16:52:12 +0800</pubDate>
             <sparkle:version>8</sparkle:version>
