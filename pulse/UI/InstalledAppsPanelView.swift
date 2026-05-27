@@ -1203,20 +1203,12 @@ private struct InstalledAppsIconButton: View {
 
     var body: some View {
         Button(action: action) {
-            ZStack {
-                if isHovering {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(.white.opacity(0.10))
-                }
-
-                Image(systemName: systemName)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.86))
-                    .frame(width: 20, height: 20)
-                    .accessibilityHidden(true)
-            }
-            .frame(width: 28, height: 28)
-            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            Image(systemName: systemName)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.white.opacity(isHovering ? 0.92 : 0.72))
+                .frame(width: PulseDesign.Control.buttonSide, height: PulseDesign.Control.buttonSide)
+                .contentShape(RoundedRectangle(cornerRadius: PulseDesign.Radius.selectedControl, style: .continuous))
+                .accessibilityHidden(true)
         }
         .buttonStyle(.plain)
         .help(help)

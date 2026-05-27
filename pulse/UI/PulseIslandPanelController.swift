@@ -529,6 +529,7 @@ final class PulseIslandPanelController {
     @ObservationIgnored private var pinPanelAction: () -> Void = {}
     @ObservationIgnored private let screenshotOCRService = ClipboardOCRService()
     @ObservationIgnored private let pinnedScreenshotPanelController = PulsePinnedScreenshotPanelController()
+    @ObservationIgnored private let screenshotEditorPanelController = PulseScreenshotEditorPanelController()
     @ObservationIgnored private var activeSharingPicker: NSSharingServicePicker?
 
     private static let hoverCollapseDelay: Duration = .milliseconds(360)
@@ -608,6 +609,7 @@ final class PulseIslandPanelController {
         screenshotPreviewTask = nil
         screenshotPreviewActionStateResetTask?.cancel()
         screenshotPreviewActionStateResetTask = nil
+        screenshotEditorPanelController.close()
         isScreenshotPreviewHovered = false
         panel?.orderOut(nil)
         style = .seed
@@ -654,6 +656,7 @@ final class PulseIslandPanelController {
 
     func captureScreenshot(
         mode: PulseScreenshotMode,
+        hidesPulseDuringCapture: Bool = true,
         service: PulseScreenshotService = .live
     ) {
         guard service.preflightAccess() || service.requestAccess() else {
@@ -661,18 +664,30 @@ final class PulseIslandPanelController {
             return
         }
 
-        hideForScreenCapture()
+        let pasteboardChangeCountBeforeCapture = NSPasteboard.general.changeCount
+
+        if hidesPulseDuringCapture {
+            hideForScreenCapture()
+        }
 
         Task { @MainActor [weak self] in
-            do {
-                try await Task.sleep(for: Self.screenCapturePreparationDelay)
-            } catch {
-                return
+            if hidesPulseDuringCapture {
+                do {
+                    try await Task.sleep(for: Self.screenCapturePreparationDelay)
+                } catch {
+                    return
+                }
             }
 
             let result = await service.capture(mode)
-            self?.restoreAfterScreenCapture()
-            self?.handleScreenshotCaptureResult(result, service: service)
+            if hidesPulseDuringCapture {
+                self?.restoreAfterScreenCapture()
+            }
+            self?.handleScreenshotCaptureResult(
+                result,
+                service: service,
+                pasteboardChangeCountBeforeCapture: pasteboardChangeCountBeforeCapture
+            )
         }
     }
 
@@ -797,6 +812,7 @@ final class PulseIslandPanelController {
         screenshotPreviewTask = nil
         screenshotPreviewActionStateResetTask?.cancel()
         screenshotPreviewActionStateResetTask = nil
+        screenshotEditorPanelController.close()
         isScreenshotPreviewHovered = false
         clearHoverExpansionSuppression()
         panel?.orderOut(nil)
@@ -821,11 +837,16 @@ final class PulseIslandPanelController {
 
     private func handleScreenshotCaptureResult(
         _ result: PulseScreenshotCaptureResult,
-        service: PulseScreenshotService
+        service: PulseScreenshotService,
+        pasteboardChangeCountBeforeCapture: Int
     ) {
         switch result {
         case .copiedToClipboard:
-            guard let image = Self.screenshotPreviewImage(from: .general) else {
+            guard let image = Self.screenshotPreviewImage(
+                afterCaptureResult: result,
+                from: .general,
+                previousChangeCount: pasteboardChangeCountBeforeCapture
+            ) else {
                 return
             }
 
@@ -988,6 +1009,24 @@ final class PulseIslandPanelController {
         collapse()
     }
 
+    func editScreenshotPreview(strings: PulseStrings) {
+        guard let reminder = screenshotPreviewReminder else {
+            return
+        }
+
+        screenshotEditorPanelController.edit(image: reminder.image, strings: strings) { [weak self] editedImage in
+            guard let self else {
+                return
+            }
+
+            _ = Self.writeScreenshotImageToClipboard(editedImage)
+            presentScreenshotPreview(
+                PulseScreenshotPreviewReminder(image: editedImage),
+                autoDismissDuration: screenshotPreviewAutoDismissDuration
+            )
+        }
+    }
+
     func recognizeTextInScreenshotPreview(strings: PulseStrings) {
         guard screenshotPreviewActionState != .recognizingText else {
             return
@@ -1048,6 +1087,19 @@ final class PulseIslandPanelController {
         return nil
     }
 
+    static func screenshotPreviewImage(
+        afterCaptureResult result: PulseScreenshotCaptureResult,
+        from pasteboard: NSPasteboard,
+        previousChangeCount: Int
+    ) -> NSImage? {
+        guard result == .copiedToClipboard,
+              pasteboard.changeCount != previousChangeCount else {
+            return nil
+        }
+
+        return screenshotPreviewImage(from: pasteboard)
+    }
+
     static func pngData(for image: NSImage) -> Data? {
         if
             let tiffData = image.tiffRepresentation,
@@ -1064,6 +1116,15 @@ final class PulseIslandPanelController {
         let bitmap = NSBitmapImageRep(cgImage: cgImage)
         bitmap.size = image.size
         return bitmap.representation(using: .png, properties: [:])
+    }
+
+    static func writeScreenshotImageToClipboard(_ image: NSImage, pasteboard: NSPasteboard = .general) -> Bool {
+        pasteboard.clearContents()
+        if let pngData = pngData(for: image) {
+            return pasteboard.setData(pngData, forType: .png)
+        }
+
+        return pasteboard.writeObjects([image])
     }
 
     static func suggestedScreenshotFileName(now: Date = Date()) -> String {

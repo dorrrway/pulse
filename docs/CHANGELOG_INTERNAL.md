@@ -17,10 +17,81 @@ verification notes that would make the public changelog too noisy.
 - Screenshot actions temporarily order out the Pulse island panel before
   capture, then restore the seed panel after `screencapture` exits so Pulse does
   not appear in its own screenshots.
+- The Screenshots panel now exposes the hide-before-capture behavior as a local
+  preference. It defaults to enabled and is shared by panel actions and global
+  screenshot shortcuts so users can intentionally include Pulse itself in a
+  screenshot when needed.
+- The hide-before-capture switch uses a local SwiftUI `ToggleStyle` so its
+  enabled state stays green inside the nonactivating island panel instead of
+  depending on the system `NSSwitch` tint behavior.
+- The hide-before-capture label and switch are grouped together at the trailing
+  edge of the Screenshots panel footer instead of splitting label and control.
 - Screenshot actions now preflight and request macOS Screen Recording access
   before hiding the island. If `screencapture` still reports a TCC denial, Pulse
   restores the island and opens the Screen Recording privacy pane instead of
   failing silently.
+- Screenshot preview presentation now records `NSPasteboard.general.changeCount`
+  before invoking `screencapture` and only reads a preview image if the capture
+  result reports success and the pasteboard changed. This prevents native picker
+  cancellation from showing the previous clipboard screenshot when the system
+  exits without writing a new image.
+- The Screenshots island panel now checks `CGPreflightScreenCaptureAccess()` on
+  appearance and when Pulse becomes active. If access is missing, it shows an
+  orange inline notice with an explicit Authorize action; the capture buttons
+  remain usable and still run the existing request path.
+- Screenshot preview editing uses a separate floating `NSPanel` modeled after
+  the pinned screenshot panel. SwiftUI owns the edit marks and bottom toolbar,
+  while AppKit only owns window lifetime; completing an edit re-renders the
+  image locally and writes the edited PNG back to the system pasteboard.
+- Pinned screenshot panels now keep the same borderless image-only surface while
+  the hosting view handles invisible edge and corner resize zones. Resizing
+  preserves the original image aspect ratio, clamps to the current visible
+  screen, and keeps the normal window-drag area away from resize hit zones.
+- The screenshot editor starts with no selected tool. While no tool is selected,
+  dragging the image moves the editor window; after a tool is selected, the
+  image region stops participating in window dragging so drawing arrows, shapes,
+  or mosaics does not move the panel.
+- Added a Bluetooth island module backed by `IOBluetoothDevice` for paired
+  device state/actions, IORegistry battery fields for connected Apple HID
+  devices, and macOS Bluetooth profile battery fields for AirPods left/right/case
+  values when the system reports them. The feature adds
+  `NSBluetoothAlwaysUsageDescription` and updates public privacy docs.
+- Bluetooth now checks CoreBluetooth authorization before sampling devices. The
+  island shows an inline authorization prompt while access is undetermined, then
+  collapses before creating the `CBCentralManager` that triggers the macOS
+  Bluetooth permission dialog.
+- Bluetooth device rows now handle connection actions directly: disconnected
+  rows connect on click, connected rows ask for confirmation before disconnecting,
+  and disconnected rows use dimmer text/icons plus translucent battery rings for
+  stale-but-readable battery values.
+- Bluetooth device row hit testing now covers the full non-battery row area, so
+  the blank space between the device title and battery cluster connects or asks
+  for disconnect confirmation while the battery rings remain display-only.
+- Bluetooth battery levels now feed the island alert queue after authorization.
+  Devices at or below 20% or 10% reuse the existing two-line alert style,
+  battery threshold icons, warning colors, animation, and one-alert-per-continuous
+  state behavior, with Bluetooth-specific device/part copy.
+- Bluetooth device and battery icons now prefer device-specific SF Symbols for
+  AirPods, AirPods Pro, AirPods Max, Beats earbuds/headphones, keyboards,
+  trackpads, mice, phones, tablets, and Macs. The renderer resolves the first
+  available symbol candidate at runtime and falls back to a neutral Bluetooth
+  glyph to avoid blank icons on older symbol sets.
+- Bluetooth audio device SF Symbol matching now uses an explicit profile table
+  for AirPods, AirPods Pro, AirPods 3/4, and Beats variants. AirPods Pro and
+  newer AirPods charging cases use the canonical `.chargingcase.wireless`
+  symbols instead of falling back to generic AirPods cases.
+- Debug settings now include a Bluetooth low-battery alert preview using a fake
+  AirPods Pro left-battery critical alert. It goes through the same island alert
+  preview path as the existing resource monitor alert previews.
+- Bluetooth low-battery items now also enter the normal compact island seed
+  rotation alongside Memory, CPU, and internal Battery while the low-battery
+  state remains active, instead of only appearing as one-time critical alerts.
+- The Bluetooth panel footer now keeps a Bluetooth Settings shortcut on the
+  lower left and moves the paired-device count next to the lower-right refresh
+  control.
+- Bluetooth and Applications footer refresh actions now render without button
+  backgrounds, and the Bluetooth Settings shortcut uses the provided linear
+  Bluetooth PDF asset instead of the settings gear.
 - Added local shortcut preferences and global hot key IDs for full-screen,
   window, and selection capture. Duplicate shortcut assignment still moves the
   shortcut to the most recently edited action.

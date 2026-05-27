@@ -31,6 +31,18 @@ final class LanguagePreferenceTests: XCTestCase {
     }
 
     @MainActor
+    func testDefaultsToHidingPulseDuringScreenshots() {
+        let defaults = makeUserDefaults()
+        let store = PulseStore(
+            userDefaults: defaults,
+            launchAtLoginService: makeLoginItemService(),
+            reconcileLaunchAtLogin: false
+        )
+
+        XCTAssertTrue(store.hidePulseDuringScreenshots)
+    }
+
+    @MainActor
     func testTrimsConfiguredDeviceName() {
         let defaults = makeUserDefaults()
         let store = PulseStore(
@@ -106,6 +118,25 @@ final class LanguagePreferenceTests: XCTestCase {
         )
         XCTAssertEqual(reloadedStore.appearancePreference, .dark)
         XCTAssertEqual(reloadedStore.appearancePreference.colorScheme, .dark)
+    }
+
+    @MainActor
+    func testPersistsHidePulseDuringScreenshotsPreference() {
+        let defaults = makeUserDefaults()
+        let store = PulseStore(
+            userDefaults: defaults,
+            launchAtLoginService: makeLoginItemService(),
+            reconcileLaunchAtLogin: false
+        )
+
+        store.setHidePulseDuringScreenshots(false)
+
+        let reloadedStore = PulseStore(
+            userDefaults: defaults,
+            launchAtLoginService: makeLoginItemService(),
+            reconcileLaunchAtLogin: false
+        )
+        XCTAssertFalse(reloadedStore.hidePulseDuringScreenshots)
     }
 
     @MainActor
@@ -511,12 +542,74 @@ final class LanguagePreferenceTests: XCTestCase {
         XCTAssertEqual(PulseStrings(language: .chinese).text(.applications), "应用程序")
         XCTAssertEqual(PulseStrings(language: .english).text(.screenshots), "Screenshots")
         XCTAssertEqual(PulseStrings(language: .chinese).text(.screenshots), "截图")
+        XCTAssertEqual(PulseStrings(language: .english).text(.bluetooth), "Bluetooth")
+        XCTAssertEqual(PulseStrings(language: .chinese).text(.bluetooth), "蓝牙")
+        XCTAssertEqual(
+            PulseStrings(language: .english).text(.bluetoothAuthorizationTitle),
+            "Pulse needs Bluetooth access"
+        )
+        XCTAssertEqual(PulseStrings(language: .chinese).text(.authorizeBluetoothDeviceAccess), "授权")
+        XCTAssertEqual(PulseStrings(language: .english).text(.openBluetoothSettings), "Bluetooth Settings")
+        XCTAssertEqual(PulseStrings(language: .chinese).text(.openBluetoothSettings), "蓝牙设置")
+        XCTAssertEqual(PulseStrings(language: .english).text(.connectBluetoothDevice), "Connect")
+        XCTAssertEqual(PulseStrings(language: .chinese).text(.disconnectBluetoothDevice), "断开")
+        XCTAssertEqual(PulseStrings(language: .english).text(.bluetoothDisconnectConfirmationTitle), "Disconnect device")
+        XCTAssertEqual(
+            PulseStrings(language: .chinese).bluetoothDisconnectConfirmationMessage(deviceName: "AirPods Pro"),
+            "要断开 AirPods Pro 吗？"
+        )
+        XCTAssertEqual(PulseStrings(language: .english).bluetoothDeviceCount(1), "1 device")
+        XCTAssertEqual(PulseStrings(language: .chinese).bluetoothDeviceCount(3), "3 个设备")
+        XCTAssertEqual(
+            PulseStrings(language: .chinese).bluetoothBatteryLabel(
+                BluetoothBatteryLevel(role: .left, percentage: 0.96)
+            ),
+            "左耳电量 96%"
+        )
+        let airPodsLeftLowBattery = BluetoothBatteryAlert(
+            deviceID: "airpods",
+            deviceName: "AirPods Pro",
+            category: .headphones,
+            role: .left,
+            percentage: 0.09,
+            severity: .critical,
+            isConnected: false
+        )
+        XCTAssertEqual(
+            PulseStrings(language: .chinese).bluetoothBatteryAlertTitle(airPodsLeftLowBattery),
+            "AirPods Pro 左耳"
+        )
+        XCTAssertEqual(
+            PulseStrings(language: .english).bluetoothBatteryAlertDetail(airPodsLeftLowBattery),
+            "Left battery critically low · charge soon"
+        )
         XCTAssertEqual(PulseStrings(language: .english).text(.screenshotCaptured), "Screenshot")
         XCTAssertEqual(PulseStrings(language: .chinese).text(.screenshotCaptured), "截图")
         XCTAssertEqual(PulseStrings(language: .english).text(.screenshotSaveAction), "Save")
         XCTAssertEqual(PulseStrings(language: .chinese).text(.screenshotShareAction), "分享")
         XCTAssertEqual(PulseStrings(language: .english).text(.screenshotRecognizeTextAction), "Recognize Text")
         XCTAssertEqual(PulseStrings(language: .chinese).text(.screenshotTextCopied), "文字已复制")
+        XCTAssertEqual(PulseStrings(language: .english).text(.screenshotAuthorizeScreenRecording), "Authorize")
+        XCTAssertEqual(PulseStrings(language: .chinese).text(.screenshotAuthorizeScreenRecording), "授权")
+        XCTAssertEqual(
+            PulseStrings(language: .english).text(.screenshotHidePulseDuringCapture),
+            "Hide Pulse while capturing"
+        )
+        XCTAssertEqual(PulseStrings(language: .chinese).text(.screenshotHidePulseDuringCapture), "截图时隐藏 Pulse")
+        XCTAssertTrue(
+            PulseStrings(language: .chinese)
+                .text(.screenshotHidePulseDuringCaptureDetail)
+                .contains("Pulse 本身")
+        )
+        XCTAssertEqual(PulseStrings(language: .english).text(.screenshotEditAction), "Edit")
+        XCTAssertEqual(PulseStrings(language: .chinese).text(.screenshotEditAction), "编辑")
+        XCTAssertEqual(PulseStrings(language: .chinese).screenshotEditorToolTitle(.mosaic), "马赛克")
+        XCTAssertEqual(PulseStrings(language: .chinese).screenshotEditorToolTitle(.ellipse), "圆形")
+        XCTAssertTrue(
+            PulseStrings(language: .chinese)
+                .text(.screenshotScreenRecordingPermissionNotice)
+                .contains("屏幕录制权限")
+        )
         XCTAssertEqual(PulseStrings(language: .english).text(.captureFullScreenShortcut), "Capture Full Screen")
         XCTAssertEqual(PulseStrings(language: .chinese).text(.captureSelectionShortcut), "区域截图")
         XCTAssertEqual(PulseStrings(language: .english).screenshotModeTitle(.window), "Window")

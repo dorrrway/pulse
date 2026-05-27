@@ -13,6 +13,7 @@ final class PulseStore {
     var installedApplicationsRefreshedAt: Date?
     var runningApplications: RunningApplicationState
     var clipboardHistory: ClipboardHistoryStore
+    var bluetoothDevices: BluetoothDeviceStore
     var capturedAt: Date = .distantPast
     var deviceName: String?
     var languagePreference: PulseLanguagePreference {
@@ -65,6 +66,11 @@ final class PulseStore {
             notifyShortcutPreferencesDidChange()
         }
     }
+    var hidePulseDuringScreenshots: Bool {
+        didSet {
+            userDefaults.set(hidePulseDuringScreenshots, forKey: Self.hidePulseDuringScreenshotsKey)
+        }
+    }
     var favoriteApplicationPaths: [String] {
         didSet {
             userDefaults.set(favoriteApplicationPaths, forKey: Self.favoriteApplicationPathsKey)
@@ -94,6 +100,7 @@ final class PulseStore {
     private static let captureFullScreenShortcutKey = "pulse.settings.shortcuts.captureFullScreen"
     private static let captureWindowShortcutKey = "pulse.settings.shortcuts.captureWindow"
     private static let captureSelectionShortcutKey = "pulse.settings.shortcuts.captureSelection"
+    private static let hidePulseDuringScreenshotsKey = "pulse.settings.screenshots.hidePulseDuringCapture"
     private static let favoriteApplicationPathsKey = "pulse.settings.installedApps.favoritePaths"
 
     init(
@@ -101,6 +108,7 @@ final class PulseStore {
         launchAtLoginService: PulseLoginItemService = .live,
         installedAppCatalog: InstalledAppCatalog = InstalledAppCatalog(),
         clipboardHistory: ClipboardHistoryStore? = nil,
+        bluetoothDevices: BluetoothDeviceStore? = nil,
         deviceName: String? = nil,
         reconcileLaunchAtLogin: Bool? = nil,
         startSamplingImmediately: Bool = false,
@@ -114,6 +122,7 @@ final class PulseStore {
             userDefaults: userDefaults,
             isRunningUnitTests: isRunningUnitTests
         )
+        self.bluetoothDevices = bluetoothDevices ?? BluetoothDeviceStore()
         self.deviceName = Self.normalizedDeviceName(deviceName) ?? Self.currentDeviceName()
         self.languagePreference = Self.loadLanguagePreference(from: userDefaults, key: Self.languagePreferenceKey)
         self.appearancePreference = Self.loadAppearancePreference(from: userDefaults, key: Self.appearancePreferenceKey)
@@ -145,6 +154,11 @@ final class PulseStore {
         self.captureSelectionShortcut = Self.loadKeyboardShortcut(
             from: userDefaults,
             key: Self.captureSelectionShortcutKey
+        )
+        self.hidePulseDuringScreenshots = Self.loadBool(
+            from: userDefaults,
+            key: Self.hidePulseDuringScreenshotsKey,
+            defaultValue: true
         )
         self.favoriteApplicationPaths = Self.loadFavoriteApplicationPaths(
             from: userDefaults,
@@ -195,6 +209,8 @@ final class PulseStore {
         guard samplingTask == nil else {
             return
         }
+
+        bluetoothDevices.startBackgroundMonitoring()
 
         samplingTask = Task { [sampler] in
             while !Task.isCancelled {
@@ -275,6 +291,10 @@ final class PulseStore {
 
     func setInstalledAppsDisplayMode(_ mode: PulseInstalledAppsDisplayMode) {
         installedAppsDisplayMode = mode
+    }
+
+    func setHidePulseDuringScreenshots(_ shouldHide: Bool) {
+        hidePulseDuringScreenshots = shouldHide
     }
 
     func setShortcut(_ shortcut: PulseKeyboardShortcut?, for action: PulseShortcutAction) {
@@ -616,6 +636,14 @@ final class PulseStore {
 
     private static func loadFavoriteApplicationPaths(from userDefaults: UserDefaults, key: String) -> [String] {
         sanitizedFavoriteApplicationPaths(userDefaults.stringArray(forKey: key) ?? [])
+    }
+
+    private static func loadBool(from userDefaults: UserDefaults, key: String, defaultValue: Bool) -> Bool {
+        guard let value = userDefaults.object(forKey: key) as? Bool else {
+            return defaultValue
+        }
+
+        return value
     }
 
     private static func loadKeyboardShortcut(from userDefaults: UserDefaults, key: String) -> PulseKeyboardShortcut? {

@@ -190,12 +190,27 @@ struct PulseSettingsView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
-                        HStack(spacing: 8) {
-                            previewButton(title: strings.islandBatteryLevelTitle(), alerts: [.power])
-                            previewButton(title: strings.text(.thermal), alerts: [.thermal])
-                            previewButton(title: strings.text(.disk), alerts: [.disk])
-                            previewButton(title: strings.text(.memoryPressure), alerts: [.memory])
-                            previewButton(title: previewAllTitle(strings: strings), alerts: PulseIslandCriticalAlert.allCases)
+                        ViewThatFits(in: .horizontal) {
+                            previewButtonRow(strings: strings)
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack(spacing: 8) {
+                                    previewButton(title: strings.islandBatteryLevelTitle(), alerts: [.power])
+                                    previewButton(
+                                        title: strings.text(.bluetooth),
+                                        alerts: [PulseIslandCriticalAlert.previewBluetoothBattery]
+                                    )
+                                    previewButton(title: strings.text(.thermal), alerts: [.thermal])
+                                    previewButton(title: strings.text(.disk), alerts: [.disk])
+                                }
+
+                                HStack(spacing: 8) {
+                                    previewButton(title: strings.text(.memoryPressure), alerts: [.memory])
+                                    previewButton(
+                                        title: previewAllTitle(strings: strings),
+                                        alerts: PulseIslandCriticalAlert.previewCases
+                                    )
+                                }
+                            }
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -298,13 +313,27 @@ private extension PulseSettingsView {
 
     var settingsWindowHeight: CGFloat {
         #if DEBUG
-        return 652
+        return 680
         #else
         return 594
         #endif
     }
 
     #if DEBUG
+    func previewButtonRow(strings: PulseStrings) -> some View {
+        HStack(spacing: 8) {
+            previewButton(title: strings.islandBatteryLevelTitle(), alerts: [.power])
+            previewButton(
+                title: strings.text(.bluetooth),
+                alerts: [PulseIslandCriticalAlert.previewBluetoothBattery]
+            )
+            previewButton(title: strings.text(.thermal), alerts: [.thermal])
+            previewButton(title: strings.text(.disk), alerts: [.disk])
+            previewButton(title: strings.text(.memoryPressure), alerts: [.memory])
+            previewButton(title: previewAllTitle(strings: strings), alerts: PulseIslandCriticalAlert.previewCases)
+        }
+    }
+
     func previewButton(title: String, alerts: [PulseIslandCriticalAlert]) -> some View {
         Button(title) {
             previewCriticalAlerts(alerts)

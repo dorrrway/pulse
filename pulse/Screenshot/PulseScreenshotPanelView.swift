@@ -1,14 +1,47 @@
+import AppKit
 import SwiftUI
 
 struct PulseScreenshotPanelView: View {
     @Environment(PulseStore.self) private var store
+    @State private var hasScreenCaptureAccess: Bool
 
+    var preflightScreenCaptureAccess: @MainActor () -> Bool
+    var requestScreenCaptureAccess: @MainActor () -> Bool
+    var openScreenCaptureSettings: @MainActor () -> Void
     var captureAction: (PulseScreenshotMode) -> Void
+
+    init(
+        screenCaptureAccessGranted: Bool? = nil,
+        preflightScreenCaptureAccess: @escaping @MainActor () -> Bool = {
+            PulseScreenshotService.live.preflightAccess()
+        },
+        requestScreenCaptureAccess: @escaping @MainActor () -> Bool = {
+            PulseScreenshotService.live.requestAccess()
+        },
+        openScreenCaptureSettings: @escaping @MainActor () -> Void = {
+            PulseScreenshotService.live.openScreenCaptureSettings()
+        },
+        captureAction: @escaping (PulseScreenshotMode) -> Void
+    ) {
+        self.preflightScreenCaptureAccess = preflightScreenCaptureAccess
+        self.requestScreenCaptureAccess = requestScreenCaptureAccess
+        self.openScreenCaptureSettings = openScreenCaptureSettings
+        self.captureAction = captureAction
+        _hasScreenCaptureAccess = State(initialValue: screenCaptureAccessGranted ?? true)
+    }
 
     var body: some View {
         let strings = store.strings
 
         VStack(alignment: .leading, spacing: PulseDesign.Spacing.sm) {
+            if !hasScreenCaptureAccess {
+                PulseScreenshotPermissionBanner(
+                    message: strings.text(.screenshotScreenRecordingPermissionNotice),
+                    authorizeTitle: strings.text(.screenshotAuthorizeScreenRecording),
+                    authorizeAction: requestScreenCapturePermission
+                )
+            }
+
             ForEach(PulseScreenshotMode.allCases) { mode in
                 PulseScreenshotModeButton(
                     mode: mode,
@@ -29,6 +62,16 @@ struct PulseScreenshotPanelView: View {
             }
 
             Spacer(minLength: 0)
+
+            PulseScreenshotOptionsFooter(
+                title: strings.text(.screenshotHidePulseDuringCapture),
+                detail: strings.text(.screenshotHidePulseDuringCaptureDetail),
+                isOn: Binding(
+                    get: { store.hidePulseDuringScreenshots },
+                    set: { store.setHidePulseDuringScreenshots($0) }
+                )
+            )
+            .padding(.top, PulsePanelLayout.footerTopSpacing)
         }
         .padding(.horizontal, PulsePanelLayout.outerPadding)
         .padding(.top, PulsePanelLayout.outerPadding)
@@ -38,6 +81,143 @@ struct PulseScreenshotPanelView: View {
             height: PulseIslandLayout.attachedPanelSize.height,
             alignment: .top
         )
+        .onAppear(perform: refreshScreenCaptureAccess)
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            refreshScreenCaptureAccess()
+        }
+    }
+
+    @MainActor
+    private func refreshScreenCaptureAccess() {
+        hasScreenCaptureAccess = preflightScreenCaptureAccess()
+    }
+
+    @MainActor
+    private func requestScreenCapturePermission() {
+        if preflightScreenCaptureAccess() {
+            hasScreenCaptureAccess = true
+            return
+        }
+
+        if requestScreenCaptureAccess() {
+            hasScreenCaptureAccess = preflightScreenCaptureAccess()
+            return
+        }
+
+        hasScreenCaptureAccess = false
+        openScreenCaptureSettings()
+    }
+}
+
+private struct PulseScreenshotOptionsFooter: View {
+    var title: String
+    var detail: String
+    @Binding var isOn: Bool
+
+    var body: some View {
+        HStack(spacing: PulseDesign.Spacing.xs) {
+            Spacer(minLength: 0)
+
+            Text(title)
+                .font(.system(.caption, design: .rounded, weight: .medium))
+                .foregroundStyle(.white.opacity(0.58))
+                .lineLimit(1)
+                .minimumScaleFactor(0.86)
+
+            Toggle(title, isOn: $isOn)
+                .labelsHidden()
+                .toggleStyle(PulseScreenshotFooterSwitchStyle())
+        }
+        .frame(maxWidth: .infinity, minHeight: PulsePanelLayout.footerHeight, alignment: .trailing)
+        .help(detail)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(title)
+        .accessibilityHint(detail)
+    }
+}
+
+private struct PulseScreenshotFooterSwitchStyle: ToggleStyle {
+    private let trackSize = CGSize(width: 38, height: 22)
+    private let knobSide: CGFloat = 18
+
+    func makeBody(configuration: Configuration) -> some View {
+        Button {
+            withAnimation(.snappy(duration: 0.16)) {
+                configuration.isOn.toggle()
+            }
+        } label: {
+            ZStack(alignment: configuration.isOn ? .trailing : .leading) {
+                Capsule(style: .continuous)
+                    .fill(trackFill(isOn: configuration.isOn))
+                    .overlay {
+                        Capsule(style: .continuous)
+                            .stroke(.white.opacity(configuration.isOn ? 0.12 : 0.08), lineWidth: 1)
+                    }
+
+                Circle()
+                    .fill(.white.opacity(0.96))
+                    .frame(width: knobSide, height: knobSide)
+                    .shadow(color: .black.opacity(0.22), radius: 3, y: 1)
+                    .padding(2)
+            }
+            .frame(width: trackSize.width, height: trackSize.height)
+            .contentShape(Capsule(style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func trackFill(isOn: Bool) -> Color {
+        isOn ? .green.opacity(0.92) : .white.opacity(0.18)
+    }
+}
+
+private struct PulseScreenshotPermissionBanner: View {
+    var message: String
+    var authorizeTitle: String
+    var authorizeAction: () -> Void
+
+    var body: some View {
+        HStack(alignment: .center, spacing: PulseDesign.Spacing.sm) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.orange.opacity(0.96))
+                .frame(width: 24, height: 24)
+                .accessibilityHidden(true)
+
+            Text(message)
+                .font(.system(.caption, design: .rounded, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.88))
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Spacer(minLength: PulseDesign.Spacing.xs)
+
+            Button(action: authorizeAction) {
+                Text(authorizeTitle)
+                    .font(.system(.caption, design: .rounded, weight: .semibold))
+                    .foregroundStyle(.orange.opacity(0.96))
+                    .lineLimit(1)
+                    .padding(.horizontal, PulseDesign.Spacing.sm)
+                    .frame(height: 26)
+                    .background(
+                        .orange.opacity(0.16),
+                        in: RoundedRectangle(cornerRadius: PulseDesign.Radius.control, style: .continuous)
+                    )
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(authorizeTitle)
+        }
+        .padding(.horizontal, PulseDesign.Spacing.sm)
+        .padding(.vertical, PulseDesign.Spacing.compact)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            .orange.opacity(0.12),
+            in: RoundedRectangle(cornerRadius: PulseDesign.Radius.card, style: .continuous)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: PulseDesign.Radius.card, style: .continuous)
+                .stroke(.orange.opacity(0.28), lineWidth: 1)
+        }
     }
 }
 
@@ -119,7 +299,12 @@ private struct PulseScreenshotModeButton: View {
 }
 
 #Preview {
-    PulseScreenshotPanelView { _ in }
+    PulseScreenshotPanelView(
+        screenCaptureAccessGranted: false,
+        preflightScreenCaptureAccess: { false },
+        requestScreenCaptureAccess: { false },
+        openScreenCaptureSettings: {}
+    ) { _ in }
         .environment(
             PulseStore(
                 launchAtLoginService: PulseLoginItemService(

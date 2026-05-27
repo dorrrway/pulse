@@ -1,19 +1,31 @@
 import Foundation
 
-enum PulseIslandSeedMetric: CaseIterable, Equatable, Sendable {
+enum PulseIslandSeedMetric: Equatable, Hashable, Sendable {
     case memory
     case cpu
     case power
+    case bluetoothBattery(BluetoothBatteryAlert)
 
     static let rotationInterval: TimeInterval = 3
     static let defaultRotationMetrics: [PulseIslandSeedMetric] = [.memory, .cpu]
 
     static func rotationMetrics(for power: PowerUsage) -> [PulseIslandSeedMetric] {
-        guard shouldIncludePower(power) else {
-            return defaultRotationMetrics
+        rotationMetrics(for: power, bluetoothDevices: [])
+    }
+
+    static func rotationMetrics(
+        for power: PowerUsage,
+        bluetoothDevices: [BluetoothDevice]
+    ) -> [PulseIslandSeedMetric] {
+        var metrics = defaultRotationMetrics
+
+        if shouldIncludePower(power) {
+            metrics.append(.power)
         }
 
-        return defaultRotationMetrics + [.power]
+        metrics += BluetoothBatteryAlert.active(devices: bluetoothDevices).map(Self.bluetoothBattery)
+
+        return metrics
     }
 
     static func shouldIncludePower(_ power: PowerUsage) -> Bool {
@@ -81,6 +93,8 @@ enum PulseIslandSeedMetric: CaseIterable, Equatable, Sendable {
             "IslandCPUIcon"
         case .power:
             Self.compactPowerIconAssetName(power)
+        case .bluetoothBattery(let alert):
+            alert.severity == .critical ? "IslandBattery10Icon" : "IslandBattery20Icon"
         }
     }
 
@@ -97,31 +111,52 @@ enum PulseIslandSeedMetric: CaseIterable, Equatable, Sendable {
     }
 }
 
-enum PulseIslandCriticalAlert: CaseIterable, Equatable, Hashable, Sendable {
+enum PulseIslandCriticalAlert: Equatable, Hashable, Sendable {
     case power
+    case bluetoothBattery(BluetoothBatteryAlert)
     case thermal
     case disk
     case memory
 
     private static let lowDiskAvailableBytes: Int64 = 5_000_000_000
     private static let highDiskUsagePercentage = 0.95
+    #if DEBUG
+    static let previewBluetoothBattery = PulseIslandCriticalAlert.bluetoothBattery(.previewAirPodsProLeftCritical)
+    static let previewCases: [PulseIslandCriticalAlert] = [
+        .power,
+        previewBluetoothBattery,
+        .thermal,
+        .disk,
+        .memory,
+    ]
+    #endif
 
     static func active(
         core: CoreMetricsSnapshot,
-        signal: SignalMetricsSnapshot
+        signal: SignalMetricsSnapshot,
+        bluetoothDevices: [BluetoothDevice] = []
     ) -> [PulseIslandCriticalAlert] {
-        allCases.filter { alert in
-            switch alert {
-            case .power:
-                PulseIslandSeedMetric.shouldPresentCriticalPowerAlert(signal.power)
-            case .thermal:
-                signal.thermal.condition == .critical
-            case .disk:
-                shouldPresentDiskAlert(core.disk)
-            case .memory:
-                signal.memory.pressureLevel == .high
-            }
+        var alerts = [PulseIslandCriticalAlert]()
+
+        if PulseIslandSeedMetric.shouldPresentCriticalPowerAlert(signal.power) {
+            alerts.append(.power)
         }
+
+        alerts += BluetoothBatteryAlert.active(devices: bluetoothDevices).map(Self.bluetoothBattery)
+
+        if signal.thermal.condition == .critical {
+            alerts.append(.thermal)
+        }
+
+        if shouldPresentDiskAlert(core.disk) {
+            alerts.append(.disk)
+        }
+
+        if signal.memory.pressureLevel == .high {
+            alerts.append(.memory)
+        }
+
+        return alerts
     }
 
     static func shouldPresentDiskAlert(_ disk: DiskUsage) -> Bool {
@@ -136,6 +171,8 @@ enum PulseIslandCriticalAlert: CaseIterable, Equatable, Hashable, Sendable {
         switch self {
         case .power:
             PulseIslandSeedMetric.compactPowerIconAssetName(power)
+        case .bluetoothBattery(let alert):
+            alert.severity == .critical ? "IslandBattery10Icon" : "IslandBattery20Icon"
         case .thermal:
             "IslandThermalIcon"
         case .disk:
@@ -158,15 +195,16 @@ enum PulseIslandModule: CaseIterable, Equatable, Hashable {
     case applications
     case clipboard
     case screenshots
+    case bluetooth
     #if DEBUG
     case translation
     #endif
 
     static var allCases: [PulseIslandModule] {
         #if DEBUG
-        [.resourceMonitor, .applications, .clipboard, .screenshots, .translation]
+        [.resourceMonitor, .applications, .clipboard, .screenshots, .bluetooth, .translation]
         #else
-        [.resourceMonitor, .applications, .clipboard, .screenshots]
+        [.resourceMonitor, .applications, .clipboard, .screenshots, .bluetooth]
         #endif
     }
 
@@ -180,6 +218,8 @@ enum PulseIslandModule: CaseIterable, Equatable, Hashable {
             .clipboard
         case .screenshots:
             .screenshots
+        case .bluetooth:
+            .bluetooth
         #if DEBUG
         case .translation:
             .translation
@@ -197,6 +237,8 @@ enum PulseIslandModule: CaseIterable, Equatable, Hashable {
             "IslandClipboardIcon"
         case .screenshots:
             "IslandScreenshotIcon"
+        case .bluetooth:
+            "IslandBluetoothIcon"
         #if DEBUG
         case .translation:
             "IslandTranslateIcon"

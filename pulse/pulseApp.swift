@@ -62,7 +62,10 @@ struct PulseApp: App {
 
         shortcutController.actionHandler = { action in
             if let screenshotMode = action.screenshotMode {
-                islandPanelController.captureScreenshot(mode: screenshotMode)
+                islandPanelController.captureScreenshot(
+                    mode: screenshotMode,
+                    hidesPulseDuringCapture: store.hidePulseDuringScreenshots
+                )
                 return
             }
 

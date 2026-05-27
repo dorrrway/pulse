@@ -105,8 +105,15 @@ struct PulseIslandView: View {
 
     var body: some View {
         let strings = store.strings
-        let criticalAlerts = PulseIslandCriticalAlert.active(core: store.coreMetrics, signal: store.signalMetrics)
-        let rotationMetrics = PulseIslandSeedMetric.rotationMetrics(for: store.signalMetrics.power)
+        let criticalAlerts = PulseIslandCriticalAlert.active(
+            core: store.coreMetrics,
+            signal: store.signalMetrics,
+            bluetoothDevices: store.bluetoothDevices.devices
+        )
+        let rotationMetrics = PulseIslandSeedMetric.rotationMetrics(
+            for: store.signalMetrics.power,
+            bluetoothDevices: store.bluetoothDevices.devices
+        )
         let activeSeedMetric = selectedSeedMetric.normalized(in: rotationMetrics)
         let presentation = seedPresentation(metric: activeSeedMetric, strings: strings)
 
@@ -544,6 +551,7 @@ struct PulseIslandView: View {
                         .font(PulseDesign.Typography.islandNotchedSeed)
                         .foregroundStyle(activity.tint.opacity(0.98))
                         .lineLimit(1)
+                        .minimumScaleFactor(0.72)
                 }
 
                 Spacer(minLength: PulseDesign.Spacing.sm)
@@ -663,6 +671,13 @@ struct PulseIslandView: View {
             }
 
             screenshotPreviewActionButton(
+                title: strings.text(.screenshotEditAction),
+                icon: .system("slider.horizontal.3")
+            ) {
+                controller.editScreenshotPreview(strings: strings)
+            }
+
+            screenshotPreviewActionButton(
                 title: strings.text(.screenshotPinAction),
                 icon: .asset(PanelControlIcon.pin)
             ) {
@@ -767,9 +782,18 @@ struct PulseIslandView: View {
                         .environment(store)
                 case .screenshots:
                     PulseScreenshotPanelView { mode in
-                        controller.captureScreenshot(mode: mode)
+                        controller.captureScreenshot(
+                            mode: mode,
+                            hidesPulseDuringCapture: store.hidePulseDuringScreenshots
+                        )
                     }
                     .environment(store)
+                case .bluetooth:
+                    BluetoothPanelView(
+                        bluetooth: store.bluetoothDevices,
+                        collapseBeforeAuthorization: collapseAction
+                    )
+                        .environment(store)
                 #if DEBUG
                 case .translation:
                     TranslationPanelView()
@@ -818,7 +842,7 @@ struct PulseIslandView: View {
         case .applications:
             installedAppsAttachedPanelShape
                 .fill(fill, style: FillStyle(eoFill: true))
-        case .clipboard, .screenshots:
+        case .clipboard, .screenshots, .bluetooth:
             RoundedRectangle(cornerRadius: PulsePanelLayout.panelCornerRadius, style: .continuous)
                 .fill(fill)
         #if DEBUG
@@ -838,7 +862,7 @@ struct PulseIslandView: View {
         case .applications:
             installedAppsAttachedPanelShape
                 .fill(.black, style: FillStyle(eoFill: true))
-        case .clipboard, .screenshots:
+        case .clipboard, .screenshots, .bluetooth:
             RoundedRectangle(cornerRadius: PulsePanelLayout.panelCornerRadius, style: .continuous)
                 .fill(.black)
         #if DEBUG
@@ -1006,8 +1030,13 @@ struct PulseIslandView: View {
         activeCriticalAlert = nextAlert
         acknowledgedCriticalAlerts.insert(nextAlert)
 
-        if nextAlert == .power {
+        switch nextAlert {
+        case .power:
             selectedSeedMetric = .power
+        case .bluetoothBattery(let alert):
+            selectedSeedMetric = .bluetoothBattery(alert)
+        case .thermal, .disk, .memory:
+            break
         }
 
         controller.presentCriticalAlert()
@@ -1085,7 +1114,10 @@ struct PulseIslandView: View {
             }
 
             withAnimation(seedMetricAnimation) {
-                let rotationMetrics = PulseIslandSeedMetric.rotationMetrics(for: store.signalMetrics.power)
+                let rotationMetrics = PulseIslandSeedMetric.rotationMetrics(
+                    for: store.signalMetrics.power,
+                    bluetoothDevices: store.bluetoothDevices.devices
+                )
                 selectedSeedMetric = selectedSeedMetric.next(in: rotationMetrics)
             }
         }
@@ -1163,6 +1195,16 @@ struct PulseIslandView: View {
                 progress: percentage,
                 detail: strings.criticalPowerIslandDetail(power)
             )
+        case .bluetoothBattery(let batteryAlert):
+            return IslandActivity(
+                metric: metric,
+                title: strings.bluetoothBatteryAlertTitle(batteryAlert),
+                value: ResourceFormatters.percentage(batteryAlert.percentage),
+                iconAssetName: metric.compactIconAssetName(power: store.signalMetrics.power),
+                tint: SignalStatusColor.bluetoothBattery(batteryAlert),
+                progress: batteryAlert.percentage,
+                detail: strings.bluetoothBatteryAlertDetail(batteryAlert)
+            )
         }
     }
 
@@ -1194,6 +1236,17 @@ struct PulseIslandView: View {
                 tint: SignalStatusColor.power(power),
                 progress: percentage,
                 detail: strings.criticalPowerIslandDetail(power)
+            )
+        case .bluetoothBattery(let batteryAlert):
+            return IslandActivity(
+                metric: .power,
+                identity: alert,
+                title: strings.bluetoothBatteryAlertTitle(batteryAlert),
+                value: ResourceFormatters.percentage(batteryAlert.percentage),
+                iconAssetName: alert.iconAssetName(power: signalMetrics.power),
+                tint: SignalStatusColor.bluetoothBattery(batteryAlert),
+                progress: batteryAlert.percentage,
+                detail: strings.bluetoothBatteryAlertDetail(batteryAlert)
             )
         case .thermal:
             let thermal = signalMetrics.thermal
@@ -1258,6 +1311,17 @@ struct PulseIslandView: View {
                 tint: SignalStatusColor.power(power),
                 progress: power.batteryPercentage ?? 0,
                 detail: strings.criticalPowerIslandDetail(power)
+            )
+        case .bluetoothBattery(let batteryAlert):
+            return IslandActivity(
+                metric: .power,
+                identity: alert,
+                title: strings.bluetoothBatteryAlertTitle(batteryAlert),
+                value: ResourceFormatters.percentage(batteryAlert.percentage),
+                iconAssetName: alert.iconAssetName(power: .empty),
+                tint: SignalStatusColor.bluetoothBattery(batteryAlert),
+                progress: batteryAlert.percentage,
+                detail: strings.bluetoothBatteryAlertDetail(batteryAlert)
             )
         case .thermal:
             let thermal = ThermalUsage(condition: .critical, stateDuration: 45)

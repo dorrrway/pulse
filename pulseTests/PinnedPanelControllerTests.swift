@@ -342,22 +342,57 @@ final class PinnedPanelControllerTests: XCTestCase {
     }
 
     @MainActor
+    func testScreenshotCaptureCanKeepPulseVisible() async throws {
+        let controller = PulseIslandPanelController()
+        let store = PulseStore(
+            userDefaults: makeUserDefaults(),
+            launchAtLoginService: makeLoginItemService(),
+            reconcileLaunchAtLogin: false
+        )
+        let updateController = PulseUpdateController(startingUpdater: false)
+        let service = PulseScreenshotService(
+            preflightAccess: { true },
+            requestAccess: { false },
+            openScreenCaptureSettings: {},
+            capture: { _ in .cancelled }
+        )
+
+        controller.present(store: store, updateController: updateController)
+        defer {
+            controller.dismiss()
+        }
+
+        controller.captureScreenshot(
+            mode: .selection,
+            hidesPulseDuringCapture: false,
+            service: service
+        )
+
+        try await Task.sleep(for: .milliseconds(50))
+
+        XCTAssertTrue(controller.isPresented)
+        XCTAssertEqual(controller.style, .seed)
+    }
+
+    @MainActor
     func testIslandModulesCycleHorizontally() {
         XCTAssertEqual(PulseIslandModule.resourceMonitor.shifted(by: 1), .applications)
         XCTAssertEqual(PulseIslandModule.applications.shifted(by: 1), .clipboard)
         XCTAssertEqual(PulseIslandModule.clipboard.shifted(by: 1), .screenshots)
+        XCTAssertEqual(PulseIslandModule.screenshots.shifted(by: 1), .bluetooth)
         #if DEBUG
-        XCTAssertEqual(PulseIslandModule.screenshots.shifted(by: 1), .translation)
+        XCTAssertEqual(PulseIslandModule.bluetooth.shifted(by: 1), .translation)
         XCTAssertEqual(PulseIslandModule.translation.shifted(by: 1), .resourceMonitor)
         XCTAssertEqual(PulseIslandModule.resourceMonitor.shifted(by: -1), .translation)
-        XCTAssertEqual(PulseIslandModule.translation.shifted(by: -1), .screenshots)
+        XCTAssertEqual(PulseIslandModule.translation.shifted(by: -1), .bluetooth)
         #else
-        XCTAssertEqual(PulseIslandModule.screenshots.shifted(by: 1), .resourceMonitor)
-        XCTAssertEqual(PulseIslandModule.resourceMonitor.shifted(by: -1), .screenshots)
+        XCTAssertEqual(PulseIslandModule.bluetooth.shifted(by: 1), .resourceMonitor)
+        XCTAssertEqual(PulseIslandModule.resourceMonitor.shifted(by: -1), .bluetooth)
         #endif
         XCTAssertEqual(PulseIslandModule.applications.shifted(by: -1), .resourceMonitor)
         XCTAssertEqual(PulseIslandModule.clipboard.shifted(by: -1), .applications)
         XCTAssertEqual(PulseIslandModule.screenshots.shifted(by: -1), .clipboard)
+        XCTAssertEqual(PulseIslandModule.bluetooth.shifted(by: -1), .screenshots)
     }
 
     @MainActor
@@ -537,6 +572,66 @@ final class PinnedPanelControllerTests: XCTestCase {
     }
 
     @MainActor
+    func testIslandSeedMetricIncludesBluetoothLowBatteryInDefaultRotation() {
+        let airPods = BluetoothDevice(
+            id: "airpods",
+            name: "AirPods Pro",
+            category: .headphones,
+            connectionState: .connected,
+            batteryLevels: [
+                BluetoothBatteryLevel(role: .left, percentage: 0.18),
+                BluetoothBatteryLevel(role: .right, percentage: 0.09),
+                BluetoothBatteryLevel(role: .case, percentage: 0.31),
+            ]
+        )
+        let alerts = airPods.lowBatteryAlerts
+
+        let metrics = PulseIslandSeedMetric.rotationMetrics(
+            for: .empty,
+            bluetoothDevices: [airPods]
+        )
+
+        XCTAssertEqual(
+            metrics,
+            [
+                .memory,
+                .cpu,
+                .bluetoothBattery(alerts[1]),
+                .bluetoothBattery(alerts[0]),
+            ]
+        )
+        XCTAssertEqual(PulseIslandSeedMetric.cpu.next(in: metrics), .bluetoothBattery(alerts[1]))
+        XCTAssertEqual(PulseIslandSeedMetric.bluetoothBattery(alerts[0]).next(in: metrics), .memory)
+        XCTAssertEqual(PulseIslandSeedMetric.current(elapsedTime: 6, interval: 3, metrics: metrics), .bluetoothBattery(alerts[1]))
+        XCTAssertEqual(PulseIslandSeedMetric.current(elapsedTime: 9, interval: 3, metrics: metrics), .bluetoothBattery(alerts[0]))
+    }
+
+    @MainActor
+    func testIslandSeedMetricKeepsInternalPowerBeforeBluetoothBattery() {
+        let lowBattery = PowerUsage(
+            hasBattery: true,
+            batteryPercentage: 0.19,
+            isPluggedIn: false,
+            isCharging: false,
+            timeRemaining: nil
+        )
+        let trackpad = BluetoothDevice(
+            id: "trackpad",
+            name: "Magic Trackpad",
+            category: .trackpad,
+            connectionState: .connected,
+            batteryLevels: [
+                BluetoothBatteryLevel(role: .device, percentage: 0.19),
+            ]
+        )
+
+        XCTAssertEqual(
+            PulseIslandSeedMetric.rotationMetrics(for: lowBattery, bluetoothDevices: [trackpad]),
+            [.memory, .cpu, .power, .bluetoothBattery(trackpad.lowBatteryAlerts[0])]
+        )
+    }
+
+    @MainActor
     func testIslandSeedMetricUsesCompactIconAssets() {
         let lowBattery = PowerUsage(
             hasBattery: true,
@@ -565,6 +660,21 @@ final class PinnedPanelControllerTests: XCTestCase {
         XCTAssertEqual(PulseIslandSeedMetric.power.compactIconAssetName(power: lowBattery), "IslandBattery20Icon")
         XCTAssertEqual(PulseIslandSeedMetric.power.compactIconAssetName(power: criticalBattery), "IslandBattery10Icon")
         XCTAssertEqual(PulseIslandSeedMetric.power.compactIconAssetName(power: chargingLowBattery), "IslandBatteryChargingIcon")
+        XCTAssertEqual(
+            PulseIslandSeedMetric.bluetoothBattery(
+                BluetoothBatteryAlert(
+                    deviceID: "airpods",
+                    deviceName: "AirPods Pro",
+                    category: .headphones,
+                    role: .left,
+                    percentage: 0.09,
+                    severity: .critical,
+                    isConnected: true
+                )
+            )
+                .compactIconAssetName(power: .empty),
+            "IslandBattery10Icon"
+        )
     }
 
     @MainActor
@@ -644,6 +754,50 @@ final class PinnedPanelControllerTests: XCTestCase {
     }
 
     @MainActor
+    func testIslandCriticalAlertsIncludeBluetoothBatteryAfterInternalPower() {
+        let criticalPower = PowerUsage(
+            hasBattery: true,
+            batteryPercentage: 0.09,
+            isPluggedIn: false,
+            isCharging: false,
+            timeRemaining: nil
+        )
+        let signal = SignalMetricsSnapshot(
+            memory: .empty,
+            thermal: .empty,
+            power: criticalPower,
+            diskIO: .empty,
+            runtime: .empty
+        )
+        let airPods = BluetoothDevice(
+            id: "airpods",
+            name: "AirPods Pro",
+            category: .headphones,
+            connectionState: .disconnected,
+            batteryLevels: [
+                BluetoothBatteryLevel(role: .left, percentage: 0.18),
+                BluetoothBatteryLevel(role: .right, percentage: 0.09),
+            ]
+        )
+
+        let alerts = PulseIslandCriticalAlert.active(
+            core: .empty,
+            signal: signal,
+            bluetoothDevices: [airPods]
+        )
+
+        XCTAssertEqual(alerts.count, 3)
+        XCTAssertEqual(alerts.first, .power)
+        XCTAssertEqual(
+            Array(alerts.dropFirst()),
+            [
+                .bluetoothBattery(airPods.lowBatteryAlerts[1]),
+                .bluetoothBattery(airPods.lowBatteryAlerts[0]),
+            ]
+        )
+    }
+
+    @MainActor
     func testIslandCriticalAlertsUseIconAssets() {
         let criticalPower = PowerUsage(
             hasBattery: true,
@@ -654,10 +808,34 @@ final class PinnedPanelControllerTests: XCTestCase {
         )
 
         XCTAssertEqual(PulseIslandCriticalAlert.power.iconAssetName(power: criticalPower), "IslandBattery10Icon")
+        XCTAssertEqual(
+            PulseIslandCriticalAlert.bluetoothBattery(
+                BluetoothBatteryAlert(
+                    deviceID: "keyboard",
+                    deviceName: "Keyboard",
+                    category: .keyboard,
+                    role: .device,
+                    percentage: 0.19,
+                    severity: .low,
+                    isConnected: true
+                )
+            ).iconAssetName(power: .empty),
+            "IslandBattery20Icon"
+        )
         XCTAssertEqual(PulseIslandCriticalAlert.thermal.iconAssetName(power: .empty), "IslandThermalIcon")
         XCTAssertEqual(PulseIslandCriticalAlert.disk.iconAssetName(power: .empty), "IslandStorageIcon")
         XCTAssertEqual(PulseIslandCriticalAlert.memory.iconAssetName(power: .empty), "IslandMemoryIcon")
     }
+
+    #if DEBUG
+    @MainActor
+    func testIslandCriticalAlertPreviewCasesIncludeBluetoothBattery() {
+        let bluetoothAlert = PulseIslandCriticalAlert.previewBluetoothBattery
+
+        XCTAssertTrue(PulseIslandCriticalAlert.previewCases.contains(bluetoothAlert))
+        XCTAssertEqual(bluetoothAlert.iconAssetName(power: .empty), "IslandBattery10Icon")
+    }
+    #endif
 
     @MainActor
     func testIslandCriticalAlertsIgnoreNonCriticalSignals() {

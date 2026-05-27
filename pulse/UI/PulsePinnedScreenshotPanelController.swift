@@ -1,10 +1,45 @@
 import AppKit
 import SwiftUI
 
+nonisolated enum PulsePinnedScreenshotResizeHandle: Equatable {
+    case top
+    case bottom
+    case left
+    case right
+    case topLeft
+    case topRight
+    case bottomLeft
+    case bottomRight
+
+    var horizontalDirection: CGFloat {
+        switch self {
+        case .left, .topLeft, .bottomLeft:
+            -1
+        case .right, .topRight, .bottomRight:
+            1
+        case .top, .bottom:
+            0
+        }
+    }
+
+    var verticalDirection: CGFloat {
+        switch self {
+        case .bottom, .bottomLeft, .bottomRight:
+            -1
+        case .top, .topLeft, .topRight:
+            1
+        case .left, .right:
+            0
+        }
+    }
+}
+
 nonisolated enum PulsePinnedScreenshotPanelLayout {
     static let edgeInset: CGFloat = 24
     static let cascadeOffset: CGFloat = 24
     static let cornerRadius: CGFloat = 16
+    static let resizeHandleThickness: CGFloat = 12
+    static let minimumResizeShortEdge: CGFloat = 160
     static let maximumImageWidth: CGFloat = 1120
     static let maximumImageHeight: CGFloat = 760
     static let maximumScreenWidthFraction: CGFloat = 0.72
@@ -72,6 +107,114 @@ nonisolated enum PulsePinnedScreenshotPanelLayout {
         )
     }
 
+    static func minimumResizeSize(imageSize: CGSize) -> CGSize {
+        let imageSize = normalizedImageSize(imageSize)
+        let aspectRatio = imageSize.width / imageSize.height
+        let shortEdge = min(minimumResizeShortEdge, min(imageSize.width, imageSize.height))
+
+        if aspectRatio >= 1 {
+            return CGSize(
+                width: (shortEdge * aspectRatio).rounded(.toNearestOrAwayFromZero),
+                height: shortEdge.rounded(.toNearestOrAwayFromZero)
+            )
+        }
+
+        return CGSize(
+            width: shortEdge.rounded(.toNearestOrAwayFromZero),
+            height: (shortEdge / aspectRatio).rounded(.toNearestOrAwayFromZero)
+        )
+    }
+
+    static func maximumResizeSize(imageSize: CGSize, visibleFrame: CGRect) -> CGSize {
+        let imageSize = normalizedImageSize(imageSize)
+        let availableWidth = max(1, visibleFrame.width - edgeInset * 2)
+        let availableHeight = max(1, visibleFrame.height - edgeInset * 2)
+        let scale = min(availableWidth / imageSize.width, availableHeight / imageSize.height)
+
+        return CGSize(
+            width: max(1, (imageSize.width * scale).rounded(.toNearestOrAwayFromZero)),
+            height: max(1, (imageSize.height * scale).rounded(.toNearestOrAwayFromZero))
+        )
+    }
+
+    static func resizeHandle(at location: CGPoint, in bounds: CGRect) -> PulsePinnedScreenshotResizeHandle? {
+        guard bounds.width > 0, bounds.height > 0, bounds.contains(location) else {
+            return nil
+        }
+
+        let thickness = min(resizeHandleThickness, bounds.width / 3, bounds.height / 3)
+        let isNearLeft = location.x <= bounds.minX + thickness
+        let isNearRight = location.x >= bounds.maxX - thickness
+        let isNearBottom = location.y <= bounds.minY + thickness
+        let isNearTop = location.y >= bounds.maxY - thickness
+
+        switch (isNearLeft, isNearRight, isNearBottom, isNearTop) {
+        case (true, false, false, true):
+            return .topLeft
+        case (false, true, false, true):
+            return .topRight
+        case (true, false, true, false):
+            return .bottomLeft
+        case (false, true, true, false):
+            return .bottomRight
+        case (true, false, false, false):
+            return .left
+        case (false, true, false, false):
+            return .right
+        case (false, false, false, true):
+            return .top
+        case (false, false, true, false):
+            return .bottom
+        default:
+            return nil
+        }
+    }
+
+    static func resizedWindowFrame(
+        initialFrame: CGRect,
+        imageSize: CGSize,
+        visibleFrame: CGRect,
+        handle: PulsePinnedScreenshotResizeHandle,
+        dragDelta: CGVector
+    ) -> CGRect {
+        let proposedSize = proposedResizeSize(
+            initialSize: initialFrame.size,
+            imageSize: imageSize,
+            handle: handle,
+            dragDelta: dragDelta
+        )
+        let size = clampedResizeSize(
+            proposedSize,
+            imageSize: imageSize,
+            visibleFrame: visibleFrame
+        )
+        let horizontalDirection = handle.horizontalDirection
+        let verticalDirection = handle.verticalDirection
+        let originX: CGFloat
+        let originY: CGFloat
+
+        if horizontalDirection < 0 {
+            originX = initialFrame.maxX - size.width
+        } else if horizontalDirection > 0 {
+            originX = initialFrame.minX
+        } else {
+            originX = initialFrame.midX - size.width / 2
+        }
+
+        if verticalDirection < 0 {
+            originY = initialFrame.maxY - size.height
+        } else if verticalDirection > 0 {
+            originY = initialFrame.minY
+        } else {
+            originY = initialFrame.midY - size.height / 2
+        }
+
+        return constrainedWindowFrame(
+            CGRect(x: originX, y: originY, width: size.width, height: size.height),
+            visibleFrame: visibleFrame
+        )
+    }
+
     private static func normalizedImageSize(_ imageSize: CGSize) -> CGSize {
         guard imageSize.width > 0, imageSize.height > 0 else {
             return fallbackSize
@@ -87,6 +230,72 @@ nonisolated enum PulsePinnedScreenshotPanelLayout {
         let height = min(maximumImageHeight, availableHeight, visibleFrame.height * maximumScreenHeightFraction)
 
         return CGSize(width: max(1, width), height: max(1, height))
+    }
+
+    private static func proposedResizeSize(
+        initialSize: CGSize,
+        imageSize: CGSize,
+        handle: PulsePinnedScreenshotResizeHandle,
+        dragDelta: CGVector
+    ) -> CGSize {
+        let aspectRatio = normalizedImageSize(imageSize).width / normalizedImageSize(imageSize).height
+        let horizontalDirection = handle.horizontalDirection
+        let verticalDirection = handle.verticalDirection
+
+        if horizontalDirection != 0, verticalDirection != 0 {
+            let proposedWidth = initialSize.width + horizontalDirection * dragDelta.dx
+            let proposedHeight = initialSize.height + verticalDirection * dragDelta.dy
+            let widthScale = proposedWidth / max(1, initialSize.width)
+            let heightScale = proposedHeight / max(1, initialSize.height)
+            let scale = abs(widthScale - 1) >= abs(heightScale - 1) ? widthScale : heightScale
+            let width = initialSize.width * scale
+
+            return CGSize(width: width, height: width / aspectRatio)
+        }
+
+        if horizontalDirection != 0 {
+            let width = initialSize.width + horizontalDirection * dragDelta.dx
+
+            return CGSize(width: width, height: width / aspectRatio)
+        }
+
+        let height = initialSize.height + verticalDirection * dragDelta.dy
+
+        return CGSize(width: height * aspectRatio, height: height)
+    }
+
+    private static func clampedResizeSize(
+        _ proposedSize: CGSize,
+        imageSize: CGSize,
+        visibleFrame: CGRect
+    ) -> CGSize {
+        let aspectRatio = normalizedImageSize(imageSize).width / normalizedImageSize(imageSize).height
+        let minimumSize = minimumResizeSize(imageSize: imageSize)
+        let maximumSize = maximumResizeSize(imageSize: imageSize, visibleFrame: visibleFrame)
+        let minimumWidth = min(minimumSize.width, maximumSize.width)
+        let maximumWidth = max(minimumWidth, maximumSize.width)
+        let width = min(max(proposedSize.width, minimumWidth), maximumWidth)
+
+        return CGSize(
+            width: width.rounded(.toNearestOrAwayFromZero),
+            height: (width / aspectRatio).rounded(.toNearestOrAwayFromZero)
+        )
+    }
+
+    private static func constrainedWindowFrame(_ frame: CGRect, visibleFrame: CGRect) -> CGRect {
+        let safeFrame = visibleFrame.insetBy(
+            dx: min(edgeInset, visibleFrame.width / 4),
+            dy: min(edgeInset, visibleFrame.height / 4)
+        )
+        let maxX = max(safeFrame.minX, safeFrame.maxX - frame.width)
+        let maxY = max(safeFrame.minY, safeFrame.maxY - frame.height)
+
+        return CGRect(
+            x: min(max(frame.minX, safeFrame.minX), maxX),
+            y: min(max(frame.minY, safeFrame.minY), maxY),
+            width: frame.width,
+            height: frame.height
+        )
     }
 }
 
@@ -104,7 +313,7 @@ final class PulsePinnedScreenshotPanelController {
             pointerLocation: pointerLocation,
             cascadeIndex: panels.count
         )
-        let panel = makePanel(frame: frame)
+        let panel = makePanel(frame: frame, imageSize: image.size, visibleFrame: visibleFrame)
         let rootView = PulsePinnedScreenshotView(
             image: image,
             closeTitle: strings.text(.screenshotUnpinAction)
@@ -112,7 +321,7 @@ final class PulsePinnedScreenshotPanelController {
             panel?.close()
             self?.panels[id] = nil
         }
-        let hostingView = PulsePinnedScreenshotHostingView(rootView: AnyView(rootView))
+        let hostingView = PulsePinnedScreenshotHostingView(rootView: AnyView(rootView), imageSize: image.size)
         hostingView.frame = NSRect(origin: .zero, size: frame.size)
         hostingView.autoresizingMask = [.width, .height]
 
@@ -122,7 +331,7 @@ final class PulsePinnedScreenshotPanelController {
         panel.invalidateShadow()
     }
 
-    private func makePanel(frame: CGRect) -> NSPanel {
+    private func makePanel(frame: CGRect, imageSize: CGSize, visibleFrame: CGRect) -> NSPanel {
         let panel = PulsePinnedScreenshotPanel(
             contentRect: frame,
             styleMask: [.borderless, .nonactivatingPanel],
@@ -140,8 +349,11 @@ final class PulsePinnedScreenshotPanelController {
         panel.hasShadow = true
         panel.becomesKeyOnlyIfNeeded = true
         panel.acceptsMouseMovedEvents = true
-        panel.contentMinSize = frame.size
-        panel.contentMaxSize = frame.size
+        panel.contentMinSize = PulsePinnedScreenshotPanelLayout.minimumResizeSize(imageSize: imageSize)
+        panel.contentMaxSize = PulsePinnedScreenshotPanelLayout.maximumResizeSize(
+            imageSize: imageSize,
+            visibleFrame: visibleFrame
+        )
 
         return panel
     }
@@ -221,17 +433,151 @@ private final class PulsePinnedScreenshotPanel: NSPanel {
 
 @MainActor
 private final class PulsePinnedScreenshotHostingView: NSHostingView<AnyView> {
-    override var mouseDownCanMoveWindow: Bool {
-        true
+    private struct ResizeSession {
+        var handle: PulsePinnedScreenshotResizeHandle
+        var initialFrame: CGRect
+        var initialMouseLocation: CGPoint
     }
 
-    required init(rootView: AnyView) {
+    private let imageSize: CGSize
+    private var trackingArea: NSTrackingArea?
+    private var resizeSession: ResizeSession?
+
+    override var mouseDownCanMoveWindow: Bool {
+        guard let window else {
+            return true
+        }
+
+        let location = convert(window.mouseLocationOutsideOfEventStream, from: nil)
+        return PulsePinnedScreenshotPanelLayout.resizeHandle(at: location, in: bounds) == nil
+    }
+
+    init(rootView: AnyView, imageSize: CGSize) {
+        self.imageSize = imageSize
         super.init(rootView: rootView)
         wantsLayer = true
         layer?.backgroundColor = NSColor.clear.cgColor
         layer?.cornerRadius = PulsePinnedScreenshotPanelLayout.cornerRadius
         layer?.cornerCurve = .continuous
         layer?.masksToBounds = true
+    }
+
+    @available(*, unavailable)
+    required init(rootView: AnyView) {
+        fatalError("init(rootView:) has not been implemented")
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+
+        if let trackingArea {
+            removeTrackingArea(trackingArea)
+        }
+
+        let trackingArea = NSTrackingArea(
+            rect: bounds,
+            options: [.activeAlways, .mouseMoved, .mouseEnteredAndExited, .inVisibleRect],
+            owner: self
+        )
+        addTrackingArea(trackingArea)
+        self.trackingArea = trackingArea
+    }
+
+    override func resetCursorRects() {
+        super.resetCursorRects()
+
+        let thickness = min(
+            PulsePinnedScreenshotPanelLayout.resizeHandleThickness,
+            bounds.width / 3,
+            bounds.height / 3
+        )
+        let leftRect = NSRect(x: bounds.minX, y: bounds.minY, width: thickness, height: bounds.height)
+        let rightRect = NSRect(x: bounds.maxX - thickness, y: bounds.minY, width: thickness, height: bounds.height)
+        let bottomRect = NSRect(x: bounds.minX, y: bounds.minY, width: bounds.width, height: thickness)
+        let topRect = NSRect(x: bounds.minX, y: bounds.maxY - thickness, width: bounds.width, height: thickness)
+
+        addCursorRect(leftRect, cursor: .resizeLeftRight)
+        addCursorRect(rightRect, cursor: .resizeLeftRight)
+        addCursorRect(bottomRect, cursor: .resizeUpDown)
+        addCursorRect(topRect, cursor: .resizeUpDown)
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        updateCursor(for: event)
+        super.mouseMoved(with: event)
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        NSCursor.arrow.set()
+        super.mouseExited(with: event)
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        let location = convert(event.locationInWindow, from: nil)
+
+        guard let handle = PulsePinnedScreenshotPanelLayout.resizeHandle(at: location, in: bounds),
+              let window else {
+            super.mouseDown(with: event)
+            return
+        }
+
+        resizeSession = ResizeSession(
+            handle: handle,
+            initialFrame: window.frame,
+            initialMouseLocation: NSEvent.mouseLocation
+        )
+        cursor(for: handle).set()
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard let resizeSession, let window else {
+            super.mouseDragged(with: event)
+            return
+        }
+
+        let currentMouseLocation = NSEvent.mouseLocation
+        let dragDelta = CGVector(
+            dx: currentMouseLocation.x - resizeSession.initialMouseLocation.x,
+            dy: currentMouseLocation.y - resizeSession.initialMouseLocation.y
+        )
+        let visibleFrame = window.screen?.visibleFrame
+            ?? NSScreen.screens.first { $0.visibleFrame.intersects(resizeSession.initialFrame) }?.visibleFrame
+            ?? NSScreen.main?.visibleFrame
+            ?? resizeSession.initialFrame
+        let frame = PulsePinnedScreenshotPanelLayout.resizedWindowFrame(
+            initialFrame: resizeSession.initialFrame,
+            imageSize: imageSize,
+            visibleFrame: visibleFrame,
+            handle: resizeSession.handle,
+            dragDelta: dragDelta
+        )
+
+        window.setFrame(frame, display: true)
+        window.invalidateShadow()
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        resizeSession = nil
+        super.mouseUp(with: event)
+    }
+
+    private func updateCursor(for event: NSEvent) {
+        let location = convert(event.locationInWindow, from: nil)
+        guard let handle = PulsePinnedScreenshotPanelLayout.resizeHandle(at: location, in: bounds) else {
+            NSCursor.arrow.set()
+            return
+        }
+
+        cursor(for: handle).set()
+    }
+
+    private func cursor(for handle: PulsePinnedScreenshotResizeHandle) -> NSCursor {
+        switch handle {
+        case .left, .right, .topLeft, .topRight, .bottomLeft, .bottomRight:
+            .resizeLeftRight
+        case .top, .bottom:
+            .resizeUpDown
+        }
     }
 
     @available(*, unavailable)

@@ -685,6 +685,15 @@ enum SignalStatusColor {
         usage.hasBattery && usage.isPluggedIn && usage.isCharging
     }
 
+    static func bluetoothBattery(_ alert: BluetoothBatteryAlert) -> Color {
+        switch alert.severity {
+        case .critical:
+            return .red
+        case .low:
+            return .orange
+        }
+    }
+
     static func diskIO(_ usage: DiskIOUsage) -> Color {
         let totalBytesPerSecond = max(usage.readBytesPerSecond, 0) + max(usage.writeBytesPerSecond, 0)
         return totalBytesPerSecond >= activeDiskIOThresholdBytesPerSecond ? .purple : .blue

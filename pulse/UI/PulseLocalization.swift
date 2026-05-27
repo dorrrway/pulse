@@ -78,6 +78,19 @@ nonisolated struct PulseStrings: Sendable {
         }
     }
 
+    func screenshotEditorToolTitle(_ tool: PulseScreenshotEditTool) -> String {
+        switch tool {
+        case .mosaic:
+            text(.screenshotEditorMosaic)
+        case .rectangle:
+            text(.screenshotEditorRectangle)
+        case .ellipse:
+            text(.screenshotEditorEllipse)
+        case .arrow:
+            text(.screenshotEditorArrow)
+        }
+    }
+
     func cores(_ count: Int) -> String {
         switch language {
         case .english:
@@ -129,6 +142,89 @@ nonisolated struct PulseStrings: Sendable {
             return count == 1 ? "1 application" : "\(count) applications"
         case .chinese:
             return "\(count) 个应用程序"
+        }
+    }
+
+    func bluetoothDeviceCount(_ count: Int) -> String {
+        switch language {
+        case .english:
+            return count == 1 ? "1 device" : "\(count) devices"
+        case .chinese:
+            return "\(count) 个设备"
+        }
+    }
+
+    func bluetoothBatteryLabel(_ level: BluetoothBatteryLevel) -> String {
+        let percentage = ResourceFormatters.percentage(level.percentage)
+
+        switch (language, level.role) {
+        case (.english, .device):
+            return "Battery \(percentage)"
+        case (.english, .left):
+            return "Left battery \(percentage)"
+        case (.english, .right):
+            return "Right battery \(percentage)"
+        case (.english, .case):
+            return "Case battery \(percentage)"
+        case (.chinese, .device):
+            return "电量 \(percentage)"
+        case (.chinese, .left):
+            return "左耳电量 \(percentage)"
+        case (.chinese, .right):
+            return "右耳电量 \(percentage)"
+        case (.chinese, .case):
+            return "盒子电量 \(percentage)"
+        }
+    }
+
+    func bluetoothDisconnectConfirmationMessage(deviceName: String) -> String {
+        switch language {
+        case .english:
+            return "Disconnect \(deviceName)?"
+        case .chinese:
+            return "要断开 \(deviceName) 吗？"
+        }
+    }
+
+    func bluetoothBatteryAlertTitle(_ alert: BluetoothBatteryAlert) -> String {
+        switch (language, alert.role) {
+        case (_, .device):
+            return alert.deviceName
+        case (.english, .left):
+            return "\(alert.deviceName) Left"
+        case (.english, .right):
+            return "\(alert.deviceName) Right"
+        case (.english, .case):
+            return "\(alert.deviceName) Case"
+        case (.chinese, .left):
+            return "\(alert.deviceName) 左耳"
+        case (.chinese, .right):
+            return "\(alert.deviceName) 右耳"
+        case (.chinese, .case):
+            return "\(alert.deviceName) 盒子"
+        }
+    }
+
+    func bluetoothBatteryAlertDetail(_ alert: BluetoothBatteryAlert) -> String {
+        let part = bluetoothBatteryAlertPartName(alert.role)
+
+        switch (language, alert.severity, part) {
+        case (.english, .critical, let part?):
+            return "\(part) battery critically low · charge soon"
+        case (.english, .critical, nil):
+            return "Bluetooth battery critically low · charge soon"
+        case (.english, .low, let part?):
+            return "\(part) battery low · charge soon"
+        case (.english, .low, nil):
+            return "Bluetooth battery low · charge soon"
+        case (.chinese, .critical, let part?):
+            return "\(part)电量严重过低 · 请尽快充电"
+        case (.chinese, .critical, nil):
+            return "蓝牙设备电量严重过低 · 请尽快充电"
+        case (.chinese, .low, let part?):
+            return "\(part)电量偏低 · 请尽快充电"
+        case (.chinese, .low, nil):
+            return "蓝牙设备电量偏低 · 请尽快充电"
         }
     }
 
@@ -624,6 +720,25 @@ nonisolated struct PulseStrings: Sendable {
         }
     }
 
+    private func bluetoothBatteryAlertPartName(_ role: BluetoothBatteryRole) -> String? {
+        switch (language, role) {
+        case (_, .device):
+            return nil
+        case (.english, .left):
+            return "Left"
+        case (.english, .right):
+            return "Right"
+        case (.english, .case):
+            return "Case"
+        case (.chinese, .left):
+            return "左耳"
+        case (.chinese, .right):
+            return "右耳"
+        case (.chinese, .case):
+            return "盒子"
+        }
+    }
+
     private func compactPowerAlertDuration(_ duration: TimeInterval) -> String {
         let totalMinutes = max(Int(duration.rounded(.down)) / 60, 1)
         let hours = totalMinutes / 60
@@ -737,6 +852,7 @@ extension PulseStrings {
         case applications
         case clipboard
         case screenshots
+        case bluetooth
         case screenshotCaptured
         case screenshotSaveAction
         case screenshotShareAction
@@ -750,6 +866,18 @@ extension PulseStrings {
         case screenshotCopyRecognizedText
         case screenshotCloseRecognizedText
         case screenshotTextCopied
+        case screenshotScreenRecordingPermissionNotice
+        case screenshotAuthorizeScreenRecording
+        case screenshotHidePulseDuringCapture
+        case screenshotHidePulseDuringCaptureDetail
+        case screenshotEditAction
+        case screenshotEditorMosaic
+        case screenshotEditorRectangle
+        case screenshotEditorEllipse
+        case screenshotEditorArrow
+        case screenshotEditorUndo
+        case screenshotEditorCancel
+        case screenshotEditorDone
         case translation
         case applicationsListView
         case applicationsIconView
@@ -758,6 +886,21 @@ extension PulseStrings {
         case applicationRunning
         case refreshApplications
         case noApplicationsFound
+        case bluetoothConnected
+        case bluetoothDisconnected
+        case bluetoothNoDevicesTitle
+        case bluetoothNoDevicesDetail
+        case bluetoothAuthorizationTitle
+        case bluetoothAuthorizationDetail
+        case authorizeBluetoothDeviceAccess
+        case refreshBluetoothDevices
+        case openBluetoothSettings
+        case connectBluetoothDevice
+        case disconnectBluetoothDevice
+        case bluetoothDisconnectConfirmationTitle
+        case cancelBluetoothDisconnect
+        case bluetoothPermissionDetail
+        case bluetoothActionFailed
         case switchIslandModule
         case topIsland
         case settings
@@ -936,6 +1079,8 @@ private extension PulseStrings {
             "Clipboard"
         case .screenshots:
             "Screenshots"
+        case .bluetooth:
+            "Bluetooth"
         case .screenshotCaptured:
             "Screenshot"
         case .screenshotSaveAction:
@@ -962,6 +1107,30 @@ private extension PulseStrings {
             "Close"
         case .screenshotTextCopied:
             "Text copied"
+        case .screenshotScreenRecordingPermissionNotice:
+            "First screenshot requires macOS Screen Recording permission. Captures only run when you click an action or press a shortcut."
+        case .screenshotAuthorizeScreenRecording:
+            "Authorize"
+        case .screenshotHidePulseDuringCapture:
+            "Hide Pulse while capturing"
+        case .screenshotHidePulseDuringCaptureDetail:
+            "Turn this off when you want Pulse itself to appear in the screenshot."
+        case .screenshotEditAction:
+            "Edit"
+        case .screenshotEditorMosaic:
+            "Mosaic"
+        case .screenshotEditorRectangle:
+            "Rect"
+        case .screenshotEditorEllipse:
+            "Circle"
+        case .screenshotEditorArrow:
+            "Arrow"
+        case .screenshotEditorUndo:
+            "Undo"
+        case .screenshotEditorCancel:
+            "Cancel"
+        case .screenshotEditorDone:
+            "Done"
         case .translation:
             "Translate"
         case .applicationsListView:
@@ -978,6 +1147,36 @@ private extension PulseStrings {
             "Refresh applications"
         case .noApplicationsFound:
             "No applications found"
+        case .bluetoothConnected:
+            "Connected"
+        case .bluetoothDisconnected:
+            "Disconnected"
+        case .bluetoothNoDevicesTitle:
+            "No Bluetooth devices"
+        case .bluetoothNoDevicesDetail:
+            "Open Bluetooth settings or pair a device, then refresh."
+        case .bluetoothAuthorizationTitle:
+            "Pulse needs Bluetooth access"
+        case .bluetoothAuthorizationDetail:
+            "Allow access to show nearby paired devices, connection status, and battery levels."
+        case .authorizeBluetoothDeviceAccess:
+            "Authorize"
+        case .refreshBluetoothDevices:
+            "Refresh Bluetooth devices"
+        case .openBluetoothSettings:
+            "Bluetooth Settings"
+        case .connectBluetoothDevice:
+            "Connect"
+        case .disconnectBluetoothDevice:
+            "Disconnect"
+        case .bluetoothDisconnectConfirmationTitle:
+            "Disconnect device"
+        case .cancelBluetoothDisconnect:
+            "Cancel"
+        case .bluetoothPermissionDetail:
+            "Allow Pulse to use Bluetooth in macOS privacy settings."
+        case .bluetoothActionFailed:
+            "Bluetooth action failed. Check that the device is nearby and powered on."
         case .switchIslandModule:
             "Switch view"
         case .topIsland:
@@ -1219,6 +1418,8 @@ private extension PulseStrings {
             "剪贴板"
         case .screenshots:
             "截图"
+        case .bluetooth:
+            "蓝牙"
         case .screenshotCaptured:
             "截图"
         case .screenshotSaveAction:
@@ -1245,6 +1446,30 @@ private extension PulseStrings {
             "关闭"
         case .screenshotTextCopied:
             "文字已复制"
+        case .screenshotScreenRecordingPermissionNotice:
+            "首次截图需要授予 macOS 屏幕录制权限。截图只会在你点击或触发快捷键时执行。"
+        case .screenshotAuthorizeScreenRecording:
+            "授权"
+        case .screenshotHidePulseDuringCapture:
+            "截图时隐藏 Pulse"
+        case .screenshotHidePulseDuringCaptureDetail:
+            "关闭后可以把 Pulse 本身截进截图。"
+        case .screenshotEditAction:
+            "编辑"
+        case .screenshotEditorMosaic:
+            "马赛克"
+        case .screenshotEditorRectangle:
+            "矩形"
+        case .screenshotEditorEllipse:
+            "圆形"
+        case .screenshotEditorArrow:
+            "箭头"
+        case .screenshotEditorUndo:
+            "撤销"
+        case .screenshotEditorCancel:
+            "取消"
+        case .screenshotEditorDone:
+            "完成"
         case .translation:
             "翻译"
         case .applicationsListView:
@@ -1261,6 +1486,36 @@ private extension PulseStrings {
             "刷新应用程序"
         case .noApplicationsFound:
             "未找到应用程序"
+        case .bluetoothConnected:
+            "已连接"
+        case .bluetoothDisconnected:
+            "未连接"
+        case .bluetoothNoDevicesTitle:
+            "没有蓝牙设备"
+        case .bluetoothNoDevicesDetail:
+            "打开蓝牙设置或配对设备后刷新。"
+        case .bluetoothAuthorizationTitle:
+            "Pulse 需要蓝牙权限"
+        case .bluetoothAuthorizationDetail:
+            "授权后可显示已配对设备、连接状态和 macOS 可读取的电量。"
+        case .authorizeBluetoothDeviceAccess:
+            "授权"
+        case .refreshBluetoothDevices:
+            "刷新蓝牙设备"
+        case .openBluetoothSettings:
+            "蓝牙设置"
+        case .connectBluetoothDevice:
+            "连接"
+        case .disconnectBluetoothDevice:
+            "断开"
+        case .bluetoothDisconnectConfirmationTitle:
+            "断开设备"
+        case .cancelBluetoothDisconnect:
+            "取消"
+        case .bluetoothPermissionDetail:
+            "请在 macOS 隐私设置中允许 Pulse 使用蓝牙。"
+        case .bluetoothActionFailed:
+            "蓝牙操作失败，请确认设备在附近且已开机。"
         case .switchIslandModule:
             "切换功能"
         case .topIsland:
