@@ -304,6 +304,11 @@ final class PinnedPanelControllerTests: XCTestCase {
     func testScreenshotPreviewReminderUsesTallerCompactSurface() {
         let metrics = PulseIslandLayoutMetrics(seedVisibleHeight: 38, notchUnsafeWidth: 220)
 
+        XCTAssertEqual(PulseIslandLayout.screenshotPreviewHeaderRowHeight(metrics: metrics), 38)
+        XCTAssertEqual(
+            PulseIslandLayout.screenshotPreviewHeaderRowHeight(metrics: metrics),
+            PulseIslandLayout.expandedHeaderRowHeight(metrics: metrics)
+        )
         XCTAssertEqual(PulseIslandLayout.visibleHeight(for: .screenshotPreview, metrics: metrics), 226)
         XCTAssertGreaterThan(
             PulseIslandLayout.visibleHeight(for: .screenshotPreview, metrics: metrics),

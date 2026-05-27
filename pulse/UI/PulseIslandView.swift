@@ -583,6 +583,7 @@ struct PulseIslandView: View {
     private func screenshotPreviewSurface(reminder: PulseScreenshotPreviewReminder, title: String) -> some View {
         let visibleSize = PulseIslandLayout.seedVisibleSize(for: .screenshotPreview, metrics: layoutMetrics)
         let contentSize = PulseIslandLayout.contentSize(for: .screenshotPreview, metrics: layoutMetrics)
+        let headerRowHeight = PulseIslandLayout.screenshotPreviewHeaderRowHeight(metrics: layoutMetrics)
 
         return VStack(spacing: 0) {
             Color.clear
@@ -619,7 +620,7 @@ struct PulseIslandView: View {
                         .foregroundStyle(.green.opacity(0.96))
                         .accessibilityHidden(true)
                 }
-                .frame(height: 34)
+                .frame(height: headerRowHeight, alignment: .center)
 
                 Image(nsImage: reminder.image)
                     .resizable()
@@ -634,7 +635,6 @@ struct PulseIslandView: View {
                 screenshotPreviewActions(strings: store.strings)
             }
             .padding(.horizontal, PulseDesign.Spacing.md)
-            .padding(.top, PulseDesign.Spacing.compact)
             .padding(.bottom, PulseDesign.Spacing.md)
             .frame(width: visibleSize.width, height: visibleSize.height, alignment: .top)
         }

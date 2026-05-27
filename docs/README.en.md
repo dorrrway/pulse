@@ -67,6 +67,7 @@ See [Privacy Policy](PRIVACY.en.md) for details.
 ### Unreleased
 
 - Added a Screenshots module with native macOS full-screen, window, and selection capture modes; full-screen capture opens the native display picker for confirmation first, window capture omits the system window shadow, captures are written to the system clipboard, the island shows an image preview reminder after capture and auto-collapses after 3 seconds only when it is not hovered, the reminder exposes explicit Save, Share, foreground pinning, local text-recognition, and direct preview-drag export actions, and each mode can have its global shortcut set directly in the Screenshots panel without requiring modifier keys.
+- Refined the screenshot completion reminder header so its icon, title, and completion state align with the island's top row.
 - Added a Copy item action to the Clipboard record context menu, letting users write a saved record back to the system clipboard from right-click.
 - Fixed a case where launching some apps from the Applications module could collapse the island panel and immediately reopen it from a stale hover event.
 

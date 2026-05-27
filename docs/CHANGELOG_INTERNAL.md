@@ -34,6 +34,9 @@ verification notes that would make the public changelog too noisy.
   system clipboard and shows a dedicated screenshot preview reminder with a
   taller compact surface; it auto-collapses after 3 seconds only when the
   reminder is not hovered.
+- The screenshot preview reminder header now derives its row height from the
+  same measured island header row as the expanded Resource Monitor surface,
+  rather than combining a fixed 34 pt row with extra top padding.
 - The screenshot preview reminder now includes explicit Save, Share, and
   Recognize Text buttons below the image. Save uses `NSSavePanel` and writes a
   PNG only to the user-selected URL, Share uses the native

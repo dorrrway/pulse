@@ -70,6 +70,10 @@ enum PulseIslandLayout {
         expandedHeaderRowHeight(metrics: .fallback)
     }
 
+    static var screenshotPreviewHeaderRowHeight: CGFloat {
+        screenshotPreviewHeaderRowHeight(metrics: .fallback)
+    }
+
     static func expandedHeaderContentHeight(metrics: PulseIslandLayoutMetrics) -> CGFloat {
         expandedHeaderRowHeight(metrics: metrics) * expandedSurfaceHeightMultiplier
     }
@@ -80,6 +84,10 @@ enum PulseIslandLayout {
 
     static func expandedHeaderRowHeight(metrics: PulseIslandLayoutMetrics) -> CGFloat {
         metrics.seedVisibleHeight
+    }
+
+    static func screenshotPreviewHeaderRowHeight(metrics: PulseIslandLayoutMetrics) -> CGFloat {
+        expandedHeaderRowHeight(metrics: metrics)
     }
 
     static func metrics(for screen: NSScreen?) -> PulseIslandLayoutMetrics {
