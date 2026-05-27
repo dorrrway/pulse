@@ -32,6 +32,15 @@ nonisolated enum PulsePinnedScreenshotResizeHandle: Equatable {
             0
         }
     }
+
+    var isCorner: Bool {
+        horizontalDirection != 0 && verticalDirection != 0
+    }
+}
+
+nonisolated enum PulsePinnedScreenshotResizeDriver: Equatable {
+    case horizontal
+    case vertical
 }
 
 nonisolated enum PulsePinnedScreenshotPanelLayout {
@@ -39,6 +48,7 @@ nonisolated enum PulsePinnedScreenshotPanelLayout {
     static let cascadeOffset: CGFloat = 24
     static let cornerRadius: CGFloat = 16
     static let resizeHandleThickness: CGFloat = 12
+    static let resizeDriverLockThreshold: CGFloat = 4
     static let minimumResizeShortEdge: CGFloat = 160
     static let maximumImageWidth: CGFloat = 1120
     static let maximumImageHeight: CGFloat = 760
@@ -175,13 +185,15 @@ nonisolated enum PulsePinnedScreenshotPanelLayout {
         imageSize: CGSize,
         visibleFrame: CGRect,
         handle: PulsePinnedScreenshotResizeHandle,
-        dragDelta: CGVector
+        dragDelta: CGVector,
+        resizeDriver: PulsePinnedScreenshotResizeDriver
     ) -> CGRect {
         let proposedSize = proposedResizeSize(
             initialSize: initialFrame.size,
             imageSize: imageSize,
             handle: handle,
-            dragDelta: dragDelta
+            dragDelta: dragDelta,
+            resizeDriver: resizeDriver
         )
         let size = clampedResizeSize(
             proposedSize,
@@ -215,6 +227,27 @@ nonisolated enum PulsePinnedScreenshotPanelLayout {
         )
     }
 
+    static func defaultResizeDriver(for handle: PulsePinnedScreenshotResizeHandle) -> PulsePinnedScreenshotResizeDriver {
+        handle.verticalDirection != 0 && handle.horizontalDirection == 0 ? .vertical : .horizontal
+    }
+
+    static func lockedCornerResizeDriver(
+        initialSize: CGSize,
+        dragDelta: CGVector
+    ) -> PulsePinnedScreenshotResizeDriver? {
+        let horizontalDistance = abs(dragDelta.dx)
+        let verticalDistance = abs(dragDelta.dy)
+
+        guard max(horizontalDistance, verticalDistance) >= resizeDriverLockThreshold else {
+            return nil
+        }
+
+        let horizontalMagnitude = horizontalDistance / max(1, initialSize.width)
+        let verticalMagnitude = verticalDistance / max(1, initialSize.height)
+
+        return horizontalMagnitude >= verticalMagnitude ? .horizontal : .vertical
+    }
+
     private static func normalizedImageSize(_ imageSize: CGSize) -> CGSize {
         guard imageSize.width > 0, imageSize.height > 0 else {
             return fallbackSize
@@ -236,24 +269,14 @@ nonisolated enum PulsePinnedScreenshotPanelLayout {
         initialSize: CGSize,
         imageSize: CGSize,
         handle: PulsePinnedScreenshotResizeHandle,
-        dragDelta: CGVector
+        dragDelta: CGVector,
+        resizeDriver: PulsePinnedScreenshotResizeDriver
     ) -> CGSize {
         let aspectRatio = normalizedImageSize(imageSize).width / normalizedImageSize(imageSize).height
         let horizontalDirection = handle.horizontalDirection
         let verticalDirection = handle.verticalDirection
 
-        if horizontalDirection != 0, verticalDirection != 0 {
-            let proposedWidth = initialSize.width + horizontalDirection * dragDelta.dx
-            let proposedHeight = initialSize.height + verticalDirection * dragDelta.dy
-            let widthScale = proposedWidth / max(1, initialSize.width)
-            let heightScale = proposedHeight / max(1, initialSize.height)
-            let scale = abs(widthScale - 1) >= abs(heightScale - 1) ? widthScale : heightScale
-            let width = initialSize.width * scale
-
-            return CGSize(width: width, height: width / aspectRatio)
-        }
-
-        if horizontalDirection != 0 {
+        if resizeDriver == .horizontal {
             let width = initialSize.width + horizontalDirection * dragDelta.dx
 
             return CGSize(width: width, height: width / aspectRatio)
@@ -277,8 +300,8 @@ nonisolated enum PulsePinnedScreenshotPanelLayout {
         let width = min(max(proposedSize.width, minimumWidth), maximumWidth)
 
         return CGSize(
-            width: width.rounded(.toNearestOrAwayFromZero),
-            height: (width / aspectRatio).rounded(.toNearestOrAwayFromZero)
+            width: width,
+            height: width / aspectRatio
         )
     }
 
@@ -378,6 +401,9 @@ private struct PulsePinnedScreenshotView: View {
                 Image(nsImage: image)
                     .resizable()
                     .scaledToFit()
+                    .transaction { transaction in
+                        transaction.animation = nil
+                    }
                     .frame(
                         width: imageContentRect.width,
                         height: imageContentRect.height
@@ -435,6 +461,8 @@ private final class PulsePinnedScreenshotPanel: NSPanel {
 private final class PulsePinnedScreenshotHostingView: NSHostingView<AnyView> {
     private struct ResizeSession {
         var handle: PulsePinnedScreenshotResizeHandle
+        var resizeDriver: PulsePinnedScreenshotResizeDriver
+        var isResizeDriverLocked: Bool
         var initialFrame: CGRect
         var initialMouseLocation: CGPoint
     }
@@ -523,6 +551,8 @@ private final class PulsePinnedScreenshotHostingView: NSHostingView<AnyView> {
 
         resizeSession = ResizeSession(
             handle: handle,
+            resizeDriver: PulsePinnedScreenshotPanelLayout.defaultResizeDriver(for: handle),
+            isResizeDriverLocked: !handle.isCorner,
             initialFrame: window.frame,
             initialMouseLocation: NSEvent.mouseLocation
         )
@@ -530,7 +560,7 @@ private final class PulsePinnedScreenshotHostingView: NSHostingView<AnyView> {
     }
 
     override func mouseDragged(with event: NSEvent) {
-        guard let resizeSession, let window else {
+        guard var resizeSession, let window else {
             super.mouseDragged(with: event)
             return
         }
@@ -540,6 +570,20 @@ private final class PulsePinnedScreenshotHostingView: NSHostingView<AnyView> {
             dx: currentMouseLocation.x - resizeSession.initialMouseLocation.x,
             dy: currentMouseLocation.y - resizeSession.initialMouseLocation.y
         )
+
+        if resizeSession.handle.isCorner, !resizeSession.isResizeDriverLocked {
+            guard let lockedDriver = PulsePinnedScreenshotPanelLayout.lockedCornerResizeDriver(
+                initialSize: resizeSession.initialFrame.size,
+                dragDelta: dragDelta
+            ) else {
+                return
+            }
+
+            resizeSession.resizeDriver = lockedDriver
+            resizeSession.isResizeDriverLocked = true
+            self.resizeSession = resizeSession
+        }
+
         let visibleFrame = window.screen?.visibleFrame
             ?? NSScreen.screens.first { $0.visibleFrame.intersects(resizeSession.initialFrame) }?.visibleFrame
             ?? NSScreen.main?.visibleFrame
@@ -549,14 +593,15 @@ private final class PulsePinnedScreenshotHostingView: NSHostingView<AnyView> {
             imageSize: imageSize,
             visibleFrame: visibleFrame,
             handle: resizeSession.handle,
-            dragDelta: dragDelta
+            dragDelta: dragDelta,
+            resizeDriver: resizeSession.resizeDriver
         )
 
         window.setFrame(frame, display: true)
-        window.invalidateShadow()
     }
 
     override func mouseUp(with event: NSEvent) {
+        window?.invalidateShadow()
         resizeSession = nil
         super.mouseUp(with: event)
     }

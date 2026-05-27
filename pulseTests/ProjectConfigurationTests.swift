@@ -238,7 +238,8 @@ final class ProjectConfigurationTests: XCTestCase {
             imageSize: CGSize(width: 2000, height: 1000),
             visibleFrame: visibleFrame,
             handle: .right,
-            dragDelta: CGVector(dx: 140, dy: 0)
+            dragDelta: CGVector(dx: 140, dy: 0),
+            resizeDriver: .horizontal
         )
 
         XCTAssertEqual(resizedFrame.minX, initialFrame.minX)
@@ -255,7 +256,8 @@ final class ProjectConfigurationTests: XCTestCase {
             imageSize: CGSize(width: 1600, height: 900),
             visibleFrame: visibleFrame,
             handle: .bottomRight,
-            dragDelta: CGVector(dx: 2000, dy: -2000)
+            dragDelta: CGVector(dx: 2000, dy: -2000),
+            resizeDriver: .horizontal
         )
         let safeFrame = visibleFrame.insetBy(
             dx: PulsePinnedScreenshotPanelLayout.edgeInset,

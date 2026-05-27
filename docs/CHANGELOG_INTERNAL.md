@@ -47,6 +47,10 @@ verification notes that would make the public changelog too noisy.
   the hosting view handles invisible edge and corner resize zones. Resizing
   preserves the original image aspect ratio, clamps to the current visible
   screen, and keeps the normal window-drag area away from resize hit zones.
+- Pinned screenshot corner resizing locks one horizontal-or-vertical driver per
+  drag after 4 pt of intentional movement. Size clamping keeps fractional point
+  precision while dragging, and the panel shadow is refreshed after mouse-up
+  instead of on every resize frame to avoid AppKit/SwiftUI feedback jitter.
 - The screenshot editor starts with no selected tool. While no tool is selected,
   dragging the image moves the editor window; after a tool is selected, the
   image region stops participating in window dragging so drawing arrows, shapes,
