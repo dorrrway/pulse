@@ -28,17 +28,21 @@ final class AppKitClipboardPasteboardClient: ClipboardPasteboardClient {
     }
 
     var accessBehavior: ClipboardPasteboardAccessBehavior {
+        guard #available(macOS 15.4, *) else {
+            return .systemDefault
+        }
+
         switch pasteboard.accessBehavior {
         case .default:
-            .systemDefault
+            return .systemDefault
         case .ask:
-            .ask
+            return .ask
         case .alwaysAllow:
-            .alwaysAllow
+            return .alwaysAllow
         case .alwaysDeny:
-            .alwaysDeny
+            return .alwaysDeny
         @unknown default:
-            .unknown
+            return .unknown
         }
     }
 

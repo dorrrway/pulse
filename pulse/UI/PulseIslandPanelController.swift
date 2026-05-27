@@ -736,7 +736,7 @@ final class PulseIslandPanelController {
         )
         .environment(store)
 
-        let hostingView = PulseIslandHostingView(rootView: rootView)
+        let hostingView = PulseIslandHostingView(rootView: AnyView(rootView))
         hostingView.islandController = self
         hostingView.frame = NSRect(origin: .zero, size: panel.frame.size)
         hostingView.autoresizingMask = [.width, .height]
@@ -855,10 +855,10 @@ private final class PulseIslandPanel: NSPanel {
 }
 
 @MainActor
-private final class PulseIslandHostingView<Content: View>: NSHostingView<Content> {
+private final class PulseIslandHostingView: NSHostingView<AnyView> {
     weak var islandController: PulseIslandPanelController?
 
-    required init(rootView: Content) {
+    required init(rootView: AnyView) {
         super.init(rootView: rootView)
         wantsLayer = true
         layer?.backgroundColor = NSColor.clear.cgColor

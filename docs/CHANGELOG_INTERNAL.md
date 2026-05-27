@@ -5,6 +5,22 @@ This file is for maintainers. Keep the public changelog in `README.md` and
 implementation context, product decisions, privacy boundaries, thresholds, and
 verification notes that would make the public changelog too noisy.
 
+## 2.2.0 - 2026-05-27
+
+### Compatibility
+
+- Lowered `MACOSX_DEPLOYMENT_TARGET` from 26.0 to 15.0 across the app and test
+  targets. `LSMinimumSystemVersion` continues to derive from that build setting.
+- Kept the macOS 26 and newer favorite-removal drag feedback path on
+  `DropOperation.delete`, while macOS 15 through 25 use `DropOperation.move`
+  and still perform removal through the existing drop delegate.
+- Guarded `NSPasteboard.accessBehavior`, which is only available on macOS 15.4
+  and newer. macOS 15.0 through 15.3 report the pasteboard behavior as the
+  system default while using the same read/write path.
+- Type-erased the private Pulse Island hosting view to avoid a Swift 6.3.2
+  Release optimizer crash when archiving the app with a macOS 15.0 deployment
+  target. Hit testing and controller ownership remain unchanged.
+
 ## 2.1.0 - 2026-05-27
 
 ### Clipboard

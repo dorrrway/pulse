@@ -13,7 +13,7 @@
 </h3>
 
 <p align="center">
-  <img alt="release" src="https://img.shields.io/badge/release-v2.1.0-0A84FF">
+  <img alt="release" src="https://img.shields.io/badge/release-v2.2.0-0A84FF">
   <img alt="platform" src="https://img.shields.io/badge/platform-macOS-147EFB">
   <img alt="Swift" src="https://img.shields.io/badge/Swift-6-FA7343">
   <img alt="notarized" src="https://img.shields.io/badge/Developer%20ID-notarized-34C759">
@@ -29,18 +29,18 @@ Pulse is a lightweight Dynamic Island-style Mac utility that stays at the top of
 
 Latest release:
 
-- [Pulse 2.1.0](https://github.com/dorrrway/pulse/releases/tag/v2.1.0)
-- DMG: [Pulse-2.1.0.dmg](https://github.com/dorrrway/pulse/releases/download/v2.1.0/Pulse-2.1.0.dmg)
+- [Pulse 2.2.0](https://github.com/dorrrway/pulse/releases/tag/v2.2.0)
+- DMG: [Pulse-2.2.0.dmg](https://github.com/dorrrway/pulse/releases/download/v2.2.0/Pulse-2.2.0.dmg)
 
 SHA-256:
 
 ```text
-fd784f829c28e672fd88f94024ecd9a4fe08ca60492154d632040a9274249017  Pulse-2.1.0.dmg
+47aa82f18b1b44af26ed31fa66224bd7f5564a914cc42d7513e0e83b871c86fb  Pulse-2.2.0.dmg
 ```
 
 ## Installation
 
-1. Download `Pulse-2.1.0.dmg`.
+1. Download `Pulse-2.2.0.dmg`.
 2. Open the DMG.
 3. Follow the bilingual DMG guide and drag `Pulse.app` to Applications.
 4. Launch Pulse from Applications.
@@ -51,7 +51,7 @@ This version includes the updater and checks for updates in the background. When
 
 ## System Requirements
 
-- macOS 26.0 or later, as currently configured by the project.
+- macOS 15.0 or later, as currently configured by the project.
 - Apple Silicon and Intel Macs are supported.
 
 ## Privacy
@@ -63,6 +63,11 @@ Pulse requests the TimeLikeSilver-hosted appcast to check for new versions and d
 See [Privacy Policy](PRIVACY.en.md) for details.
 
 ## Changelog
+
+### 2.2.0 - 2026-05-27
+
+- Expanded system compatibility: the minimum system requirement is now macOS 15.0 instead of macOS 26.0; macOS 26 and later continue to use the existing clipboard permission status and favorite-removal drag feedback paths.
+- Release archive: [Pulse-2.2.0.dmg](https://github.com/dorrrway/pulse/releases/download/v2.2.0/Pulse-2.2.0.dmg); SHA-256: `47aa82f18b1b44af26ed31fa66224bd7f5564a914cc42d7513e0e83b871c86fb`.
 
 ### 2.1.0 - 2026-05-27
 

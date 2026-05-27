@@ -3,6 +3,19 @@
     <channel>
         <title>Pulse</title>
         <item>
+            <title>2.2.0</title>
+            <pubDate>Wed, 27 May 2026 16:23:40 +0800</pubDate>
+            <sparkle:version>10</sparkle:version>
+            <sparkle:shortVersionString>2.2.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[# Pulse 2.2.0
+
+- Expanded support to macOS 15.0 and later.
+- Kept the macOS 26 and newer clipboard permission status and favorite-removal drag feedback paths unchanged.
+]]></description>
+            <enclosure url="https://github.com/dorrrway/pulse/releases/download/v2.2.0/Pulse-2.2.0.dmg" length="3625313" type="application/octet-stream" sparkle:edSignature="paJ8UiQdCExdCZpBWIyqP1iOIh2gN6WydmN4RDNSapKJjq/7arMxQpqZ2x3lGd4eainh+oQYdLuF5UwwyOiJBA=="/>
+        </item>
+        <item>
             <title>2.1.0</title>
             <pubDate>Wed, 27 May 2026 15:26:20 +0800</pubDate>
             <sparkle:version>9</sparkle:version>

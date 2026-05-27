@@ -354,7 +354,11 @@ private struct FavoriteApplicationRemovalDropDelegate: DropDelegate {
 
     func dropUpdated(info: DropInfo) -> DropProposal? {
         if canAccept(info) {
-            return DropProposal(operation: .delete)
+            if #available(macOS 26.0, *) {
+                return DropProposal(operation: .delete)
+            }
+
+            return DropProposal(operation: .move)
         }
 
         return DropProposal(operation: .forbidden)
