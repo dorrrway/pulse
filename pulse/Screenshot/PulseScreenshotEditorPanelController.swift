@@ -1,13 +1,14 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 nonisolated enum PulseScreenshotEditorPanelLayout {
     static let edgeInset: CGFloat = 24
     static let cascadeOffset: CGFloat = 18
     static let cornerRadius: CGFloat = PulsePinnedScreenshotPanelLayout.cornerRadius
-    static let toolbarHeight: CGFloat = 58
+    static let toolbarHeight: CGFloat = 54
     static let toolbarGap: CGFloat = 10
-    static let minimumToolbarWidth: CGFloat = 520
+    static let minimumToolbarWidth: CGFloat = 700
     static let maximumImageWidth: CGFloat = 1120
     static let maximumImageHeight: CGFloat = 700
     static let maximumScreenWidthFraction: CGFloat = 0.72
@@ -88,11 +89,13 @@ nonisolated enum PulseScreenshotEditorPanelLayout {
 @MainActor
 final class PulseScreenshotEditorPanelController {
     private var panel: NSPanel?
+    private var activeSharingPicker: NSSharingServicePicker?
 
     func edit(
         image: NSImage,
         strings: PulseStrings,
         near pointerLocation: CGPoint = NSEvent.mouseLocation,
+        pinAction: ((NSImage) -> Void)? = nil,
         onComplete: @escaping (NSImage) -> Void
     ) {
         close()
@@ -114,6 +117,13 @@ final class PulseScreenshotEditorPanelController {
             image: image,
             strings: strings,
             imageContentSize: imageContentSize,
+            saveAction: { image in
+                Self.save(image)
+            },
+            shareAction: { [weak self, weak panel] image in
+                self?.share(image, from: panel?.contentView)
+            },
+            pinAction: pinAction,
             closeAction: { [weak self, weak panel] in
                 panel?.close()
                 self?.panel = nil
@@ -159,9 +169,49 @@ final class PulseScreenshotEditorPanelController {
         panel.acceptsMouseMovedEvents = true
         panel.contentMinSize = frame.size
         panel.contentMaxSize = frame.size
-        panel.appearance = NSAppearance(named: .darkAqua)
 
         return panel
+    }
+
+    private static func save(_ image: NSImage) {
+        guard let pngData = PulseScreenshotImageExport.pngData(for: image) else {
+            NSSound.beep()
+            return
+        }
+
+        let savePanel = NSSavePanel()
+        savePanel.allowedContentTypes = [.png]
+        savePanel.canCreateDirectories = true
+        savePanel.isExtensionHidden = false
+        savePanel.nameFieldStringValue = PulseScreenshotImageExport.suggestedFileName()
+
+        NSApp.activate(ignoringOtherApps: true)
+
+        guard savePanel.runModal() == .OK, let url = savePanel.url else {
+            return
+        }
+
+        do {
+            try pngData.write(to: url, options: .atomic)
+        } catch {
+            NSSound.beep()
+        }
+    }
+
+    private func share(_ image: NSImage, from contentView: NSView?) {
+        guard let contentView else {
+            NSSound.beep()
+            return
+        }
+
+        activeSharingPicker = NSSharingServicePicker(items: [image])
+        let anchorRect = CGRect(
+            x: contentView.bounds.midX,
+            y: PulseScreenshotEditorPanelLayout.toolbarHeight / 2,
+            width: 1,
+            height: 1
+        )
+        activeSharingPicker?.show(relativeTo: anchorRect, of: contentView, preferredEdge: .minY)
     }
 
     private static func screen(containing point: CGPoint) -> NSScreen? {
@@ -171,14 +221,46 @@ final class PulseScreenshotEditorPanelController {
 
 private struct PulseScreenshotEditorView: View {
     let image: NSImage
+    let mosaicPreviewImage: NSImage
     let strings: PulseStrings
     let imageContentSize: CGSize
+    var saveAction: (NSImage) -> Void
+    var shareAction: (NSImage) -> Void
+    var pinAction: ((NSImage) -> Void)?
     var closeAction: () -> Void
     var completeAction: (NSImage) -> Void
 
+    @Environment(\.colorScheme) private var colorScheme
     @State private var selectedTool = PulseScreenshotEditInteractionPolicy.defaultSelectedTool
     @State private var marks: [PulseScreenshotEditMark] = []
     @State private var activeMark: PulseScreenshotEditMark?
+    @State private var activeStrokePoints: [CGPoint] = []
+    @State private var textDraft: PulseScreenshotEditorTextDraft?
+    @FocusState private var isTextDraftFocused: Bool
+
+    init(
+        image: NSImage,
+        strings: PulseStrings,
+        imageContentSize: CGSize,
+        saveAction: @escaping (NSImage) -> Void,
+        shareAction: @escaping (NSImage) -> Void,
+        pinAction: ((NSImage) -> Void)?,
+        closeAction: @escaping () -> Void,
+        completeAction: @escaping (NSImage) -> Void
+    ) {
+        self.image = image
+        self.mosaicPreviewImage = PulseScreenshotMosaicImageFactory.pixelatedImage(
+            base: image,
+            size: imageContentSize
+        )
+        self.strings = strings
+        self.imageContentSize = imageContentSize
+        self.saveAction = saveAction
+        self.shareAction = shareAction
+        self.pinAction = pinAction
+        self.closeAction = closeAction
+        self.completeAction = completeAction
+    }
 
     var body: some View {
         VStack(spacing: PulseScreenshotEditorPanelLayout.toolbarGap) {
@@ -205,9 +287,12 @@ private struct PulseScreenshotEditorView: View {
 
             PulseScreenshotEditorCanvasOverlay(
                 marks: marks,
-                activeMark: activeMark
+                activeMark: activeMark,
+                mosaicImage: mosaicPreviewImage
             )
             .frame(width: imageContentSize.width, height: imageContentSize.height)
+
+            textDraftEditor
         }
         .frame(width: imageContentSize.width, height: imageContentSize.height)
         .clipShape(
@@ -221,30 +306,236 @@ private struct PulseScreenshotEditorView: View {
 
         if PulseScreenshotEditInteractionPolicy.allowsImageWindowDragging(selectedTool: selectedTool) {
             content.gesture(WindowDragGesture())
+        } else if selectedTool == .text, textDraft != nil {
+            content
         } else if let selectedTool {
             content.gesture(editGesture(for: selectedTool))
+        }
+    }
+
+    @ViewBuilder
+    private var textDraftEditor: some View {
+        if let textDraft {
+            TextField(strings.text(.screenshotEditorText), text: textDraftBinding)
+                .textFieldStyle(.plain)
+                .font(.system(size: textPreviewFontSize, weight: .semibold, design: .rounded))
+                .foregroundStyle(.orange.opacity(0.96))
+                .padding(.horizontal, PulseDesign.Spacing.xs)
+                .padding(.vertical, PulseDesign.Spacing.fine)
+                .frame(width: min(max(150, imageContentSize.width * 0.26), 280), alignment: .leading)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: PulseDesign.Radius.control, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: PulseDesign.Radius.control, style: .continuous)
+                        .stroke(.orange.opacity(0.55), lineWidth: 1)
+                }
+                .position(
+                    x: textDraft.point.x * imageContentSize.width,
+                    y: textDraft.point.y * imageContentSize.height
+                )
+                .focused($isTextDraftFocused)
+                .onSubmit {
+                    commitTextDraftIfNeeded()
+                }
+                .onChange(of: isTextDraftFocused) { _, isFocused in
+                    if !isFocused {
+                        commitTextDraftIfNeeded()
+                    }
+                }
+                .task(id: textDraft.id) {
+                    isTextDraftFocused = true
+                }
         }
     }
 
     private func editGesture(for tool: PulseScreenshotEditTool) -> some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
-                activeMark = PulseScreenshotEditMark(
-                    tool: tool,
-                    start: normalizedPoint(value.startLocation),
-                    end: normalizedPoint(value.location)
-                )
+                if tool == .mosaic {
+                    updateActiveMosaicStroke(value)
+                } else if tool == .pen {
+                    updateActivePenStroke(value)
+                } else if tool == .text {
+                    beginTextDraft(at: value.startLocation)
+                } else {
+                    activeMark = PulseScreenshotEditMark(
+                        tool: tool,
+                        start: normalizedPoint(value.startLocation),
+                        end: normalizedPoint(value.location)
+                    )
+                }
             }
             .onEnded { value in
-                let mark = PulseScreenshotEditMark(
-                    tool: tool,
-                    start: normalizedPoint(value.startLocation),
-                    end: normalizedPoint(value.location)
-                )
-                .resolvingTinyDrag(minimumUnitSpan: minimumUnitSpan)
-                marks.append(mark)
+                if tool == .mosaic {
+                    marks.append(finalMosaicStroke(value))
+                    activeStrokePoints = []
+                } else if tool == .pen {
+                    marks.append(finalPenStroke(value))
+                    activeStrokePoints = []
+                } else if tool == .text {
+                    beginTextDraft(at: value.location)
+                } else {
+                    let mark = PulseScreenshotEditMark(
+                        tool: tool,
+                        start: normalizedPoint(value.startLocation),
+                        end: normalizedPoint(value.location)
+                    )
+                    .resolvingTinyDrag(minimumUnitSpan: minimumUnitSpan)
+                    marks.append(mark)
+                }
                 activeMark = nil
             }
+    }
+
+    private func updateActiveMosaicStroke(_ value: DragGesture.Value) {
+        let currentPoint = normalizedPoint(value.location)
+        var points = activeStrokePoints
+        if points.isEmpty {
+            points = [normalizedPoint(value.startLocation)]
+        }
+
+        if shouldAppendMosaicPoint(currentPoint, after: points.last) {
+            points.append(currentPoint)
+        }
+
+        activeStrokePoints = points
+        activeMark = PulseScreenshotEditMark.mosaicStroke(
+            points: points,
+            brushDiameter: mosaicBrushUnitDiameter
+        )
+    }
+
+    private func finalMosaicStroke(_ value: DragGesture.Value) -> PulseScreenshotEditMark {
+        let finalPoint = normalizedPoint(value.location)
+        var points = activeStrokePoints.isEmpty ? [normalizedPoint(value.startLocation)] : activeStrokePoints
+        if finalPoint != points.last {
+            points.append(finalPoint)
+        }
+
+        return PulseScreenshotEditMark.mosaicStroke(
+            points: points,
+            brushDiameter: mosaicBrushUnitDiameter
+        )
+    }
+
+    private func updateActivePenStroke(_ value: DragGesture.Value) {
+        let currentPoint = normalizedPoint(value.location)
+        var points = activeStrokePoints
+        if points.isEmpty {
+            points = [normalizedPoint(value.startLocation)]
+        }
+
+        if shouldAppendStrokePoint(
+            currentPoint,
+            after: points.last,
+            minimumDisplaySpacing: PulseScreenshotInkBrush.minimumDisplayPointSpacing
+        ) {
+            points.append(currentPoint)
+        }
+
+        activeStrokePoints = points
+        activeMark = PulseScreenshotEditMark.penStroke(
+            points: points,
+            brushDiameter: penBrushUnitDiameter
+        )
+    }
+
+    private func finalPenStroke(_ value: DragGesture.Value) -> PulseScreenshotEditMark {
+        let finalPoint = normalizedPoint(value.location)
+        var points = activeStrokePoints.isEmpty ? [normalizedPoint(value.startLocation)] : activeStrokePoints
+        if finalPoint != points.last {
+            points.append(finalPoint)
+        }
+
+        return PulseScreenshotEditMark.penStroke(
+            points: points,
+            brushDiameter: penBrushUnitDiameter
+        )
+    }
+
+    private func shouldAppendMosaicPoint(_ point: CGPoint, after previousPoint: CGPoint?) -> Bool {
+        shouldAppendStrokePoint(
+            point,
+            after: previousPoint,
+            minimumDisplaySpacing: PulseScreenshotMosaicBrush.minimumDisplayPointSpacing
+        )
+    }
+
+    private func shouldAppendStrokePoint(
+        _ point: CGPoint,
+        after previousPoint: CGPoint?,
+        minimumDisplaySpacing: CGFloat
+    ) -> Bool {
+        guard let previousPoint else {
+            return true
+        }
+
+        let deltaX = (point.x - previousPoint.x) * imageContentSize.width
+        let deltaY = (point.y - previousPoint.y) * imageContentSize.height
+        return hypot(deltaX, deltaY) >= minimumDisplaySpacing
+    }
+
+    private var mosaicBrushUnitDiameter: CGFloat {
+        PulseScreenshotMosaicBrush.unitDiameter(for: imageContentSize)
+    }
+
+    private var penBrushUnitDiameter: CGFloat {
+        PulseScreenshotInkBrush.unitDiameter(for: imageContentSize)
+    }
+
+    private var textPreviewFontSize: CGFloat {
+        PulseScreenshotTextStyle.fontSize(for: imageContentSize)
+    }
+
+    private var textDraftBinding: Binding<String> {
+        Binding(
+            get: {
+                textDraft?.text ?? ""
+            },
+            set: { newValue in
+                guard var draft = textDraft else {
+                    return
+                }
+                draft.text = newValue
+                textDraft = draft
+            }
+        )
+    }
+
+    private func beginTextDraft(at location: CGPoint) {
+        guard textDraft == nil else {
+            return
+        }
+
+        activeMark = nil
+        activeStrokePoints = []
+        textDraft = PulseScreenshotEditorTextDraft(point: normalizedPoint(location))
+        isTextDraftFocused = true
+    }
+
+    private func commitTextDraftIfNeeded() {
+        guard let mark = textDraftMark() else {
+            textDraft = nil
+            return
+        }
+
+        marks.append(mark)
+        textDraft = nil
+    }
+
+    private func textDraftMark() -> PulseScreenshotEditMark? {
+        guard let textDraft else {
+            return nil
+        }
+
+        return textDraft.mark()
+    }
+
+    private func currentMarks() -> [PulseScreenshotEditMark] {
+        guard let mark = textDraftMark() else {
+            return marks
+        }
+
+        return marks + [mark]
     }
 
     private var minimumUnitSpan: CGSize {
@@ -256,63 +547,71 @@ private struct PulseScreenshotEditorView: View {
 
     private var toolbar: some View {
         HStack(spacing: PulseDesign.Spacing.sm) {
-            HStack(spacing: PulseDesign.Spacing.xxs) {
+            HStack(spacing: PulseDesign.Spacing.xs) {
+                moveButton
+            }
+
+            toolbarDivider
+
+            HStack(spacing: PulseDesign.Spacing.xs) {
                 ForEach(PulseScreenshotEditTool.allCases) { tool in
                     toolButton(tool)
                 }
             }
 
-            Divider()
-                .frame(height: 24)
-                .overlay(.white.opacity(0.16))
+            toolbarDivider
 
-            Button(action: undoLastMark) {
-                Text(strings.text(.screenshotEditorUndo))
-                    .font(.system(.caption, design: .rounded, weight: .semibold))
-                    .foregroundStyle(.white.opacity(marks.isEmpty ? 0.42 : 0.86))
-                    .frame(height: 30)
-                    .padding(.horizontal, PulseDesign.Spacing.sm)
-                    .background(
-                        .white.opacity(marks.isEmpty ? 0.04 : 0.10),
-                        in: RoundedRectangle(cornerRadius: PulseDesign.Radius.control, style: .continuous)
-                    )
+            HStack(spacing: PulseDesign.Spacing.xs) {
+                toolbarIconButton(
+                    title: strings.text(.screenshotEditorUndo),
+                    systemName: "arrow.uturn.backward",
+                    isEnabled: canUndo,
+                    action: undoLastMark
+                )
+
+                toolbarIconButton(
+                    title: strings.text(.screenshotSaveAction),
+                    systemName: "square.and.arrow.down",
+                    action: saveEditing
+                )
+
+                toolbarIconButton(
+                    title: strings.text(.screenshotShareAction),
+                    systemName: "square.and.arrow.up",
+                    action: shareEditing
+                )
+
+                toolbarIconButton(
+                    title: strings.text(.screenshotPinAction),
+                    systemName: "pin",
+                    isEnabled: pinAction != nil,
+                    action: pinEditing
+                )
             }
-            .buttonStyle(.plain)
-            .disabled(marks.isEmpty)
 
-            Spacer(minLength: PulseDesign.Spacing.sm)
+            toolbarDivider
 
-            Button(action: closeAction) {
-                Text(strings.text(.screenshotEditorCancel))
-                    .font(.system(.caption, design: .rounded, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.78))
-                    .frame(height: 30)
-                    .padding(.horizontal, PulseDesign.Spacing.sm)
-                    .background(
-                        .white.opacity(0.08),
-                        in: RoundedRectangle(cornerRadius: PulseDesign.Radius.control, style: .continuous)
-                    )
+            HStack(spacing: PulseDesign.Spacing.xs) {
+                toolbarIconButton(
+                    title: strings.text(.screenshotEditorCancel),
+                    systemName: "xmark",
+                    tint: .red.opacity(0.92),
+                    action: closeAction
+                )
+
+                toolbarIconButton(
+                    title: strings.text(.screenshotEditorDone),
+                    systemName: "checkmark",
+                    tint: .green.opacity(0.92),
+                    action: completeEditing
+                )
             }
-            .buttonStyle(.plain)
-
-            Button(action: completeEditing) {
-                Text(strings.text(.screenshotEditorDone))
-                    .font(.system(.caption, design: .rounded, weight: .semibold))
-                    .foregroundStyle(.black.opacity(0.88))
-                    .frame(height: 30)
-                    .padding(.horizontal, PulseDesign.Spacing.sm)
-                    .background(
-                        .orange.opacity(0.94),
-                        in: RoundedRectangle(cornerRadius: PulseDesign.Radius.control, style: .continuous)
-                    )
-            }
-            .buttonStyle(.plain)
         }
-        .padding(.horizontal, PulseDesign.Spacing.compact)
+        .padding(.horizontal, PulseDesign.Spacing.md)
         .frame(width: contentWidth)
         .frame(height: PulseScreenshotEditorPanelLayout.toolbarHeight)
         .background(
-            .black.opacity(0.72),
+            toolbarBackground,
             in: RoundedRectangle(
                 cornerRadius: PulseScreenshotEditorPanelLayout.cornerRadius,
                 style: .continuous
@@ -323,44 +622,156 @@ private struct PulseScreenshotEditorView: View {
                 cornerRadius: PulseScreenshotEditorPanelLayout.cornerRadius,
                 style: .continuous
             )
-            .stroke(.white.opacity(0.10), lineWidth: 1)
+            .stroke(toolbarBorderColor, lineWidth: 1)
         }
         .contentShape(RoundedRectangle(cornerRadius: PulseScreenshotEditorPanelLayout.cornerRadius, style: .continuous))
         .simultaneousGesture(WindowDragGesture())
         .allowsWindowActivationEvents(true)
     }
 
+    private var moveButton: some View {
+        toolbarIconButton(
+            title: strings.text(.screenshotEditorMove),
+            systemName: "hand.raised",
+            isSelected: selectedTool == nil,
+            action: selectMoveTool
+        )
+    }
+
     private func toolButton(_ tool: PulseScreenshotEditTool) -> some View {
         let isSelected = selectedTool == tool
-        return Button {
-            activeMark = nil
-            selectedTool = PulseScreenshotEditInteractionPolicy.selectedTool(
-                afterTapping: tool,
-                currentSelection: selectedTool
-            )
-        } label: {
-            VStack(spacing: PulseDesign.Spacing.micro) {
-                PulseScreenshotEditorToolIcon(tool: tool)
-                    .frame(width: 18, height: 18)
-
-                Text(strings.screenshotEditorToolTitle(tool))
-                    .font(.system(size: 10, weight: .semibold, design: .rounded))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.82)
+        return toolbarIconButton(
+            title: strings.screenshotEditorToolTitle(tool),
+            isSelected: isSelected,
+            action: {
+                selectTool(tool)
             }
-            .foregroundStyle(isSelected ? .black.opacity(0.88) : .white.opacity(0.84))
-            .frame(width: 54, height: 42)
-            .background(
-                isSelected ? .orange.opacity(0.94) : .white.opacity(0.08),
-                in: RoundedRectangle(cornerRadius: PulseDesign.Radius.control, style: .continuous)
-            )
+        ) {
+            PulseScreenshotEditorToolIcon(tool: tool)
+                .frame(width: 22, height: 22)
+        }
+    }
+
+    private func toolbarIconButton(
+        title: String,
+        systemName: String,
+        isSelected: Bool = false,
+        isEnabled: Bool = true,
+        tint: Color? = nil,
+        action: @escaping () -> Void
+    ) -> some View {
+        toolbarIconButton(
+            title: title,
+            isSelected: isSelected,
+            isEnabled: isEnabled,
+            tint: tint,
+            action: action
+        ) {
+            Image(systemName: systemName)
+                .font(.system(size: 22, weight: .regular))
+        }
+    }
+
+    private func toolbarIconButton<Icon: View>(
+        title: String,
+        isSelected: Bool = false,
+        isEnabled: Bool = true,
+        tint: Color? = nil,
+        action: @escaping () -> Void,
+        @ViewBuilder icon: @escaping () -> Icon
+    ) -> some View {
+        Button(action: action) {
+            icon()
+                .foregroundStyle(iconColor(isSelected: isSelected, isEnabled: isEnabled, tint: tint))
+                .frame(width: 24, height: 24)
+                .frame(width: 40, height: 40)
+                .background(
+                    buttonBackground(isSelected: isSelected, isEnabled: isEnabled),
+                    in: RoundedRectangle(cornerRadius: PulseDesign.Radius.control, style: .continuous)
+                )
+                .contentShape(RoundedRectangle(cornerRadius: PulseDesign.Radius.control, style: .continuous))
         }
         .buttonStyle(.plain)
-        .help(strings.screenshotEditorToolTitle(tool))
-        .accessibilityLabel(strings.screenshotEditorToolTitle(tool))
+        .disabled(!isEnabled)
+        .help(title)
+        .accessibilityLabel(title)
+    }
+
+    private var toolbarDivider: some View {
+        Rectangle()
+            .fill(toolbarDividerColor)
+            .frame(width: 1, height: 24)
+    }
+
+    private var toolbarBackground: Color {
+        colorScheme == .dark
+            ? Color(nsColor: .controlBackgroundColor).opacity(0.96)
+            : .white.opacity(0.96)
+    }
+
+    private var toolbarBorderColor: Color {
+        colorScheme == .dark ? .white.opacity(0.10) : .black.opacity(0.12)
+    }
+
+    private var toolbarDividerColor: Color {
+        colorScheme == .dark ? .white.opacity(0.12) : .black.opacity(0.12)
+    }
+
+    private func buttonBackground(isSelected: Bool, isEnabled: Bool) -> Color {
+        guard isEnabled else {
+            return .clear
+        }
+
+        if isSelected {
+            return colorScheme == .dark ? .white.opacity(0.16) : .black.opacity(0.10)
+        }
+
+        return .clear
+    }
+
+    private func iconColor(isSelected: Bool, isEnabled: Bool, tint: Color?) -> Color {
+        guard isEnabled else {
+            return colorScheme == .dark ? .white.opacity(0.28) : .black.opacity(0.24)
+        }
+
+        if let tint {
+            return tint
+        }
+
+        if isSelected {
+            return .orange.opacity(0.96)
+        }
+
+        return colorScheme == .dark ? .white.opacity(0.82) : .black.opacity(0.82)
+    }
+
+    private var canUndo: Bool {
+        !marks.isEmpty || textDraft != nil
+    }
+
+    private func selectTool(_ tool: PulseScreenshotEditTool) {
+        commitTextDraftIfNeeded()
+        activeMark = nil
+        activeStrokePoints = []
+        selectedTool = PulseScreenshotEditInteractionPolicy.selectedTool(
+            afterTapping: tool,
+            currentSelection: selectedTool
+        )
+    }
+
+    private func selectMoveTool() {
+        commitTextDraftIfNeeded()
+        activeMark = nil
+        activeStrokePoints = []
+        selectedTool = nil
     }
 
     private func undoLastMark() {
+        if textDraft != nil {
+            textDraft = nil
+            return
+        }
+
         guard !marks.isEmpty else {
             return
         }
@@ -368,8 +779,36 @@ private struct PulseScreenshotEditorView: View {
         marks.removeLast()
     }
 
+    private func saveEditing() {
+        performImageAction(saveAction)
+    }
+
+    private func shareEditing() {
+        performImageAction(shareAction)
+    }
+
+    private func pinEditing() {
+        guard let pinAction else {
+            return
+        }
+
+        performImageAction(pinAction)
+    }
+
+    private func performImageAction(_ action: (NSImage) -> Void) {
+        let renderingMarks = currentMarks()
+        guard let editedImage = PulseScreenshotEditRenderer.renderedImage(base: image, marks: renderingMarks) else {
+            NSSound.beep()
+            return
+        }
+
+        commitTextDraftIfNeeded()
+        action(editedImage)
+    }
+
     private func completeEditing() {
-        guard let editedImage = PulseScreenshotEditRenderer.renderedImage(base: image, marks: marks) else {
+        let renderingMarks = currentMarks()
+        guard let editedImage = PulseScreenshotEditRenderer.renderedImage(base: image, marks: renderingMarks) else {
             NSSound.beep()
             return
         }
@@ -385,19 +824,43 @@ private struct PulseScreenshotEditorView: View {
     }
 }
 
+private struct PulseScreenshotEditorTextDraft: Equatable, Identifiable {
+    let id = UUID()
+    var point: CGPoint
+    var text = ""
+
+    func mark() -> PulseScreenshotEditMark? {
+        let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedText.isEmpty else {
+            return nil
+        }
+
+        return PulseScreenshotEditMark.text(text, at: point)
+    }
+}
+
 private struct PulseScreenshotEditorCanvasOverlay: View {
     var marks: [PulseScreenshotEditMark]
     var activeMark: PulseScreenshotEditMark?
+    var mosaicImage: NSImage
 
     var body: some View {
         GeometryReader { proxy in
             ZStack {
                 ForEach(marks) { mark in
-                    PulseScreenshotEditorMarkView(mark: mark, canvasSize: proxy.size)
+                    PulseScreenshotEditorMarkView(
+                        mark: mark,
+                        canvasSize: proxy.size,
+                        mosaicImage: mosaicImage
+                    )
                 }
 
                 if let activeMark {
-                    PulseScreenshotEditorMarkView(mark: activeMark, canvasSize: proxy.size)
+                    PulseScreenshotEditorMarkView(
+                        mark: activeMark,
+                        canvasSize: proxy.size,
+                        mosaicImage: mosaicImage
+                    )
                 }
             }
         }
@@ -408,18 +871,33 @@ private struct PulseScreenshotEditorCanvasOverlay: View {
 private struct PulseScreenshotEditorMarkView: View {
     var mark: PulseScreenshotEditMark
     var canvasSize: CGSize
+    var mosaicImage: NSImage
 
     var body: some View {
         switch mark.tool {
         case .mosaic:
-            PulseScreenshotMosaicPattern()
-                .frame(width: rect.width, height: rect.height)
-                .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 3, style: .continuous)
-                        .stroke(.orange.opacity(0.42), lineWidth: 2)
-                }
-                .position(x: rect.midX, y: rect.midY)
+            if let stroke = mark.mosaicStroke {
+                Image(nsImage: mosaicImage)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: canvasSize.width, height: canvasSize.height)
+                    .clipShape(PulseScreenshotEditorStrokeShape(stroke: stroke))
+            } else {
+                Image(nsImage: mosaicImage)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: canvasSize.width, height: canvasSize.height)
+                    .mask {
+                        RoundedRectangle(cornerRadius: 3, style: .continuous)
+                            .frame(width: rect.width, height: rect.height)
+                            .position(x: rect.midX, y: rect.midY)
+                    }
+            }
+        case .pen:
+            if let stroke = mark.stroke {
+                PulseScreenshotEditorStrokeShape(stroke: stroke)
+                    .fill(.orange.opacity(0.96))
+            }
         case .rectangle:
             RoundedRectangle(cornerRadius: 4, style: .continuous)
                 .fill(.orange.opacity(0.10))
@@ -444,6 +922,15 @@ private struct PulseScreenshotEditorMarkView: View {
                 end: point(mark.end)
             )
             .stroke(.orange.opacity(0.96), style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
+        case .text:
+            if let text = mark.textValue {
+                Text(text)
+                    .font(.system(size: PulseScreenshotTextStyle.fontSize(for: canvasSize), weight: .semibold, design: .rounded))
+                    .foregroundStyle(.orange.opacity(0.96))
+                    .shadow(color: .black.opacity(0.22), radius: 2, y: 1)
+                    .fixedSize()
+                    .position(point(mark.start))
+            }
         }
     }
 
@@ -462,41 +949,34 @@ private struct PulseScreenshotEditorMarkView: View {
     }
 }
 
-private struct PulseScreenshotMosaicPattern: View {
-    private let tileSide: CGFloat = 10
-    private let colors: [Color] = [
-        Color(white: 0.08),
-        Color(white: 0.24),
-        Color(white: 0.40),
-        Color(white: 0.62)
-    ]
+private struct PulseScreenshotEditorStrokeShape: Shape {
+    var stroke: PulseScreenshotEditStroke
 
-    var body: some View {
-        GeometryReader { proxy in
-            Canvas { context, size in
-                let columns = max(1, Int(ceil(size.width / tileSide)))
-                let rows = max(1, Int(ceil(size.height / tileSide)))
-
-                for row in 0..<rows {
-                    for column in 0..<columns {
-                        let color = colors[(row * 7 + column * 11) % colors.count]
-                        context.fill(
-                            Path(
-                                CGRect(
-                                    x: CGFloat(column) * tileSide,
-                                    y: CGFloat(row) * tileSide,
-                                    width: min(tileSide, size.width - CGFloat(column) * tileSide),
-                                    height: min(tileSide, size.height - CGFloat(row) * tileSide)
-                                )
-                                .insetBy(dx: 0.5, dy: 0.5)
-                            ),
-                            with: .color(color)
-                        )
-                    }
-                }
-            }
-            .frame(width: proxy.size.width, height: proxy.size.height)
+    func path(in rect: CGRect) -> Path {
+        let points = stroke.points.map { point in
+            CGPoint(x: point.x * rect.width, y: point.y * rect.height)
         }
+        let brushDiameter = max(1, stroke.brushDiameter * min(rect.width, rect.height))
+        guard let firstPoint = points.first else {
+            return Path()
+        }
+
+        if points.count == 1 {
+            return Path(ellipseIn: CGRect(
+                x: firstPoint.x - brushDiameter / 2,
+                y: firstPoint.y - brushDiameter / 2,
+                width: brushDiameter,
+                height: brushDiameter
+            ))
+        }
+
+        var centerPath = Path()
+        centerPath.move(to: firstPoint)
+        for point in points.dropFirst() {
+            centerPath.addLine(to: point)
+        }
+
+        return centerPath.strokedPath(StrokeStyle(lineWidth: brushDiameter, lineCap: .round, lineJoin: .round))
     }
 }
 
@@ -532,44 +1012,45 @@ private struct PulseScreenshotEditorToolIcon: View {
     var tool: PulseScreenshotEditTool
 
     var body: some View {
-        GeometryReader { proxy in
-            Canvas { context, size in
-                let rect = CGRect(origin: .zero, size: size).insetBy(dx: 2, dy: 2)
-                switch tool {
-                case .mosaic:
-                    let tileSide = max(3, rect.width / 3)
-                    for row in 0..<3 {
-                        for column in 0..<3 {
-                            let shade = 0.22 + Double((row + column) % 3) * 0.22
-                            context.fill(
-                                Path(
-                                    CGRect(
-                                        x: rect.minX + CGFloat(column) * tileSide,
-                                        y: rect.minY + CGFloat(row) * tileSide,
-                                        width: tileSide - 1,
-                                        height: tileSide - 1
-                                    )
-                                ),
-                                with: .color(Color(white: shade))
-                            )
+        switch tool {
+        case .rectangle:
+            Image(systemName: "rectangle")
+                .font(.system(size: 23, weight: .regular))
+        case .ellipse:
+            Image(systemName: "circle")
+                .font(.system(size: 23, weight: .regular))
+        case .arrow:
+            Image(systemName: "arrow.up.right")
+                .font(.system(size: 24, weight: .regular))
+        case .pen:
+            Image(systemName: "pencil")
+                .font(.system(size: 23, weight: .regular))
+        case .mosaic:
+            PulseScreenshotMosaicToolbarIcon()
+        case .text:
+            Image(systemName: "textformat")
+                .font(.system(size: 23, weight: .regular))
+        }
+    }
+}
+
+private struct PulseScreenshotMosaicToolbarIcon: View {
+    var body: some View {
+        ZStack {
+            Rectangle()
+                .stroke(lineWidth: 1.8)
+
+            Grid(horizontalSpacing: 1.2, verticalSpacing: 1.2) {
+                ForEach(0..<3, id: \.self) { row in
+                    GridRow {
+                        ForEach(0..<3, id: \.self) { column in
+                            Rectangle()
+                                .fill(.primary.opacity((row + column).isMultiple(of: 2) ? 0.82 : 0.28))
                         }
                     }
-                case .rectangle:
-                    context.stroke(Path(roundedRect: rect, cornerRadius: 2), with: .color(.primary), lineWidth: 2)
-                case .ellipse:
-                    context.stroke(Path(ellipseIn: rect), with: .color(.primary), lineWidth: 2)
-                case .arrow:
-                    var path = Path()
-                    path.move(to: CGPoint(x: rect.minX, y: rect.maxY))
-                    path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
-                    path.move(to: CGPoint(x: rect.maxX, y: rect.minY))
-                    path.addLine(to: CGPoint(x: rect.maxX - 7, y: rect.minY + 1))
-                    path.move(to: CGPoint(x: rect.maxX, y: rect.minY))
-                    path.addLine(to: CGPoint(x: rect.maxX - 1, y: rect.minY + 7))
-                    context.stroke(path, with: .color(.primary), style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
                 }
             }
-            .frame(width: proxy.size.width, height: proxy.size.height)
+            .padding(3.5)
         }
     }
 }

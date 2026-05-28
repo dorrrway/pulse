@@ -566,6 +566,12 @@ final class LanguagePreferenceTests: XCTestCase {
             ),
             "左耳电量 96%"
         )
+        XCTAssertEqual(
+            PulseStrings(language: .english).bluetoothBatteryLabel(
+                BluetoothBatteryLevel(role: .device, percentage: 0.26, isCharging: true)
+            ),
+            "Battery 26%, charging"
+        )
         let airPodsLeftLowBattery = BluetoothBatteryAlert(
             deviceID: "airpods",
             deviceName: "AirPods Pro",
@@ -603,8 +609,12 @@ final class LanguagePreferenceTests: XCTestCase {
         )
         XCTAssertEqual(PulseStrings(language: .english).text(.screenshotEditAction), "Edit")
         XCTAssertEqual(PulseStrings(language: .chinese).text(.screenshotEditAction), "编辑")
+        XCTAssertEqual(PulseStrings(language: .english).text(.screenshotEditorMove), "Move")
+        XCTAssertEqual(PulseStrings(language: .chinese).text(.screenshotEditorMove), "移动")
         XCTAssertEqual(PulseStrings(language: .chinese).screenshotEditorToolTitle(.mosaic), "马赛克")
         XCTAssertEqual(PulseStrings(language: .chinese).screenshotEditorToolTitle(.ellipse), "圆形")
+        XCTAssertEqual(PulseStrings(language: .english).screenshotEditorToolTitle(.pen), "Pen")
+        XCTAssertEqual(PulseStrings(language: .chinese).screenshotEditorToolTitle(.text), "文字")
         XCTAssertTrue(
             PulseStrings(language: .chinese)
                 .text(.screenshotScreenRecordingPermissionNotice)

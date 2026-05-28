@@ -40,21 +40,28 @@ verification notes that would make the public changelog too noisy.
   orange inline notice with an explicit Authorize action; the capture buttons
   remain usable and still run the existing request path.
 - Screenshot preview editing uses a separate floating `NSPanel` modeled after
-  the pinned screenshot panel. SwiftUI owns the edit marks and bottom toolbar,
-  while AppKit only owns window lifetime; completing an edit re-renders the
-  image locally and writes the edited PNG back to the system pasteboard.
+  the pinned screenshot panel. SwiftUI owns the edit marks and an adaptive
+  icon-only bottom toolbar with a separated leftmost hand Move button followed
+  by rectangle, circle, arrow, pen, mosaic, text, undo, save, share, pin,
+  cancel, and done; AppKit only owns window lifetime and native save/share
+  panels.
 - Pinned screenshot panels now keep the same borderless image-only surface while
-  the hosting view handles invisible edge and corner resize zones. Resizing
-  preserves the original image aspect ratio, clamps to the current visible
-  screen, and keeps the normal window-drag area away from resize hit zones.
-- Pinned screenshot corner resizing locks one horizontal-or-vertical driver per
-  drag after 4 pt of intentional movement. Size clamping keeps fractional point
-  precision while dragging, and the panel shadow is refreshed after mouse-up
-  instead of on every resize frame to avoid AppKit/SwiftUI feedback jitter.
+  using AppKit's native resizable window behavior. The panel keeps the original
+  image aspect ratio through `contentAspectRatio` and relies on existing
+  `contentMinSize` / `contentMaxSize` limits instead of recalculating frames
+  from SwiftUI mouse-drag events.
 - The screenshot editor starts with no selected tool. While no tool is selected,
   dragging the image moves the editor window; after a tool is selected, the
   image region stops participating in window dragging so drawing arrows, shapes,
   or mosaics does not move the panel.
+- Mosaic edit marks now use a brush stroke model with normalized point samples
+  and a display-relative brush diameter. The SwiftUI preview and AppKit renderer
+  both draw from a source-image pixelated copy clipped to the same round-capped
+  stroke, so redaction follows the screenshot's colors instead of overlaying
+  synthetic gray tiles.
+- Pen and text edit marks are rendered through the same local renderer as shape
+  and mosaic marks, so editor save/share/pin actions always operate on the
+  currently edited image rather than the original screenshot.
 - Added a Bluetooth island module backed by `IOBluetoothDevice` for paired
   device state/actions, IORegistry battery fields for connected Apple HID
   devices, and macOS Bluetooth profile battery fields for AirPods left/right/case
@@ -90,12 +97,16 @@ verification notes that would make the public changelog too noisy.
 - Bluetooth low-battery items now also enter the normal compact island seed
   rotation alongside Memory, CPU, and internal Battery while the low-battery
   state remains active, instead of only appearing as one-time critical alerts.
+- Bluetooth battery rings now surface charging state for connected Apple HID
+  devices when macOS exposes extended battery status. Charging rings stay green,
+  lightly alternate the center battery icon with a bolt symbol, and are excluded
+  from low-battery Bluetooth alerts.
 - The Bluetooth panel footer now keeps a Bluetooth Settings shortcut on the
   lower left and moves the paired-device count next to the lower-right refresh
   control.
 - Bluetooth and Applications footer refresh actions now render without button
-  backgrounds, and the Bluetooth Settings shortcut uses the provided linear
-  Bluetooth PDF asset instead of the settings gear.
+  backgrounds, and the Bluetooth Settings shortcut uses the same Bluetooth glyph
+  as the Bluetooth module title instead of the settings gear.
 - Added local shortcut preferences and global hot key IDs for full-screen,
   window, and selection capture. Duplicate shortcut assignment still moves the
   shortcut to the most recently edited action.

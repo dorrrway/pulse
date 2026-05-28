@@ -16,6 +16,35 @@ final class BluetoothDeviceModelTests: XCTestCase {
         XCTAssertEqual(level, BluetoothBatteryLevel(role: .case, percentage: 0.34))
     }
 
+    func testAppleHIDBatteryLevelMarksChargingFromExtendedStatusFlags() {
+        let charging = BluetoothBatteryLevel.appleHIDDevice(
+            percentage: 26,
+            supportsExtendedBatteryState: true,
+            statusFlags: 3
+        )
+        let notCharging = BluetoothBatteryLevel.appleHIDDevice(
+            percentage: 45,
+            supportsExtendedBatteryState: true,
+            statusFlags: 4
+        )
+        let unknown = BluetoothBatteryLevel.appleHIDDevice(
+            percentage: 45,
+            supportsExtendedBatteryState: false,
+            statusFlags: 3
+        )
+
+        XCTAssertEqual(charging, BluetoothBatteryLevel(role: .device, percentage: 0.26, isCharging: true))
+        XCTAssertFalse(notCharging.isCharging)
+        XCTAssertFalse(unknown.isCharging)
+    }
+
+    func testBluetoothBatteryLevelDecodesLegacyPayloadWithoutChargingState() throws {
+        let data = #"{"role":"device","percentage":0.5}"#.data(using: .utf8)!
+        let level = try JSONDecoder().decode(BluetoothBatteryLevel.self, from: data)
+
+        XCTAssertEqual(level, BluetoothBatteryLevel(role: .device, percentage: 0.5))
+    }
+
     func testInfersTrackpadCategoryFromName() {
         XCTAssertEqual(BluetoothDeviceCategory.inferred(name: "Magic Trackpad", minorType: nil), .trackpad)
     }
@@ -128,6 +157,20 @@ final class BluetoothDeviceModelTests: XCTestCase {
 
         XCTAssertEqual(alerts.map(\.role), [.left, .right])
         XCTAssertEqual(alerts.map(\.severity), [.low, .critical])
+    }
+
+    func testChargingBluetoothBatteryDoesNotBuildLowBatteryAlert() {
+        let device = BluetoothDevice(
+            id: "trackpad",
+            name: "Magic Trackpad",
+            category: .trackpad,
+            connectionState: .connected,
+            batteryLevels: [
+                BluetoothBatteryLevel(role: .device, percentage: 0.09, isCharging: true),
+            ]
+        )
+
+        XCTAssertTrue(device.lowBatteryAlerts.isEmpty)
     }
 
     #if DEBUG

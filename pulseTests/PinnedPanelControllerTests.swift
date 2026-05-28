@@ -162,66 +162,6 @@ final class PinnedPanelControllerTests: XCTestCase {
     }
 
     @MainActor
-    func testPinnedScreenshotCornerResizeDriverLocksAfterIntentionalMovement() {
-        let initialSize = CGSize(width: 800, height: 400)
-
-        XCTAssertNil(
-            PulsePinnedScreenshotPanelLayout.lockedCornerResizeDriver(
-                initialSize: initialSize,
-                dragDelta: CGVector(dx: 3, dy: 1)
-            )
-        )
-        XCTAssertEqual(
-            PulsePinnedScreenshotPanelLayout.lockedCornerResizeDriver(
-                initialSize: initialSize,
-                dragDelta: CGVector(dx: 60, dy: 10)
-            ),
-            .horizontal
-        )
-        XCTAssertEqual(
-            PulsePinnedScreenshotPanelLayout.lockedCornerResizeDriver(
-                initialSize: initialSize,
-                dragDelta: CGVector(dx: 10, dy: 40)
-            ),
-            .vertical
-        )
-    }
-
-    @MainActor
-    func testPinnedScreenshotCornerResizeUsesLockedHorizontalDriver() {
-        let frame = PulsePinnedScreenshotPanelLayout.resizedWindowFrame(
-            initialFrame: CGRect(x: 100, y: 100, width: 800, height: 400),
-            imageSize: CGSize(width: 1600, height: 800),
-            visibleFrame: CGRect(x: -2000, y: -2000, width: 4000, height: 4000),
-            handle: .topRight,
-            dragDelta: CGVector(dx: 80, dy: 200),
-            resizeDriver: .horizontal
-        )
-
-        XCTAssertEqual(frame.origin.x, 100, accuracy: 0.001)
-        XCTAssertEqual(frame.origin.y, 100, accuracy: 0.001)
-        XCTAssertEqual(frame.size.width, 880, accuracy: 0.001)
-        XCTAssertEqual(frame.size.height, 440, accuracy: 0.001)
-    }
-
-    @MainActor
-    func testPinnedScreenshotCornerResizeUsesLockedVerticalDriver() {
-        let frame = PulsePinnedScreenshotPanelLayout.resizedWindowFrame(
-            initialFrame: CGRect(x: 100, y: 100, width: 800, height: 400),
-            imageSize: CGSize(width: 1600, height: 800),
-            visibleFrame: CGRect(x: -2000, y: -2000, width: 4000, height: 4000),
-            handle: .topRight,
-            dragDelta: CGVector(dx: 80, dy: 100),
-            resizeDriver: .vertical
-        )
-
-        XCTAssertEqual(frame.origin.x, 100, accuracy: 0.001)
-        XCTAssertEqual(frame.origin.y, 100, accuracy: 0.001)
-        XCTAssertEqual(frame.size.width, 1000, accuracy: 0.001)
-        XCTAssertEqual(frame.size.height, 500, accuracy: 0.001)
-    }
-
-    @MainActor
     func testIslandControllerTracksPinnedPanelPresentation() {
         let pinnedController = PulsePinnedPanelController()
         let islandController = PulseIslandPanelController()

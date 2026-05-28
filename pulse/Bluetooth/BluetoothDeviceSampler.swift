@@ -146,7 +146,11 @@ actor BluetoothDeviceSampler {
                 continue
             }
 
-            batteries[address] = BluetoothBatteryLevel(role: .device, percentage: percentage / 100)
+            batteries[address] = BluetoothBatteryLevel.appleHIDDevice(
+                percentage: percentage,
+                supportsExtendedBatteryState: registryBool("SupportsExtendedBatteryState", service: service) == true,
+                statusFlags: registryInt("BatteryStatusFlags", service: service)
+            )
         }
 
         return batteries
@@ -155,6 +159,22 @@ actor BluetoothDeviceSampler {
     private func registryString(_ key: String, service: io_object_t) -> String? {
         IORegistryEntryCreateCFProperty(service, key as CFString, kCFAllocatorDefault, 0)?
             .takeRetainedValue() as? String
+    }
+
+    private func registryBool(_ key: String, service: io_object_t) -> Bool? {
+        IORegistryEntryCreateCFProperty(service, key as CFString, kCFAllocatorDefault, 0)?
+            .takeRetainedValue() as? Bool
+    }
+
+    private func registryInt(_ key: String, service: io_object_t) -> Int? {
+        let value = IORegistryEntryCreateCFProperty(service, key as CFString, kCFAllocatorDefault, 0)?
+            .takeRetainedValue()
+
+        if let number = value as? NSNumber {
+            return number.intValue
+        }
+
+        return value as? Int
     }
 
     private func registryDouble(_ key: String, service: io_object_t) -> Double? {

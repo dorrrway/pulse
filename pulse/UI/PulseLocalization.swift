@@ -80,14 +80,18 @@ nonisolated struct PulseStrings: Sendable {
 
     func screenshotEditorToolTitle(_ tool: PulseScreenshotEditTool) -> String {
         switch tool {
-        case .mosaic:
-            text(.screenshotEditorMosaic)
         case .rectangle:
             text(.screenshotEditorRectangle)
         case .ellipse:
             text(.screenshotEditorEllipse)
         case .arrow:
             text(.screenshotEditorArrow)
+        case .pen:
+            text(.screenshotEditorPen)
+        case .mosaic:
+            text(.screenshotEditorMosaic)
+        case .text:
+            text(.screenshotEditorText)
         }
     }
 
@@ -156,24 +160,32 @@ nonisolated struct PulseStrings: Sendable {
 
     func bluetoothBatteryLabel(_ level: BluetoothBatteryLevel) -> String {
         let percentage = ResourceFormatters.percentage(level.percentage)
+        let chargingSuffix: String
+
+        switch language {
+        case .english:
+            chargingSuffix = level.isCharging ? ", charging" : ""
+        case .chinese:
+            chargingSuffix = level.isCharging ? "，正在充电" : ""
+        }
 
         switch (language, level.role) {
         case (.english, .device):
-            return "Battery \(percentage)"
+            return "Battery \(percentage)\(chargingSuffix)"
         case (.english, .left):
-            return "Left battery \(percentage)"
+            return "Left battery \(percentage)\(chargingSuffix)"
         case (.english, .right):
-            return "Right battery \(percentage)"
+            return "Right battery \(percentage)\(chargingSuffix)"
         case (.english, .case):
-            return "Case battery \(percentage)"
+            return "Case battery \(percentage)\(chargingSuffix)"
         case (.chinese, .device):
-            return "电量 \(percentage)"
+            return "电量 \(percentage)\(chargingSuffix)"
         case (.chinese, .left):
-            return "左耳电量 \(percentage)"
+            return "左耳电量 \(percentage)\(chargingSuffix)"
         case (.chinese, .right):
-            return "右耳电量 \(percentage)"
+            return "右耳电量 \(percentage)\(chargingSuffix)"
         case (.chinese, .case):
-            return "盒子电量 \(percentage)"
+            return "盒子电量 \(percentage)\(chargingSuffix)"
         }
     }
 
@@ -871,10 +883,13 @@ extension PulseStrings {
         case screenshotHidePulseDuringCapture
         case screenshotHidePulseDuringCaptureDetail
         case screenshotEditAction
+        case screenshotEditorMove
         case screenshotEditorMosaic
         case screenshotEditorRectangle
         case screenshotEditorEllipse
         case screenshotEditorArrow
+        case screenshotEditorPen
+        case screenshotEditorText
         case screenshotEditorUndo
         case screenshotEditorCancel
         case screenshotEditorDone
@@ -1117,6 +1132,8 @@ private extension PulseStrings {
             "Turn this off when you want Pulse itself to appear in the screenshot."
         case .screenshotEditAction:
             "Edit"
+        case .screenshotEditorMove:
+            "Move"
         case .screenshotEditorMosaic:
             "Mosaic"
         case .screenshotEditorRectangle:
@@ -1125,6 +1142,10 @@ private extension PulseStrings {
             "Circle"
         case .screenshotEditorArrow:
             "Arrow"
+        case .screenshotEditorPen:
+            "Pen"
+        case .screenshotEditorText:
+            "Text"
         case .screenshotEditorUndo:
             "Undo"
         case .screenshotEditorCancel:
@@ -1456,6 +1477,8 @@ private extension PulseStrings {
             "关闭后可以把 Pulse 本身截进截图。"
         case .screenshotEditAction:
             "编辑"
+        case .screenshotEditorMove:
+            "移动"
         case .screenshotEditorMosaic:
             "马赛克"
         case .screenshotEditorRectangle:
@@ -1464,6 +1487,10 @@ private extension PulseStrings {
             "圆形"
         case .screenshotEditorArrow:
             "箭头"
+        case .screenshotEditorPen:
+            "笔"
+        case .screenshotEditorText:
+            "文字"
         case .screenshotEditorUndo:
             "撤销"
         case .screenshotEditorCancel:

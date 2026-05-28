@@ -88,7 +88,7 @@ struct BluetoothPanelView: View {
     private func footer(strings: PulseStrings) -> some View {
         HStack(spacing: PulseDesign.Spacing.xs) {
             BluetoothFooterActionButton(
-                iconAssetName: "BluetoothSettingsIcon",
+                iconAssetName: "IslandBluetoothIcon",
                 title: strings.text(.openBluetoothSettings)
             ) {
                 openBluetoothSettings()
@@ -325,24 +325,13 @@ private struct BluetoothBatteryRing: View {
     var level: BluetoothBatteryLevel
     var strings: PulseStrings
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isShowingChargingSymbol = false
+
     var body: some View {
         VStack(spacing: PulseDesign.Spacing.xxs) {
-            ZStack {
-                Circle()
-                    .stroke(.white.opacity(0.16), style: StrokeStyle(lineWidth: 4, lineCap: .round))
-
-                Circle()
-                    .trim(from: 0, to: level.percentage)
-                    .stroke(ringColor, style: StrokeStyle(lineWidth: 4, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-
-                BluetoothSymbolImage(
-                    symbol: BluetoothDeviceSymbol.battery(for: device, role: level.role),
-                    font: .system(size: 13, weight: .semibold),
-                    foregroundStyle: .white.opacity(0.90)
-                )
-            }
-            .frame(width: 34, height: 34)
+            ringContent
+                .frame(width: 34, height: 34)
 
             Text(ResourceFormatters.percentage(level.percentage))
                 .font(.system(size: 10, weight: .semibold, design: .rounded))
@@ -352,9 +341,114 @@ private struct BluetoothBatteryRing: View {
         }
         .frame(width: 42)
         .accessibilityLabel(strings.bluetoothBatteryLabel(level))
+        .onAppear(perform: updateChargingAnimation)
+        .onChange(of: level.isCharging) { _, _ in
+            updateChargingAnimation()
+        }
+        .onChange(of: reduceMotion) { _, _ in
+            updateChargingAnimation()
+        }
+    }
+
+    private var ringContent: some View {
+        ZStack {
+            Circle()
+                .stroke(.white.opacity(0.16), style: StrokeStyle(lineWidth: 4, lineCap: .round))
+
+            Circle()
+                .trim(from: 0, to: level.percentage)
+                .stroke(ringColor, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+
+            centerSymbol
+        }
+    }
+
+    private var centerSymbol: some View {
+        ZStack {
+            BluetoothSymbolImage(
+                symbol: BluetoothDeviceSymbol.battery(for: device, role: level.role),
+                font: .system(size: 13, weight: .semibold),
+                foregroundStyle: .white.opacity(0.90)
+            )
+            .opacity(deviceSymbolOpacity)
+            .scaleEffect(deviceSymbolScale)
+
+            if level.isCharging {
+                Image(systemName: "bolt.fill")
+                    .font(.system(size: 13, weight: .heavy))
+                    .foregroundStyle(.green)
+                    .opacity(chargingSymbolOpacity)
+                    .scaleEffect(chargingSymbolScale)
+                    .shadow(color: .black.opacity(0.36), radius: 1.2, x: 0, y: 0.6)
+            }
+        }
+        .animation(chargingSymbolAnimation, value: isShowingChargingSymbol)
+        .accessibilityHidden(true)
+    }
+
+    private var deviceSymbolOpacity: Double {
+        guard level.isCharging else {
+            return 1
+        }
+
+        if reduceMotion {
+            return 0
+        }
+
+        return isShowingChargingSymbol ? 0.12 : 1
+    }
+
+    private var deviceSymbolScale: CGFloat {
+        guard level.isCharging, !reduceMotion else {
+            return 1
+        }
+
+        return isShowingChargingSymbol ? 0.82 : 1
+    }
+
+    private var chargingSymbolOpacity: Double {
+        guard level.isCharging else {
+            return 0
+        }
+
+        if reduceMotion {
+            return 1
+        }
+
+        return isShowingChargingSymbol ? 1 : 0.08
+    }
+
+    private var chargingSymbolScale: CGFloat {
+        guard level.isCharging, !reduceMotion else {
+            return 1
+        }
+
+        return isShowingChargingSymbol ? 1.06 : 0.84
+    }
+
+    private var chargingSymbolAnimation: Animation? {
+        guard level.isCharging, !reduceMotion else {
+            return nil
+        }
+
+        return .easeInOut(duration: 1.35).repeatForever(autoreverses: true)
+    }
+
+    private func updateChargingAnimation() {
+        guard level.isCharging, !reduceMotion else {
+            isShowingChargingSymbol = false
+            return
+        }
+
+        isShowingChargingSymbol = true
     }
 
     private var ringColor: Color {
+        if level.isCharging {
+            return .green
+        }
+
         if level.percentage <= 0.1 {
             return .red
         }

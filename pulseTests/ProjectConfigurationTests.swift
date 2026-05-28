@@ -48,11 +48,6 @@ final class ProjectConfigurationTests: XCTestCase {
         XCTAssertEqual(PulseScreenshotMode.selection.iconAssetName, "ScreenshotSelectionIcon")
     }
 
-    @MainActor
-    func testBluetoothSettingsIconAssetIsLoadable() {
-        XCTAssertNotNil(NSImage(named: "BluetoothSettingsIcon"))
-    }
-
     func testScreenshotCaptureResultDetectsPermissionDenials() {
         XCTAssertEqual(
             PulseScreenshotService.captureResult(exitCode: 0, standardError: ""),
@@ -212,62 +207,40 @@ final class ProjectConfigurationTests: XCTestCase {
         XCTAssertLessThanOrEqual(frame.maxY, safeFrame.maxY)
     }
 
-    func testPinnedScreenshotResizeHandleDetectsEdgesAndCorners() {
-        let bounds = CGRect(x: 0, y: 0, width: 420, height: 260)
+    func testPinnedScreenshotPanelStyleKeepsBorderlessVisualAndNativeResize() {
+        let styleMask = PulsePinnedScreenshotPanelLayout.panelStyleMask
 
-        XCTAssertEqual(
-            PulsePinnedScreenshotPanelLayout.resizeHandle(at: CGPoint(x: 4, y: 256), in: bounds),
-            .topLeft
-        )
-        XCTAssertEqual(
-            PulsePinnedScreenshotPanelLayout.resizeHandle(at: CGPoint(x: 418, y: 12), in: bounds),
-            .bottomRight
-        )
-        XCTAssertEqual(
-            PulsePinnedScreenshotPanelLayout.resizeHandle(at: CGPoint(x: 419, y: 130), in: bounds),
-            .right
-        )
-        XCTAssertNil(PulsePinnedScreenshotPanelLayout.resizeHandle(at: CGPoint(x: 210, y: 130), in: bounds))
+        XCTAssertTrue(styleMask.contains(.resizable))
+        XCTAssertTrue(styleMask.contains(.nonactivatingPanel))
+        XCTAssertFalse(styleMask.contains(.titled))
+        XCTAssertFalse(styleMask.contains(.closable))
+        XCTAssertFalse(styleMask.contains(.miniaturizable))
     }
 
-    func testPinnedScreenshotResizePreservesAspectRatioFromRightEdge() {
-        let visibleFrame = CGRect(x: 0, y: 0, width: 1200, height: 900)
-        let initialFrame = CGRect(x: 120, y: 240, width: 400, height: 200)
-        let resizedFrame = PulsePinnedScreenshotPanelLayout.resizedWindowFrame(
-            initialFrame: initialFrame,
-            imageSize: CGSize(width: 2000, height: 1000),
-            visibleFrame: visibleFrame,
-            handle: .right,
-            dragDelta: CGVector(dx: 140, dy: 0),
-            resizeDriver: .horizontal
+    func testPinnedScreenshotContentAspectRatioUsesImageSize() {
+        XCTAssertEqual(
+            PulsePinnedScreenshotPanelLayout.contentAspectRatio(imageSize: CGSize(width: 1600, height: 900)),
+            CGSize(width: 1600, height: 900)
         )
-
-        XCTAssertEqual(resizedFrame.minX, initialFrame.minX)
-        XCTAssertEqual(resizedFrame.midY, initialFrame.midY)
-        XCTAssertEqual(resizedFrame.width, 540)
-        XCTAssertEqual(resizedFrame.height, 270)
-        XCTAssertEqual(resizedFrame.width / resizedFrame.height, 2)
+        XCTAssertEqual(
+            PulsePinnedScreenshotPanelLayout.contentAspectRatio(imageSize: .zero),
+            PulsePinnedScreenshotPanelLayout.fallbackSize
+        )
     }
 
-    func testPinnedScreenshotResizeClampsToVisibleFrame() {
+    func testPinnedScreenshotNativeResizeLimitsPreserveAspectRatio() {
         let visibleFrame = CGRect(x: 0, y: 0, width: 900, height: 700)
-        let resizedFrame = PulsePinnedScreenshotPanelLayout.resizedWindowFrame(
-            initialFrame: CGRect(x: 60, y: 60, width: 320, height: 180),
-            imageSize: CGSize(width: 1600, height: 900),
-            visibleFrame: visibleFrame,
-            handle: .bottomRight,
-            dragDelta: CGVector(dx: 2000, dy: -2000),
-            resizeDriver: .horizontal
+        let minimumSize = PulsePinnedScreenshotPanelLayout.minimumResizeSize(
+            imageSize: CGSize(width: 1600, height: 900)
         )
-        let safeFrame = visibleFrame.insetBy(
-            dx: PulsePinnedScreenshotPanelLayout.edgeInset,
-            dy: PulsePinnedScreenshotPanelLayout.edgeInset
+        let maximumSize = PulsePinnedScreenshotPanelLayout.maximumResizeSize(
+            imageSize: CGSize(width: 1600, height: 900),
+            visibleFrame: visibleFrame
         )
 
-        XCTAssertLessThanOrEqual(resizedFrame.maxX, safeFrame.maxX)
-        XCTAssertGreaterThanOrEqual(resizedFrame.minY, safeFrame.minY)
-        XCTAssertLessThanOrEqual(resizedFrame.width, safeFrame.width)
-        XCTAssertLessThanOrEqual(resizedFrame.height, safeFrame.height)
-        XCTAssertEqual(resizedFrame.width / resizedFrame.height, 16.0 / 9.0, accuracy: 0.01)
+        XCTAssertEqual(minimumSize.width / minimumSize.height, 16.0 / 9.0, accuracy: 0.01)
+        XCTAssertEqual(maximumSize.width / maximumSize.height, 16.0 / 9.0, accuracy: 0.01)
+        XCTAssertLessThanOrEqual(maximumSize.width, visibleFrame.width - PulsePinnedScreenshotPanelLayout.edgeInset * 2)
+        XCTAssertLessThanOrEqual(maximumSize.height, visibleFrame.height - PulsePinnedScreenshotPanelLayout.edgeInset * 2)
     }
 }

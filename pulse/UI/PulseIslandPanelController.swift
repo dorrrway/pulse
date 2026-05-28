@@ -1014,7 +1014,13 @@ final class PulseIslandPanelController {
             return
         }
 
-        screenshotEditorPanelController.edit(image: reminder.image, strings: strings) { [weak self] editedImage in
+        screenshotEditorPanelController.edit(
+            image: reminder.image,
+            strings: strings,
+            pinAction: { [weak self] editedImage in
+                self?.pinnedScreenshotPanelController.pin(image: editedImage, strings: strings)
+            }
+        ) { [weak self] editedImage in
             guard let self else {
                 return
             }
@@ -1101,21 +1107,7 @@ final class PulseIslandPanelController {
     }
 
     static func pngData(for image: NSImage) -> Data? {
-        if
-            let tiffData = image.tiffRepresentation,
-            let bitmap = NSBitmapImageRep(data: tiffData),
-            let pngData = bitmap.representation(using: .png, properties: [:])
-        {
-            return pngData
-        }
-
-        guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
-            return nil
-        }
-
-        let bitmap = NSBitmapImageRep(cgImage: cgImage)
-        bitmap.size = image.size
-        return bitmap.representation(using: .png, properties: [:])
+        PulseScreenshotImageExport.pngData(for: image)
     }
 
     static func writeScreenshotImageToClipboard(_ image: NSImage, pasteboard: NSPasteboard = .general) -> Bool {
@@ -1128,10 +1120,7 @@ final class PulseIslandPanelController {
     }
 
     static func suggestedScreenshotFileName(now: Date = Date()) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "yyyy-MM-dd HH.mm.ss"
-        return "Pulse Screenshot \(formatter.string(from: now)).png"
+        PulseScreenshotImageExport.suggestedFileName(now: now)
     }
 
     static func temporaryScreenshotDragFile(

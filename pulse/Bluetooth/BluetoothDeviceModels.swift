@@ -348,12 +348,14 @@ private extension Array where Element == String {
 nonisolated struct BluetoothBatteryLevel: Codable, Equatable, Identifiable, Sendable {
     var role: BluetoothBatteryRole
     var percentage: Double
+    var isCharging: Bool
 
     var id: BluetoothBatteryRole { role }
 
-    init(role: BluetoothBatteryRole, percentage: Double) {
+    init(role: BluetoothBatteryRole, percentage: Double, isCharging: Bool = false) {
         self.role = role
         self.percentage = min(max(percentage, 0), 1)
+        self.isCharging = isCharging
     }
 
     static func parsed(role: BluetoothBatteryRole, value: String?) -> Self? {
@@ -369,6 +371,42 @@ nonisolated struct BluetoothBatteryLevel: Codable, Equatable, Identifiable, Send
         }
 
         return Self(role: role, percentage: number / 100)
+    }
+
+    static func appleHIDDevice(
+        percentage: Double,
+        supportsExtendedBatteryState: Bool,
+        statusFlags: Int?
+    ) -> Self {
+        Self(
+            role: .device,
+            percentage: percentage / 100,
+            isCharging: supportsExtendedBatteryState && statusFlags == AppleHIDBatteryStatusFlags.charging
+        )
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case role
+        case percentage
+        case isCharging
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        role = try container.decode(BluetoothBatteryRole.self, forKey: .role)
+        percentage = min(max(try container.decode(Double.self, forKey: .percentage), 0), 1)
+        isCharging = try container.decodeIfPresent(Bool.self, forKey: .isCharging) ?? false
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(role, forKey: .role)
+        try container.encode(percentage, forKey: .percentage)
+        try container.encode(isCharging, forKey: .isCharging)
+    }
+
+    private enum AppleHIDBatteryStatusFlags {
+        static let charging = 3
     }
 }
 
@@ -517,7 +555,10 @@ nonisolated struct BluetoothDevice: Codable, Equatable, Identifiable, Sendable {
 
     var lowBatteryAlerts: [BluetoothBatteryAlert] {
         batteryLevels.compactMap { level in
-            guard let severity = BluetoothBatteryAlertSeverity.severity(for: level.percentage) else {
+            guard
+                !level.isCharging,
+                let severity = BluetoothBatteryAlertSeverity.severity(for: level.percentage)
+            else {
                 return nil
             }
 
