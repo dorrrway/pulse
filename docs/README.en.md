@@ -13,7 +13,7 @@
 </h3>
 
 <p align="center">
-  <img alt="release" src="https://img.shields.io/badge/release-v2.2.0-0A84FF">
+  <img alt="release" src="https://img.shields.io/badge/release-v2.3.0-0A84FF">
   <img alt="platform" src="https://img.shields.io/badge/platform-macOS-147EFB">
   <img alt="Swift" src="https://img.shields.io/badge/Swift-6-FA7343">
   <img alt="notarized" src="https://img.shields.io/badge/Developer%20ID-notarized-34C759">
@@ -29,18 +29,18 @@ Pulse is a lightweight Dynamic Island-style Mac utility that stays at the top of
 
 Latest release:
 
-- [Pulse 2.2.0](https://github.com/dorrrway/pulse/releases/tag/v2.2.0)
-- DMG: [Pulse-2.2.0.dmg](https://github.com/dorrrway/pulse/releases/download/v2.2.0/Pulse-2.2.0.dmg)
+- [Pulse 2.3.0](https://github.com/dorrrway/pulse/releases/tag/v2.3.0)
+- DMG: [Pulse-2.3.0.dmg](https://github.com/dorrrway/pulse/releases/download/v2.3.0/Pulse-2.3.0.dmg)
 
 SHA-256:
 
 ```text
-47aa82f18b1b44af26ed31fa66224bd7f5564a914cc42d7513e0e83b871c86fb  Pulse-2.2.0.dmg
+66be3ba207946b71e449bf547a963bd4c4bd8f15d780146235958bb405c3efde  Pulse-2.3.0.dmg
 ```
 
 ## Installation
 
-1. Download `Pulse-2.2.0.dmg`.
+1. Download `Pulse-2.3.0.dmg`.
 2. Open the DMG.
 3. Follow the bilingual DMG guide and drag `Pulse.app` to Applications.
 4. Launch Pulse from Applications.
@@ -64,7 +64,7 @@ See [Privacy Policy](PRIVACY.en.md) for details.
 
 ## Changelog
 
-### Unreleased
+### 2.3.0 - 2026-06-01
 
 - Added a Screenshots module with native macOS full-screen, window, and selection capture modes; full-screen capture opens the native display picker for confirmation first, window capture omits the system window shadow, captures are written to the system clipboard, the island shows an image preview reminder after capture and auto-collapses after 3 seconds only when it is not hovered, the reminder exposes explicit Save, Share, Edit, foreground pinning, local text-recognition, and direct preview-drag export actions, and each mode can have its global shortcut set directly in the Screenshots panel without requiring modifier keys.
 - Added a bottom Screenshots panel option to hide Pulse while capturing. It is on by default; turning it off lets users include Pulse itself in screenshots, and both panel actions and screenshot shortcuts follow the setting.
@@ -79,6 +79,7 @@ See [Privacy Policy](PRIVACY.en.md) for details.
 - Refined the screenshot completion reminder header so its icon, title, and completion state align with the island's top row.
 - Added a Copy item action to the Clipboard record context menu, letting users write a saved record back to the system clipboard from right-click.
 - Fixed a case where launching some apps from the Applications module could collapse the island panel and immediately reopen it from a stale hover event.
+- Release archive: [Pulse-2.3.0.dmg](https://github.com/dorrrway/pulse/releases/download/v2.3.0/Pulse-2.3.0.dmg); SHA-256: `66be3ba207946b71e449bf547a963bd4c4bd8f15d780146235958bb405c3efde`.
 
 ### 2.2.0 - 2026-05-27
 

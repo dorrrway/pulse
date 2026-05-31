@@ -3,6 +3,21 @@
     <channel>
         <title>Pulse</title>
         <item>
+            <title>2.3.0</title>
+            <pubDate>Mon, 01 Jun 2026 00:10:45 +0800</pubDate>
+            <sparkle:version>11</sparkle:version>
+            <sparkle:shortVersionString>2.3.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[# Pulse 2.3.0
+
+- Added Screenshots with native macOS full-screen, window, and selection capture, shortcuts, hide-before-capture control, preview actions, drag export, and local text recognition.
+- Added a richer screenshot editor with pen, text, brush-based mosaic redaction, undo, save, share, pin, cancel, and done actions.
+- Added Bluetooth device browsing, paired-device connect/disconnect actions, battery and charging-state display, and local low-battery alerts.
+- Refined pinned screenshot resizing, screenshot preview layout, Clipboard context-copy actions, and app-launch hover handling.
+]]></description>
+            <enclosure url="https://github.com/dorrrway/pulse/releases/download/v2.3.0/Pulse-2.3.0.dmg" length="4147261" type="application/octet-stream" sparkle:edSignature="q00hnYnXdjS6iU3K3yM2knBMRuPzPymF/qeoNMX+zGE3i2Dt7HOD/9KPWyfjIqZDhdnPxxv5Ijn3jnTFM0NmBw=="/>
+        </item>
+        <item>
             <title>2.2.0</title>
             <pubDate>Wed, 27 May 2026 16:23:40 +0800</pubDate>
             <sparkle:version>10</sparkle:version>

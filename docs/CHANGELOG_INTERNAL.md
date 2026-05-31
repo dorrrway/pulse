@@ -5,7 +5,7 @@ This file is for maintainers. Keep the public changelog in `README.md` and
 implementation context, product decisions, privacy boundaries, thresholds, and
 verification notes that would make the public changelog too noisy.
 
-## Unreleased
+## 2.3.0 - 2026-06-01
 
 ### Screenshots
 
