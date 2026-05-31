@@ -19,7 +19,7 @@
   <img alt="notarized" src="https://img.shields.io/badge/Developer%20ID-notarized-34C759">
 </p>
 
-Pulse is a lightweight Dynamic Island-style Mac utility that stays at the top of the screen, with quick access to Resource Monitor, Applications, clipboard history, screenshots, and Bluetooth devices.
+Pulse is a local-first macOS control center that stays at the top of your screen, bringing system status, everyday tools, and device controls into one Dynamic Island-style surface.
 
 <p align="center">
   <img src="assets/pulse-preview-combined.gif" width="640" alt="Pulse status panel preview in Light and Dark Mode">

@@ -19,7 +19,7 @@
   <img alt="notarized" src="https://img.shields.io/badge/Developer%20ID-notarized-34C759">
 </p>
 
-Pulse 是一款像灵动岛一样停留在屏幕顶部的轻量级 macOS 工具，可快速查看本机状态，并进入资源监控、应用程序、剪贴板历史、截图工具和蓝牙设备列表。
+Pulse 是一个停留在屏幕顶部的本机 macOS 控制中心，用灵动岛式入口整合系统状态、常用工具和设备管理。
 
 <p align="center">
   <img src="docs/assets/pulse-preview-combined.gif" width="640" alt="Pulse 浅色和深色模式状态面板预览">
