@@ -46,6 +46,14 @@ verification notes that would make the public changelog too noisy.
   Carbon hot-key registration and duplicate-assignment rules as screenshots;
   triggering the active recording mode again stops the recording and opens the
   island video preview.
+- Recording actions now use dedicated bulk-style vector assets for full-screen,
+  window, and custom-region modes without the previous custom status dot,
+  leaving the screenshot action icons unchanged.
+- Capture panel recording actions now use the same visible mode labels as the
+  screenshot actions, relying on the Recording section title for context while
+  keeping full recording labels in shortcut settings.
+- The Hide Pulse setting now uses the dedicated eye-slash vector asset instead
+  of the SF Symbols fallback.
 - Recording output intentionally disables system audio and microphone capture in
   this first version so the new permission and privacy surface remains limited
   to screen pixels.

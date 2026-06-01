@@ -120,7 +120,7 @@ struct PulseScreenshotPanelView: View {
                     PulseScreenshotOptionRow(
                         title: strings.text(.screenshotHidePulseDuringCapture),
                         detail: strings.text(.screenshotHidePulseDuringCaptureDetail),
-                        icon: .system("eye.slash.fill"),
+                        icon: .asset("ScreenshotHidePulseIcon"),
                         isOn: Binding(
                             get: { store.hidePulseDuringScreenshots },
                             set: { store.setHidePulseDuringScreenshots($0) }
@@ -162,7 +162,7 @@ struct PulseScreenshotPanelView: View {
         case .stopping(let session) where session.mode == mode:
             strings.text(.screenRecordingSaving)
         default:
-            strings.screenRecordingModeTitle(mode)
+            strings.screenshotModeTitle(mode)
         }
     }
 
@@ -279,24 +279,13 @@ private struct PulseScreenRecordingModeButton: View {
         ZStack(alignment: .trailing) {
             Button(action: action) {
                 HStack(spacing: PulseDesign.Spacing.sm) {
-                    ZStack(alignment: .bottomTrailing) {
-                        Image(mode.iconAssetName)
-                            .renderingMode(.template)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 20, height: 20)
-                            .frame(width: 28, height: 28)
-
-                        Circle()
-                            .fill(isActive ? .red.opacity(0.98) : .white.opacity(0.70))
-                            .frame(width: 8, height: 8)
-                            .overlay {
-                                Circle()
-                                    .stroke(.black.opacity(0.50), lineWidth: 1)
-                            }
-                            .offset(x: -2, y: -2)
-                    }
-                    .accessibilityHidden(true)
+                    Image(mode.screenRecordingIconAssetName)
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 20, height: 20)
+                        .frame(width: 28, height: 28)
+                        .accessibilityHidden(true)
 
                     Text(title)
                         .font(.system(.callout, design: .rounded, weight: .semibold))

@@ -166,6 +166,9 @@ final class ProjectConfigurationTests: XCTestCase {
         XCTAssertEqual(PulseScreenshotMode.fullScreen.iconAssetName, "ScreenshotFullScreenIcon")
         XCTAssertEqual(PulseScreenshotMode.window.iconAssetName, "ScreenshotWindowIcon")
         XCTAssertEqual(PulseScreenshotMode.selection.iconAssetName, "ScreenshotSelectionIcon")
+        XCTAssertEqual(PulseScreenshotMode.fullScreen.screenRecordingIconAssetName, "ScreenRecordingFullScreenIcon")
+        XCTAssertEqual(PulseScreenshotMode.window.screenRecordingIconAssetName, "ScreenRecordingWindowIcon")
+        XCTAssertEqual(PulseScreenshotMode.selection.screenRecordingIconAssetName, "ScreenRecordingSelectionIcon")
     }
 
     func testScreenshotCaptureResultDetectsPermissionDenials() {

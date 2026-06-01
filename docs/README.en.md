@@ -76,6 +76,7 @@ See [Privacy Policy](PRIVACY.en.md) for details.
 - After recording starts, the Pulse island shows elapsed time and a stop button; when Hide Pulse is enabled, Pulse is hidden before target selection and excluded from the final recording output.
 - Each recording mode can also have a global shortcut set from the Capture panel or Settings; shortcuts follow the Hide Pulse and Hide Mouse options, and triggering the same mode while it is recording stops the recording and opens an island video preview so the user can play, save, share, or discard the temporary `.mov`.
 - Added Hide Pulse and Hide Mouse options so screenshots can hide Pulse before capture, recordings can exclude Pulse from saved videos, and recordings can hide the pointer for cleaner screen videos.
+- Refined Capture panel icons and mode labels: recording actions now use dedicated icons, recording buttons reuse the Full Screen, Window, and Selection mode names, and Hide Pulse uses a clearer dedicated icon.
 
 ### 2.3.0 - 2026-06-01
 

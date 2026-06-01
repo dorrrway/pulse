@@ -47,6 +47,17 @@ nonisolated enum PulseScreenshotMode: CaseIterable, Equatable, Hashable, Identif
             "ScreenshotSelectionIcon"
         }
     }
+
+    nonisolated var screenRecordingIconAssetName: String {
+        switch self {
+        case .fullScreen:
+            "ScreenRecordingFullScreenIcon"
+        case .window:
+            "ScreenRecordingWindowIcon"
+        case .selection:
+            "ScreenRecordingSelectionIcon"
+        }
+    }
 }
 
 nonisolated enum PulseScreenshotCaptureResult: Equatable, Sendable {
