@@ -42,6 +42,126 @@ final class ProjectConfigurationTests: XCTestCase {
         XCTAssertEqual(PulseScreenshotService.arguments(for: .selection), ["-c", "-i", "-s", "-x"])
     }
 
+    func testShortcutActionsMapCaptureAndRecordingModes() {
+        XCTAssertEqual(PulseShortcutAction(hotKeyID: 3), .captureFullScreen)
+        XCTAssertEqual(PulseShortcutAction(hotKeyID: 6), .recordFullScreen)
+        XCTAssertEqual(PulseShortcutAction.captureWindow.screenshotMode, .window)
+        XCTAssertEqual(PulseShortcutAction.captureWindow.screenRecordingMode, nil)
+        XCTAssertEqual(PulseShortcutAction.recordSelection.screenshotMode, nil)
+        XCTAssertEqual(PulseShortcutAction.recordSelection.screenRecordingMode, .selection)
+        XCTAssertEqual(PulseScreenshotMode.window.shortcutAction, .captureWindow)
+        XCTAssertEqual(PulseScreenshotMode.window.screenRecordingShortcutAction, .recordWindow)
+    }
+
+    func testScreenRecordingTargetSelectionUsesNativeScreenshotPickersForDisplayAndWindow() {
+        let selectionURL = URL(fileURLWithPath: "/tmp/pulse-recording-selection.png")
+
+        XCTAssertEqual(
+            PulseScreenRecordingService.selectionArguments(for: .fullScreen, outputURL: selectionURL),
+            ["-i", "-w", "-S", "-x", selectionURL.path]
+        )
+        XCTAssertEqual(
+            PulseScreenRecordingService.selectionArguments(for: .window, outputURL: selectionURL),
+            ["-i", "-w", "-o", "-x", selectionURL.path]
+        )
+    }
+
+    func testScreenRecordingCustomSelectionConvertsAppKitScreenPointsToDisplayCoordinates() {
+        let display = PulseScreenRecordingSelectionDisplay(
+            displayID: 1,
+            screenFrame: CGRect(x: 0, y: 0, width: 1440, height: 900),
+            displayBounds: CGRect(x: 0, y: 0, width: 1440, height: 900)
+        )
+
+        XCTAssertEqual(
+            display.cgPoint(fromAppKitScreenPoint: CGPoint(x: 120, y: 820)),
+            CGPoint(x: 120, y: 80)
+        )
+        XCTAssertEqual(
+            display.viewRect(fromCGRect: CGRect(x: 120, y: 80, width: 320, height: 180)),
+            CGRect(x: 120, y: 640, width: 320, height: 180)
+        )
+    }
+
+    func testScreenRecordingCustomSelectionRectStandardizesAndClampsToDisplay() {
+        let displayBounds = CGRect(x: 100, y: 50, width: 900, height: 600)
+
+        XCTAssertEqual(
+            PulseScreenRecordingSelectionGeometry.selectionRect(
+                from: CGPoint(x: 900, y: 500),
+                to: CGPoint(x: 60, y: 900),
+                in: displayBounds
+            ),
+            CGRect(x: 100, y: 500, width: 800, height: 150)
+        )
+        XCTAssertTrue(
+            PulseScreenRecordingSelectionGeometry.isValidSelectionRect(
+                CGRect(x: 100, y: 100, width: 8, height: 8)
+            )
+        )
+        XCTAssertFalse(
+            PulseScreenRecordingSelectionGeometry.isValidSelectionRect(
+                CGRect(x: 100, y: 100, width: 7, height: 8)
+            )
+        )
+    }
+
+    func testScreenRecordingCustomSelectionOnlyDrawsRenderableStrokeRects() {
+        XCTAssertNil(
+            PulseScreenRecordingSelectionGeometry.renderableSelectionStrokeRect(
+                from: CGRect(x: 10, y: 10, width: 1, height: 20)
+            )
+        )
+        XCTAssertNil(
+            PulseScreenRecordingSelectionGeometry.renderableSelectionStrokeRect(
+                from: CGRect(x: 10, y: 10, width: CGFloat.infinity, height: 20)
+            )
+        )
+        XCTAssertEqual(
+            PulseScreenRecordingSelectionGeometry.renderableSelectionStrokeRect(
+                from: CGRect(x: 10, y: 10, width: 20, height: 30)
+            ),
+            CGRect(x: 11, y: 11, width: 18, height: 28)
+        )
+    }
+
+    func testScreenRecordingRegionOverlayUsesSelectedDisplayOnlyForCutout() {
+        let primaryDisplay = PulseScreenRecordingSelectionDisplay(
+            displayID: 1,
+            screenFrame: CGRect(x: 0, y: 0, width: 1440, height: 900),
+            displayBounds: CGRect(x: 0, y: 0, width: 1440, height: 900)
+        )
+        let secondaryDisplay = PulseScreenRecordingSelectionDisplay(
+            displayID: 2,
+            screenFrame: CGRect(x: 1440, y: 0, width: 1000, height: 800),
+            displayBounds: CGRect(x: 1440, y: 0, width: 1000, height: 800)
+        )
+        let selectionRect = CGRect(x: 1500, y: 40, width: 300, height: 180)
+
+        XCTAssertEqual(
+            PulseScreenRecordingRegionOverlayGeometry.selectedDisplayID(
+                for: selectionRect,
+                displays: [primaryDisplay, secondaryDisplay]
+            ),
+            2
+        )
+        XCTAssertNil(
+            PulseScreenRecordingRegionOverlayGeometry.selectedViewRect(
+                for: selectionRect,
+                display: primaryDisplay,
+                selectedDisplayID: 2
+            )
+        )
+        XCTAssertEqual(
+            PulseScreenRecordingRegionOverlayGeometry.selectedViewRect(
+                for: selectionRect,
+                display: secondaryDisplay,
+                selectedDisplayID: 2
+            ),
+            CGRect(x: 60, y: 580, width: 300, height: 180)
+        )
+    }
+
     func testScreenshotModesUseAssetBackedIcons() {
         XCTAssertEqual(PulseScreenshotMode.fullScreen.iconAssetName, "ScreenshotFullScreenIcon")
         XCTAssertEqual(PulseScreenshotMode.window.iconAssetName, "ScreenshotWindowIcon")

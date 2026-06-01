@@ -78,6 +78,17 @@ nonisolated struct PulseStrings: Sendable {
         }
     }
 
+    func screenRecordingModeTitle(_ mode: PulseScreenshotMode) -> String {
+        switch mode {
+        case .fullScreen:
+            text(.screenRecordingFullScreen)
+        case .window:
+            text(.screenRecordingWindow)
+        case .selection:
+            text(.screenRecordingSelection)
+        }
+    }
+
     func screenshotEditorToolTitle(_ tool: PulseScreenshotEditTool) -> String {
         switch tool {
         case .rectangle:
@@ -865,6 +876,20 @@ extension PulseStrings {
         case clipboard
         case screenshots
         case bluetooth
+        case screenshotSectionTitle
+        case screenRecordingSectionTitle
+        case screenRecordingFullScreen
+        case screenRecordingWindow
+        case screenRecordingSelection
+        case screenRecordingPreparing
+        case screenRecordingStopAction
+        case screenRecordingSaving
+        case screenRecordingSaveAction
+        case screenRecordingPreviewTitle
+        case screenRecordingPreviewAction
+        case screenRecordingDiscardAction
+        case screenRecordingHideCursorDuringCapture
+        case screenRecordingHideCursorDuringCaptureDetail
         case screenshotCaptured
         case screenshotSaveAction
         case screenshotShareAction
@@ -1006,6 +1031,9 @@ extension PulseStrings {
         case captureFullScreenShortcut
         case captureWindowShortcut
         case captureSelectionShortcut
+        case recordFullScreenShortcut
+        case recordWindowShortcut
+        case recordSelectionShortcut
         case screenshotFullScreen
         case screenshotWindow
         case screenshotSelection
@@ -1093,9 +1121,37 @@ private extension PulseStrings {
         case .clipboard:
             "Clipboard"
         case .screenshots:
-            "Screenshots"
+            "Capture"
         case .bluetooth:
             "Bluetooth"
+        case .screenshotSectionTitle:
+            "Screenshots"
+        case .screenRecordingSectionTitle:
+            "Recordings"
+        case .screenRecordingFullScreen:
+            "Record Full Screen"
+        case .screenRecordingWindow:
+            "Record Window"
+        case .screenRecordingSelection:
+            "Record Selection"
+        case .screenRecordingPreparing:
+            "Preparing"
+        case .screenRecordingStopAction:
+            "Stop Recording"
+        case .screenRecordingSaving:
+            "Saving"
+        case .screenRecordingSaveAction:
+            "Save Recording"
+        case .screenRecordingPreviewTitle:
+            "Recording"
+        case .screenRecordingPreviewAction:
+            "Preview"
+        case .screenRecordingDiscardAction:
+            "Discard"
+        case .screenRecordingHideCursorDuringCapture:
+            "Hide Mouse"
+        case .screenRecordingHideCursorDuringCaptureDetail:
+            "Recordings omit the pointer for a cleaner screen video."
         case .screenshotCaptured:
             "Screenshot"
         case .screenshotSaveAction:
@@ -1123,13 +1179,13 @@ private extension PulseStrings {
         case .screenshotTextCopied:
             "Text copied"
         case .screenshotScreenRecordingPermissionNotice:
-            "First screenshot requires macOS Screen Recording permission. Captures only run when you click an action or press a shortcut."
+            "First capture requires macOS Screen Recording permission. Captures only run when you click an action or press a shortcut."
         case .screenshotAuthorizeScreenRecording:
             "Authorize"
         case .screenshotHidePulseDuringCapture:
-            "Hide Pulse while capturing"
+            "Hide Pulse"
         case .screenshotHidePulseDuringCaptureDetail:
-            "Turn this off when you want Pulse itself to appear in the screenshot."
+            "Screenshots hide Pulse before capture; recordings exclude Pulse from saved videos after target selection."
         case .screenshotEditAction:
             "Edit"
         case .screenshotEditorMove:
@@ -1378,6 +1434,12 @@ private extension PulseStrings {
             "Capture Window"
         case .captureSelectionShortcut:
             "Capture Selection"
+        case .recordFullScreenShortcut:
+            "Record Full Screen"
+        case .recordWindowShortcut:
+            "Record Window"
+        case .recordSelectionShortcut:
+            "Record Selection"
         case .screenshotFullScreen:
             "Full Screen"
         case .screenshotWindow:
@@ -1438,9 +1500,37 @@ private extension PulseStrings {
         case .clipboard:
             "剪贴板"
         case .screenshots:
-            "截图"
+            "截屏录屏"
         case .bluetooth:
             "蓝牙"
+        case .screenshotSectionTitle:
+            "截屏"
+        case .screenRecordingSectionTitle:
+            "录屏"
+        case .screenRecordingFullScreen:
+            "全屏录屏"
+        case .screenRecordingWindow:
+            "窗口录屏"
+        case .screenRecordingSelection:
+            "区域录屏"
+        case .screenRecordingPreparing:
+            "准备中"
+        case .screenRecordingStopAction:
+            "停止录屏"
+        case .screenRecordingSaving:
+            "保存中"
+        case .screenRecordingSaveAction:
+            "保存录屏"
+        case .screenRecordingPreviewTitle:
+            "录屏"
+        case .screenRecordingPreviewAction:
+            "预览"
+        case .screenRecordingDiscardAction:
+            "丢弃"
+        case .screenRecordingHideCursorDuringCapture:
+            "隐藏鼠标"
+        case .screenRecordingHideCursorDuringCaptureDetail:
+            "录屏时不录入鼠标指针，让视频画面更干净。"
         case .screenshotCaptured:
             "截图"
         case .screenshotSaveAction:
@@ -1468,13 +1558,13 @@ private extension PulseStrings {
         case .screenshotTextCopied:
             "文字已复制"
         case .screenshotScreenRecordingPermissionNotice:
-            "首次截图需要授予 macOS 屏幕录制权限。截图只会在你点击或触发快捷键时执行。"
+            "首次截屏或录屏需要授予 macOS 屏幕录制权限。捕获只会在你点击或触发快捷键时执行。"
         case .screenshotAuthorizeScreenRecording:
             "授权"
         case .screenshotHidePulseDuringCapture:
-            "截图时隐藏 Pulse"
+            "隐藏 pulse 界面"
         case .screenshotHidePulseDuringCaptureDetail:
-            "关闭后可以把 Pulse 本身截进截图。"
+            "截屏前会隐藏 pulse 界面；录屏目标选择后会从保存的视频中排除 Pulse。"
         case .screenshotEditAction:
             "编辑"
         case .screenshotEditorMove:
@@ -1723,6 +1813,12 @@ private extension PulseStrings {
             "窗口截图"
         case .captureSelectionShortcut:
             "区域截图"
+        case .recordFullScreenShortcut:
+            "全屏录屏"
+        case .recordWindowShortcut:
+            "窗口录屏"
+        case .recordSelectionShortcut:
+            "区域录屏"
         case .screenshotFullScreen:
             "全屏"
         case .screenshotWindow:

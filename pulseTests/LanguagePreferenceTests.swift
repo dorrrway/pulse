@@ -43,6 +43,18 @@ final class LanguagePreferenceTests: XCTestCase {
     }
 
     @MainActor
+    func testDefaultsToHidingCursorDuringScreenRecordings() {
+        let defaults = makeUserDefaults()
+        let store = PulseStore(
+            userDefaults: defaults,
+            launchAtLoginService: makeLoginItemService(),
+            reconcileLaunchAtLogin: false
+        )
+
+        XCTAssertTrue(store.hideCursorDuringScreenRecordings)
+    }
+
+    @MainActor
     func testTrimsConfiguredDeviceName() {
         let defaults = makeUserDefaults()
         let store = PulseStore(
@@ -140,6 +152,25 @@ final class LanguagePreferenceTests: XCTestCase {
     }
 
     @MainActor
+    func testPersistsHideCursorDuringScreenRecordingsPreference() {
+        let defaults = makeUserDefaults()
+        let store = PulseStore(
+            userDefaults: defaults,
+            launchAtLoginService: makeLoginItemService(),
+            reconcileLaunchAtLogin: false
+        )
+
+        store.setHideCursorDuringScreenRecordings(false)
+
+        let reloadedStore = PulseStore(
+            userDefaults: defaults,
+            launchAtLoginService: makeLoginItemService(),
+            reconcileLaunchAtLogin: false
+        )
+        XCTAssertFalse(reloadedStore.hideCursorDuringScreenRecordings)
+    }
+
+    @MainActor
     func testApplyingSystemAppearanceResolvesCurrentSystemStyle() {
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 200, height: 120), styleMask: [], backing: .buffered, defer: false)
         window.contentView = NSView(frame: window.contentView?.frame ?? .zero)
@@ -217,6 +248,21 @@ final class LanguagePreferenceTests: XCTestCase {
             modifierFlags: [.command, .shift],
             keyEquivalent: "3"
         )
+        let recordingFullScreenShortcut = PulseKeyboardShortcut(
+            keyCode: UInt16(kVK_ANSI_4),
+            modifierFlags: [.command, .shift],
+            keyEquivalent: "4"
+        )
+        let recordingWindowShortcut = PulseKeyboardShortcut(
+            keyCode: UInt16(kVK_ANSI_5),
+            modifierFlags: [.command, .shift],
+            keyEquivalent: "5"
+        )
+        let recordingSelectionShortcut = PulseKeyboardShortcut(
+            keyCode: UInt16(kVK_ANSI_6),
+            modifierFlags: [.command, .shift],
+            keyEquivalent: "6"
+        )
         let store = PulseStore(
             userDefaults: defaults,
             launchAtLoginService: makeLoginItemService(),
@@ -228,6 +274,9 @@ final class LanguagePreferenceTests: XCTestCase {
         store.setShortcut(fullScreenShortcut, for: .captureFullScreen)
         store.setShortcut(windowShortcut, for: .captureWindow)
         store.setShortcut(selectionShortcut, for: .captureSelection)
+        store.setShortcut(recordingFullScreenShortcut, for: .recordFullScreen)
+        store.setShortcut(recordingWindowShortcut, for: .recordWindow)
+        store.setShortcut(recordingSelectionShortcut, for: .recordSelection)
 
         let reloadedStore = PulseStore(
             userDefaults: defaults,
@@ -239,8 +288,12 @@ final class LanguagePreferenceTests: XCTestCase {
         XCTAssertEqual(reloadedStore.captureFullScreenShortcut, fullScreenShortcut)
         XCTAssertEqual(reloadedStore.captureWindowShortcut, windowShortcut)
         XCTAssertEqual(reloadedStore.captureSelectionShortcut, selectionShortcut)
+        XCTAssertEqual(reloadedStore.recordFullScreenShortcut, recordingFullScreenShortcut)
+        XCTAssertEqual(reloadedStore.recordWindowShortcut, recordingWindowShortcut)
+        XCTAssertEqual(reloadedStore.recordSelectionShortcut, recordingSelectionShortcut)
         XCTAssertEqual(reloadedStore.shortcutPreferences.wakeClipboard?.displayTitle, "⌥⌘C")
         XCTAssertEqual(reloadedStore.shortcutPreferences.captureSelection?.displayTitle, "⇧⌘3")
+        XCTAssertEqual(reloadedStore.shortcutPreferences.recordSelection?.displayTitle, "⇧⌘6")
     }
 
     @MainActor
@@ -308,10 +361,10 @@ final class LanguagePreferenceTests: XCTestCase {
         )
 
         store.setShortcut(shortcut, for: .wakeClipboard)
-        store.setShortcut(shortcut, for: .captureSelection)
+        store.setShortcut(shortcut, for: .recordSelection)
 
         XCTAssertNil(store.wakeClipboardShortcut)
-        XCTAssertEqual(store.captureSelectionShortcut, shortcut)
+        XCTAssertEqual(store.recordSelectionShortcut, shortcut)
     }
 
     @MainActor
@@ -540,8 +593,10 @@ final class LanguagePreferenceTests: XCTestCase {
         XCTAssertEqual(PulseStrings(language: .chinese).text(.topIsland), "Pulse 灵动岛入口")
         XCTAssertEqual(PulseStrings(language: .english).text(.applications), "Applications")
         XCTAssertEqual(PulseStrings(language: .chinese).text(.applications), "应用程序")
-        XCTAssertEqual(PulseStrings(language: .english).text(.screenshots), "Screenshots")
-        XCTAssertEqual(PulseStrings(language: .chinese).text(.screenshots), "截图")
+        XCTAssertEqual(PulseStrings(language: .english).text(.screenshots), "Capture")
+        XCTAssertEqual(PulseStrings(language: .chinese).text(.screenshots), "截屏录屏")
+        XCTAssertEqual(PulseStrings(language: .english).text(.recordFullScreenShortcut), "Record Full Screen")
+        XCTAssertEqual(PulseStrings(language: .chinese).text(.recordFullScreenShortcut), "全屏录屏")
         XCTAssertEqual(PulseStrings(language: .english).text(.bluetooth), "Bluetooth")
         XCTAssertEqual(PulseStrings(language: .chinese).text(.bluetooth), "蓝牙")
         XCTAssertEqual(
@@ -599,14 +654,23 @@ final class LanguagePreferenceTests: XCTestCase {
         XCTAssertEqual(PulseStrings(language: .chinese).text(.screenshotAuthorizeScreenRecording), "授权")
         XCTAssertEqual(
             PulseStrings(language: .english).text(.screenshotHidePulseDuringCapture),
-            "Hide Pulse while capturing"
+            "Hide Pulse"
         )
-        XCTAssertEqual(PulseStrings(language: .chinese).text(.screenshotHidePulseDuringCapture), "截图时隐藏 Pulse")
+        XCTAssertEqual(PulseStrings(language: .chinese).text(.screenshotHidePulseDuringCapture), "隐藏 pulse 界面")
         XCTAssertTrue(
             PulseStrings(language: .chinese)
                 .text(.screenshotHidePulseDuringCaptureDetail)
-                .contains("Pulse 本身")
+                .contains("录屏")
         )
+        XCTAssertEqual(PulseStrings(language: .english).text(.screenshotSectionTitle), "Screenshots")
+        XCTAssertEqual(PulseStrings(language: .chinese).text(.screenshotSectionTitle), "截屏")
+        XCTAssertEqual(PulseStrings(language: .english).text(.screenRecordingSectionTitle), "Recordings")
+        XCTAssertEqual(PulseStrings(language: .chinese).text(.screenRecordingSectionTitle), "录屏")
+        XCTAssertEqual(PulseStrings(language: .english).text(.screenRecordingPreviewTitle), "Recording")
+        XCTAssertEqual(PulseStrings(language: .chinese).text(.screenRecordingPreviewAction), "预览")
+        XCTAssertEqual(PulseStrings(language: .english).text(.screenRecordingDiscardAction), "Discard")
+        XCTAssertEqual(PulseStrings(language: .english).text(.screenRecordingHideCursorDuringCapture), "Hide Mouse")
+        XCTAssertEqual(PulseStrings(language: .chinese).text(.screenRecordingHideCursorDuringCapture), "隐藏鼠标")
         XCTAssertEqual(PulseStrings(language: .english).text(.screenshotEditAction), "Edit")
         XCTAssertEqual(PulseStrings(language: .chinese).text(.screenshotEditAction), "编辑")
         XCTAssertEqual(PulseStrings(language: .english).text(.screenshotEditorMove), "Move")
@@ -624,6 +688,8 @@ final class LanguagePreferenceTests: XCTestCase {
         XCTAssertEqual(PulseStrings(language: .chinese).text(.captureSelectionShortcut), "区域截图")
         XCTAssertEqual(PulseStrings(language: .english).screenshotModeTitle(.window), "Window")
         XCTAssertEqual(PulseStrings(language: .chinese).screenshotModeTitle(.selection), "自定义区域")
+        XCTAssertEqual(PulseStrings(language: .english).screenRecordingModeTitle(.fullScreen), "Record Full Screen")
+        XCTAssertEqual(PulseStrings(language: .chinese).screenRecordingModeTitle(.selection), "区域录屏")
         XCTAssertEqual(PulseStrings(language: .english).text(.applicationsListView), "List view")
         XCTAssertEqual(PulseStrings(language: .chinese).text(.applicationsIconView), "图标视图")
         XCTAssertEqual(PulseStrings(language: .english).text(.favoriteApplications), "Favorite Apps")

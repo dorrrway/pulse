@@ -2,12 +2,15 @@ import AppKit
 import Carbon
 import Foundation
 
-enum PulseShortcutAction: String, CaseIterable, Codable, Sendable {
+nonisolated enum PulseShortcutAction: String, CaseIterable, Codable, Sendable {
     case wakeClipboard
     case wakeApplications
     case captureFullScreen
     case captureWindow
     case captureSelection
+    case recordFullScreen
+    case recordWindow
+    case recordSelection
 
     var hotKeyID: UInt32 {
         switch self {
@@ -21,6 +24,12 @@ enum PulseShortcutAction: String, CaseIterable, Codable, Sendable {
             4
         case .captureSelection:
             5
+        case .recordFullScreen:
+            6
+        case .recordWindow:
+            7
+        case .recordSelection:
+            8
         }
     }
 
@@ -36,6 +45,12 @@ enum PulseShortcutAction: String, CaseIterable, Codable, Sendable {
             self = .captureWindow
         case Self.captureSelection.hotKeyID:
             self = .captureSelection
+        case Self.recordFullScreen.hotKeyID:
+            self = .recordFullScreen
+        case Self.recordWindow.hotKeyID:
+            self = .recordWindow
+        case Self.recordSelection.hotKeyID:
+            self = .recordSelection
         default:
             return nil
         }
@@ -47,20 +62,36 @@ enum PulseShortcutAction: String, CaseIterable, Codable, Sendable {
             .clipboard
         case .wakeApplications:
             .applications
-        case .captureFullScreen, .captureWindow, .captureSelection:
+        case .captureFullScreen, .captureWindow, .captureSelection,
+             .recordFullScreen, .recordWindow, .recordSelection:
             nil
         }
     }
 
     var screenshotMode: PulseScreenshotMode? {
         switch self {
-        case .wakeClipboard, .wakeApplications:
+        case .wakeClipboard, .wakeApplications,
+             .recordFullScreen, .recordWindow, .recordSelection:
             nil
         case .captureFullScreen:
             .fullScreen
         case .captureWindow:
             .window
         case .captureSelection:
+            .selection
+        }
+    }
+
+    var screenRecordingMode: PulseScreenshotMode? {
+        switch self {
+        case .wakeClipboard, .wakeApplications,
+             .captureFullScreen, .captureWindow, .captureSelection:
+            nil
+        case .recordFullScreen:
+            .fullScreen
+        case .recordWindow:
+            .window
+        case .recordSelection:
             .selection
         }
     }
@@ -72,19 +103,28 @@ struct PulseShortcutPreferences: Equatable, Sendable {
     var captureFullScreen: PulseKeyboardShortcut?
     var captureWindow: PulseKeyboardShortcut?
     var captureSelection: PulseKeyboardShortcut?
+    var recordFullScreen: PulseKeyboardShortcut?
+    var recordWindow: PulseKeyboardShortcut?
+    var recordSelection: PulseKeyboardShortcut?
 
     init(
         wakeClipboard: PulseKeyboardShortcut? = nil,
         wakeApplications: PulseKeyboardShortcut? = nil,
         captureFullScreen: PulseKeyboardShortcut? = nil,
         captureWindow: PulseKeyboardShortcut? = nil,
-        captureSelection: PulseKeyboardShortcut? = nil
+        captureSelection: PulseKeyboardShortcut? = nil,
+        recordFullScreen: PulseKeyboardShortcut? = nil,
+        recordWindow: PulseKeyboardShortcut? = nil,
+        recordSelection: PulseKeyboardShortcut? = nil
     ) {
         self.wakeClipboard = wakeClipboard
         self.wakeApplications = wakeApplications
         self.captureFullScreen = captureFullScreen
         self.captureWindow = captureWindow
         self.captureSelection = captureSelection
+        self.recordFullScreen = recordFullScreen
+        self.recordWindow = recordWindow
+        self.recordSelection = recordSelection
     }
 
     func shortcut(for action: PulseShortcutAction) -> PulseKeyboardShortcut? {
@@ -99,6 +139,12 @@ struct PulseShortcutPreferences: Equatable, Sendable {
             captureWindow
         case .captureSelection:
             captureSelection
+        case .recordFullScreen:
+            recordFullScreen
+        case .recordWindow:
+            recordWindow
+        case .recordSelection:
+            recordSelection
         }
     }
 }

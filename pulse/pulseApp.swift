@@ -56,11 +56,26 @@ struct PulseApp: App {
             return
         }
 
+        try? PulseScreenRecordingService.cleanupTemporaryRecordings()
+
         guard Self.instanceLock.acquire() else {
             Darwin.exit(EXIT_SUCCESS)
         }
 
         shortcutController.actionHandler = { action in
+            if let screenRecordingMode = action.screenRecordingMode {
+                if islandPanelController.screenRecordingState.activeSession?.mode == screenRecordingMode {
+                    islandPanelController.stopScreenRecording(strings: store.strings)
+                } else {
+                    islandPanelController.startScreenRecording(
+                        mode: screenRecordingMode,
+                        hidesPulseDuringCapture: store.hidePulseDuringScreenshots,
+                        hidesCursorDuringCapture: store.hideCursorDuringScreenRecordings
+                    )
+                }
+                return
+            }
+
             if let screenshotMode = action.screenshotMode {
                 islandPanelController.captureScreenshot(
                     mode: screenshotMode,

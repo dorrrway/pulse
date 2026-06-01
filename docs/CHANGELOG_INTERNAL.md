@@ -5,6 +5,61 @@ This file is for maintainers. Keep the public changelog in `README.md` and
 implementation context, product decisions, privacy boundaries, thresholds, and
 verification notes that would make the public changelog too noisy.
 
+## Unreleased
+
+### Capture
+
+- The Screenshots island module is now presented as Capture in English and
+  截屏录屏 in Chinese. Its panel keeps the existing three screenshot actions at
+  the top and adds matching full-screen, window, and custom-region recording
+  actions below them.
+- Screen recording now uses native macOS ScreenCaptureKit for the actual video
+  stream and AVFoundation for `.mov` writing. Full-screen and window recording
+  still reuse native `screencapture` screenshot picker commands for target
+  selection, create a temporary PNG only to read macOS's selected global rect
+  metadata, delete that PNG, then map the selection to an `SCDisplay` or
+  `SCWindow`. Full-screen target selection uses `-i -w -S`, matching the native
+  screenshot display picker visual language instead of a Pulse-owned overlay.
+- Custom-region recording uses a Pulse-owned native AppKit selection overlay
+  instead of the `screencapture -i -s` picker so the unselected screen area dims
+  while the selected region stays visually true to the final capture. The
+  overlay is per-display, clamps dragging to the display where selection starts,
+  shows a blue selection stroke with corner handles and a local size label, and
+  closes after target selection. After recording starts, a separate
+  non-interactive region guide stays visible with the same dimmed outside area
+  and blue selection boundary; ScreenCaptureKit excludes that guide window from
+  the saved video output.
+- Recordings are written as `.mov` files in the system temporary directory, then
+  surfaced in the island as a video preview with thumbnail, duration, local
+  playback, save, share, and discard actions. The temporary recording is moved
+  only after the user chooses a save location; discarding, replacing the preview,
+  quitting, or a failed save removes the still-unsaved file.
+- The shared Hide Pulse option keeps the screenshot pre-hide behavior. For
+  recording, Pulse hides briefly before target selection, restores the island
+  after recording starts, and excludes the Pulse app from ScreenCaptureKit
+  display/region output when Hide Pulse is enabled. This keeps the island
+  available for elapsed time and stop controls without writing it into the saved
+  video. The new Hide Mouse option maps to ScreenCaptureKit `showsCursor` and
+  defaults to enabled.
+- Full-screen, window, and custom-region recording now have their own global
+  shortcut preferences in the Capture panel and Settings. They reuse the same
+  Carbon hot-key registration and duplicate-assignment rules as screenshots;
+  triggering the active recording mode again stops the recording and opens the
+  island video preview.
+- Recording output intentionally disables system audio and microphone capture in
+  this first version so the new permission and privacy surface remains limited
+  to screen pixels.
+
+### Privacy And Documentation
+
+- Public privacy wording now covers user-triggered native ScreenCaptureKit
+  recordings, native screenshot picker target selection for full-screen/window
+  recording, the local custom-region selection overlay, temporary
+  target-selection PNG metadata files for display/window recording target
+  resolution, temporary `.mov` files, post-stop video previews, no audio
+  capture, Hide Pulse output exclusion, the live island recording state, the
+  Hide Mouse local preference, and local recording shortcut preferences.
+
 ## 2.3.0 - 2026-06-01
 
 ### Screenshots
@@ -24,8 +79,11 @@ verification notes that would make the public changelog too noisy.
 - The hide-before-capture switch uses a local SwiftUI `ToggleStyle` so its
   enabled state stays green inside the nonactivating island panel instead of
   depending on the system `NSSwitch` tint behavior.
-- The hide-before-capture label and switch are grouped together at the trailing
-  edge of the Screenshots panel footer instead of splitting label and control.
+- The Hide Pulse and Hide Mouse switches now live in a Settings section directly
+  below screenshot and recording actions, and Hide Mouse uses the dedicated
+  mouse asset instead of the system cursor symbol.
+- The Chinese Hide Pulse option label now reads `隐藏 pulse 界面` to make it clear
+  the setting hides Pulse's visible interface while capturing or recording.
 - Screenshot actions now preflight and request macOS Screen Recording access
   before hiding the island. If `screencapture` still reports a TCC denial, Pulse
   restores the island and opens the Screen Recording privacy pane instead of

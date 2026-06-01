@@ -323,7 +323,7 @@ final class PinnedPanelControllerTests: XCTestCase {
     @MainActor
     func testScreenshotPreviewReminderSuspendsAutoDismissWhileHovered() async throws {
         let controller = PulseIslandPanelController()
-        let reminder = PulseScreenshotPreviewReminder(image: NSImage(size: NSSize(width: 8, height: 8)))
+        let reminder = PulseCapturePreviewReminder(image: NSImage(size: NSSize(width: 8, height: 8)))
 
         controller.presentScreenshotPreview(reminder, autoDismissDuration: .milliseconds(50))
         controller.setHovering(true)
@@ -331,14 +331,41 @@ final class PinnedPanelControllerTests: XCTestCase {
         try await Task.sleep(for: .milliseconds(120))
 
         XCTAssertEqual(controller.style, .screenshotPreview)
-        XCTAssertEqual(controller.screenshotPreviewReminder, reminder)
+        XCTAssertEqual(controller.capturePreviewReminder, reminder)
 
         controller.setHovering(false)
 
         try await Task.sleep(for: .milliseconds(120))
 
         XCTAssertEqual(controller.style, .seed)
-        XCTAssertNil(controller.screenshotPreviewReminder)
+        XCTAssertNil(controller.capturePreviewReminder)
+    }
+
+    @MainActor
+    func testScreenRecordingPreviewPersistsUntilDiscardedAndRemovesTemporaryFile() throws {
+        let controller = PulseIslandPanelController()
+        let temporaryURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("pulse-recording-preview-\(UUID().uuidString).mov")
+        try Data([0, 1, 2, 3]).write(to: temporaryURL, options: .atomic)
+        let preview = PulseScreenRecordingPreview(
+            url: temporaryURL,
+            thumbnail: NSImage(size: NSSize(width: 16, height: 9)),
+            duration: 61,
+            suggestedFileName: "Pulse Recording Test.mov"
+        )
+
+        controller.presentScreenRecordingPreview(preview)
+
+        XCTAssertEqual(controller.style, .screenshotPreview)
+        XCTAssertEqual(controller.capturePreviewReminder?.screenRecording, preview)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: temporaryURL.path))
+
+        controller.setHovering(false)
+        controller.discardCapturePreview()
+
+        XCTAssertEqual(controller.style, .seed)
+        XCTAssertNil(controller.capturePreviewReminder)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: temporaryURL.path))
     }
 
     @MainActor
@@ -1163,6 +1190,40 @@ final class PinnedPanelControllerTests: XCTestCase {
         XCTAssertEqual(controller.style, .expanded)
     }
 
+    #if DEBUG
+    @MainActor
+    func testIslandPanelKeepsRecordingControlsCollapsedWhenHoverBegins() {
+        let controller = PulseIslandPanelController()
+
+        controller.setScreenRecordingStateForTesting(.recording(Self.makeScreenRecordingSession()))
+        controller.setHovering(true)
+
+        XCTAssertEqual(controller.style, .seed)
+    }
+
+    @MainActor
+    func testIslandPanelKeepsRecordingControlsCollapsedWhenTapped() {
+        let controller = PulseIslandPanelController()
+
+        controller.setScreenRecordingStateForTesting(.recording(Self.makeScreenRecordingSession()))
+        controller.toggleStyle()
+
+        XCTAssertEqual(controller.style, .seed)
+    }
+
+    @MainActor
+    func testIslandPanelReturnsToCollapsedControlsWhenRecordingBeginsFromExpandedPanel() {
+        let controller = PulseIslandPanelController()
+
+        controller.toggleStyle()
+        XCTAssertEqual(controller.style, .expanded)
+
+        controller.setScreenRecordingStateForTesting(.recording(Self.makeScreenRecordingSession()))
+
+        XCTAssertEqual(controller.style, .seed)
+    }
+    #endif
+
     @MainActor
     func testIslandPanelWakeSelectsModuleAndExpands() {
         let controller = PulseIslandPanelController()
@@ -1208,6 +1269,16 @@ final class PinnedPanelControllerTests: XCTestCase {
         PulseLoginItemService(
             currentStatus: { .enabled },
             apply: { enabled in enabled ? .enabled : .notRegistered }
+        )
+    }
+
+    private static func makeScreenRecordingSession() -> PulseScreenRecordingSession {
+        PulseScreenRecordingSession(
+            id: UUID(),
+            mode: .fullScreen,
+            startedAt: Date(),
+            outputURL: URL(fileURLWithPath: NSTemporaryDirectory())
+                .appendingPathComponent("pulse-screen-recording-test.mov")
         )
     }
 }

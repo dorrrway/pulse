@@ -129,11 +129,11 @@ struct PulseIslandView: View {
                 .allowsHitTesting(usesExpandedVisualState)
             }
 
-            if let screenshotPreviewReminder = controller.screenshotPreviewReminder {
+            if let capturePreviewReminder = controller.capturePreviewReminder {
                 surfaceLayer(for: .screenshotPreview) {
                     screenshotPreviewSurface(
-                        reminder: screenshotPreviewReminder,
-                        title: strings.text(.screenshotCaptured)
+                        reminder: capturePreviewReminder,
+                        title: capturePreviewTitle(reminder: capturePreviewReminder, strings: strings)
                     )
                 }
                 .opacity(usesScreenshotPreviewState ? 1 : 0)
@@ -333,6 +333,10 @@ struct PulseIslandView: View {
     }
 
     private func seedContent(presentation: IslandSeedPresentation) -> some View {
+        if let recordingSession = controller.screenRecordingState.activeSession {
+            return AnyView(recordingSeedContent(session: recordingSession))
+        }
+
         if usesCriticalSeedState {
             guard case .activity(let activity) = presentation else {
                 return AnyView(EmptyView())
@@ -348,6 +352,101 @@ struct PulseIslandView: View {
         }
 
         return AnyView(standardSeedContent(presentation: presentation))
+    }
+
+    private func recordingSeedContent(session: PulseScreenRecordingSession) -> some View {
+        let rowHeight = PulseIslandLayout.seedVisibleSize(for: .seed, metrics: layoutMetrics).height
+        let notchGapWidth = PulseIslandLayout.notchContentGapWidth(metrics: layoutMetrics)
+
+        return TimelineView(.periodic(from: session.startedAt, by: 1)) { context in
+            HStack(spacing: 0) {
+                recordingElapsedLabel(
+                    startedAt: session.startedAt,
+                    now: context.date
+                )
+                .frame(
+                    maxWidth: .infinity,
+                    alignment: .leading
+                )
+
+                if notchGapWidth > 0 {
+                    Color.clear
+                        .frame(width: notchGapWidth)
+                }
+
+                recordingStopButton()
+                    .frame(
+                        maxWidth: .infinity,
+                        alignment: .trailing
+                    )
+            }
+            .frame(height: rowHeight)
+            .padding(.horizontal, notchGapWidth > 0 ? PulseIslandLayout.notchedSeedContentHorizontalPadding : PulseIslandLayout.seedContentHorizontalPadding)
+        }
+    }
+
+    private func recordingElapsedLabel(startedAt: Date, now: Date) -> some View {
+        HStack(spacing: PulseDesign.Spacing.xxs) {
+            Circle()
+                .fill(.red.opacity(0.92))
+                .frame(width: 7, height: 7)
+
+            Text(recordingElapsedText(startedAt: startedAt, now: now))
+                .font(.system(.caption, design: .rounded, weight: .bold).monospacedDigit())
+                .foregroundStyle(.white.opacity(0.94))
+                .lineLimit(1)
+                .minimumScaleFactor(0.82)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func recordingStopButton() -> some View {
+        let isStopping: Bool = {
+            if case .stopping = controller.screenRecordingState {
+                return true
+            }
+
+            return false
+        }()
+
+        return Button {
+            controller.stopScreenRecording(strings: store.strings)
+        } label: {
+            Image(systemName: "stop.fill")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(.white.opacity(isStopping ? 0.42 : 0.94))
+                .frame(width: 24, height: 24)
+                .background(
+                    .red.opacity(isStopping ? 0.16 : 0.74),
+                    in: Circle()
+                )
+        }
+        .buttonStyle(.plain)
+        .disabled(isStopping)
+        .accessibilityLabel(store.strings.text(.screenRecordingStopAction))
+        .help(store.strings.text(.screenRecordingStopAction))
+    }
+
+    private func recordingElapsedText(startedAt: Date, now: Date) -> String {
+        let elapsed = max(0, Int(now.timeIntervalSince(startedAt)))
+        return durationText(seconds: elapsed)
+    }
+
+    private func screenRecordingDurationText(_ duration: TimeInterval) -> String {
+        durationText(seconds: max(0, Int(duration.rounded())))
+    }
+
+    private func durationText(seconds: Int) -> String {
+        let elapsed = max(0, seconds)
+        let hours = elapsed / 3600
+        let minutes = (elapsed % 3600) / 60
+        let seconds = elapsed % 60
+
+        if hours > 0 {
+            return String(format: "%d:%02d:%02d", hours, minutes, seconds)
+        }
+
+        return String(format: "%02d:%02d", minutes, seconds)
     }
 
     private func standardSeedContent(presentation: IslandSeedPresentation) -> some View {
@@ -588,7 +687,7 @@ struct PulseIslandView: View {
         }
     }
 
-    private func screenshotPreviewSurface(reminder: PulseScreenshotPreviewReminder, title: String) -> some View {
+    private func screenshotPreviewSurface(reminder: PulseCapturePreviewReminder, title: String) -> some View {
         let visibleSize = PulseIslandLayout.seedVisibleSize(for: .screenshotPreview, metrics: layoutMetrics)
         let contentSize = PulseIslandLayout.contentSize(for: .screenshotPreview, metrics: layoutMetrics)
         let headerRowHeight = PulseIslandLayout.screenshotPreviewHeaderRowHeight(metrics: layoutMetrics)
@@ -599,16 +698,7 @@ struct PulseIslandView: View {
 
             VStack(spacing: PulseDesign.Spacing.xs) {
                 HStack(alignment: .center, spacing: PulseDesign.Spacing.xs) {
-                    Image("ClipboardImageFilterIcon")
-                        .renderingMode(.template)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(
-                            width: PulseDesign.Control.iconFrameSide,
-                            height: PulseDesign.Control.iconFrameSide
-                        )
-                        .foregroundStyle(.white.opacity(0.94))
-                        .accessibilityHidden(true)
+                    capturePreviewHeaderIcon(reminder: reminder)
 
                     Text(title)
                         .font(.system(.callout, design: .rounded, weight: .semibold))
@@ -617,30 +707,14 @@ struct PulseIslandView: View {
 
                     Spacer(minLength: PulseDesign.Spacing.sm)
 
-                    Image("IslandClipboardSavedIcon")
-                        .renderingMode(.template)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(
-                            width: PulseDesign.Control.iconFrameSide,
-                            height: PulseDesign.Control.iconFrameSide
-                        )
-                        .foregroundStyle(.green.opacity(0.96))
-                        .accessibilityHidden(true)
+                    capturePreviewStatusIcon(reminder: reminder)
                 }
                 .frame(height: headerRowHeight, alignment: .center)
 
-                Image(nsImage: reminder.image)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxWidth: visibleSize.width - PulseDesign.Spacing.md * 2, maxHeight: 112)
-                    .clipShape(RoundedRectangle(cornerRadius: PulseDesign.Radius.card, style: .continuous))
-                    .accessibilityLabel(title)
-                    .onDrag {
-                        controller.screenshotPreviewDragItemProvider()
-                    }
+                capturePreviewMedia(reminder: reminder, title: title, visibleWidth: visibleSize.width)
 
-                screenshotPreviewActions(strings: store.strings)
+                capturePreviewActions(reminder: reminder, strings: store.strings)
+                    .padding(.top, PulseDesign.Spacing.md)
             }
             .padding(.horizontal, PulseDesign.Spacing.md)
             .padding(.bottom, PulseDesign.Spacing.md)
@@ -652,6 +726,150 @@ struct PulseIslandView: View {
         .onHover { hovering in
             controller.setHovering(hovering)
         }
+    }
+
+    @ViewBuilder
+    private func capturePreviewHeaderIcon(reminder: PulseCapturePreviewReminder) -> some View {
+        if reminder.isScreenRecording {
+            Image(systemName: "video.fill")
+                .font(.system(size: 16, weight: .semibold))
+                .frame(
+                    width: PulseDesign.Control.iconFrameSide,
+                    height: PulseDesign.Control.iconFrameSide
+                )
+                .foregroundStyle(.white.opacity(0.94))
+                .accessibilityHidden(true)
+        } else {
+            Image("ClipboardImageFilterIcon")
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .frame(
+                    width: PulseDesign.Control.iconFrameSide,
+                    height: PulseDesign.Control.iconFrameSide
+                )
+                .foregroundStyle(.white.opacity(0.94))
+                .accessibilityHidden(true)
+        }
+    }
+
+    @ViewBuilder
+    private func capturePreviewStatusIcon(reminder: PulseCapturePreviewReminder) -> some View {
+        if reminder.isScreenRecording {
+            Image(systemName: "play.circle.fill")
+                .font(.system(size: 18, weight: .semibold))
+                .frame(
+                    width: PulseDesign.Control.iconFrameSide,
+                    height: PulseDesign.Control.iconFrameSide
+                )
+                .foregroundStyle(.green.opacity(0.96))
+                .accessibilityHidden(true)
+        } else {
+            Image("IslandClipboardSavedIcon")
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .frame(
+                    width: PulseDesign.Control.iconFrameSide,
+                    height: PulseDesign.Control.iconFrameSide
+                )
+                .foregroundStyle(.green.opacity(0.96))
+                .accessibilityHidden(true)
+        }
+    }
+
+    private func capturePreviewMedia(
+        reminder: PulseCapturePreviewReminder,
+        title: String,
+        visibleWidth: CGFloat
+    ) -> some View {
+        ZStack(alignment: .bottomTrailing) {
+            Image(nsImage: reminder.previewImage)
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: visibleWidth - PulseDesign.Spacing.md * 2, maxHeight: 112)
+                .clipShape(RoundedRectangle(cornerRadius: PulseDesign.Radius.card, style: .continuous))
+                .accessibilityLabel(title)
+
+            if let recording = reminder.screenRecording {
+                Image(systemName: "play.fill")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.95))
+                    .frame(width: 42, height: 42)
+                    .background(.black.opacity(0.42), in: Circle())
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .accessibilityHidden(true)
+
+                Text(screenRecordingDurationText(recording.duration))
+                    .font(.system(.caption2, design: .rounded, weight: .bold).monospacedDigit())
+                    .foregroundStyle(.white.opacity(0.95))
+                    .padding(.horizontal, PulseDesign.Spacing.xs)
+                    .padding(.vertical, 3)
+                    .background(.black.opacity(0.54), in: Capsule())
+                    .padding(PulseDesign.Spacing.xs)
+            }
+        }
+        .frame(maxWidth: visibleWidth - PulseDesign.Spacing.md * 2, maxHeight: 112)
+        .contentShape(RoundedRectangle(cornerRadius: PulseDesign.Radius.card, style: .continuous))
+        .onTapGesture {
+            if reminder.isScreenRecording {
+                controller.openScreenRecordingPreview(strings: store.strings)
+            }
+        }
+        .onDrag {
+            controller.capturePreviewDragItemProvider()
+        }
+    }
+
+    private func capturePreviewTitle(reminder: PulseCapturePreviewReminder, strings: PulseStrings) -> String {
+        if reminder.isScreenRecording {
+            return strings.text(.screenRecordingPreviewTitle)
+        }
+
+        return strings.text(.screenshotCaptured)
+    }
+
+    @ViewBuilder
+    private func capturePreviewActions(reminder: PulseCapturePreviewReminder, strings: PulseStrings) -> some View {
+        if reminder.isScreenRecording {
+            screenRecordingPreviewActions(strings: strings)
+        } else {
+            screenshotPreviewActions(strings: strings)
+        }
+    }
+
+    private func screenRecordingPreviewActions(strings: PulseStrings) -> some View {
+        HStack(spacing: PulseDesign.Spacing.xs) {
+            screenshotPreviewActionButton(
+                title: strings.text(.screenRecordingPreviewAction),
+                icon: .system("play.fill")
+            ) {
+                controller.openScreenRecordingPreview(strings: strings)
+            }
+
+            screenshotPreviewActionButton(
+                title: strings.text(.screenshotSaveAction),
+                icon: .system("square.and.arrow.down")
+            ) {
+                controller.saveScreenRecordingPreview(strings: strings)
+            }
+
+            screenshotPreviewActionButton(
+                title: strings.text(.screenshotShareAction),
+                icon: .system("square.and.arrow.up")
+            ) {
+                controller.shareCapturePreview()
+            }
+
+            screenshotPreviewActionButton(
+                title: strings.text(.screenRecordingDiscardAction),
+                icon: .system("trash"),
+                isDestructive: true
+            ) {
+                controller.discardCapturePreview()
+            }
+        }
+        .frame(height: 30)
     }
 
     private func screenshotPreviewActions(strings: PulseStrings) -> some View {
@@ -712,6 +930,7 @@ struct PulseIslandView: View {
         title: String,
         icon: ScreenshotPreviewActionIcon,
         isDisabled: Bool = false,
+        isDestructive: Bool = false,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
@@ -723,17 +942,41 @@ struct PulseIslandView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.82)
             }
-            .foregroundStyle(.white.opacity(isDisabled ? 0.42 : 0.88))
+            .foregroundStyle(actionForegroundColor(isDisabled: isDisabled, isDestructive: isDestructive))
             .frame(maxWidth: .infinity)
             .frame(height: 30)
             .background(
-                .white.opacity(isDisabled ? 0.05 : 0.10),
+                actionBackgroundColor(isDisabled: isDisabled, isDestructive: isDestructive),
                 in: RoundedRectangle(cornerRadius: PulseDesign.Radius.control, style: .continuous)
             )
         }
         .buttonStyle(.plain)
         .disabled(isDisabled)
         .accessibilityLabel(title)
+    }
+
+    private func actionForegroundColor(isDisabled: Bool, isDestructive: Bool) -> Color {
+        if isDisabled {
+            return .white.opacity(0.42)
+        }
+
+        if isDestructive {
+            return .red.opacity(0.92)
+        }
+
+        return .white.opacity(0.88)
+    }
+
+    private func actionBackgroundColor(isDisabled: Bool, isDestructive: Bool) -> Color {
+        if isDisabled {
+            return .white.opacity(0.05)
+        }
+
+        if isDestructive {
+            return .red.opacity(0.16)
+        }
+
+        return .white.opacity(0.10)
     }
 
     @ViewBuilder
@@ -781,12 +1024,25 @@ struct PulseIslandView: View {
                     ClipboardPanelView()
                         .environment(store)
                 case .screenshots:
-                    PulseScreenshotPanelView { mode in
-                        controller.captureScreenshot(
-                            mode: mode,
-                            hidesPulseDuringCapture: store.hidePulseDuringScreenshots
-                        )
-                    }
+                    PulseScreenshotPanelView(
+                        recordingState: controller.screenRecordingState,
+                        recordAction: { mode in
+                            controller.startScreenRecording(
+                                mode: mode,
+                                hidesPulseDuringCapture: store.hidePulseDuringScreenshots,
+                                hidesCursorDuringCapture: store.hideCursorDuringScreenRecordings
+                            )
+                        },
+                        stopRecordingAction: {
+                            controller.stopScreenRecording(strings: store.strings)
+                        },
+                        captureAction: { mode in
+                            controller.captureScreenshot(
+                                mode: mode,
+                                hidesPulseDuringCapture: store.hidePulseDuringScreenshots
+                            )
+                        }
+                    )
                     .environment(store)
                 case .bluetooth:
                     BluetoothPanelView(

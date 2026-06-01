@@ -181,6 +181,27 @@ struct PulseSettingsView: View {
                         shortcut: store.captureSelectionShortcut,
                         strings: strings
                     )
+
+                    shortcutRow(
+                        title: strings.text(.recordFullScreenShortcut),
+                        action: .recordFullScreen,
+                        shortcut: store.recordFullScreenShortcut,
+                        strings: strings
+                    )
+
+                    shortcutRow(
+                        title: strings.text(.recordWindowShortcut),
+                        action: .recordWindow,
+                        shortcut: store.recordWindowShortcut,
+                        strings: strings
+                    )
+
+                    shortcutRow(
+                        title: strings.text(.recordSelectionShortcut),
+                        action: .recordSelection,
+                        shortcut: store.recordSelectionShortcut,
+                        strings: strings
+                    )
                 }
 
                 #if DEBUG
@@ -313,9 +334,9 @@ private extension PulseSettingsView {
 
     var settingsWindowHeight: CGFloat {
         #if DEBUG
-        return 680
+        return 748
         #else
-        return 594
+        return 662
         #endif
     }
 

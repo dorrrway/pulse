@@ -1,4 +1,5 @@
 import AppKit
+@preconcurrency import AVFoundation
 import Observation
 import SwiftUI
 import UniformTypeIdentifiers
@@ -487,17 +488,94 @@ enum PulseDisplaySelection {
     }
 }
 
-struct PulseScreenshotPreviewReminder: Identifiable, Equatable {
+struct PulseScreenRecordingPreview: Equatable {
+    let url: URL
+    let thumbnail: NSImage
+    let duration: TimeInterval
+    let suggestedFileName: String
+
+    static func == (lhs: PulseScreenRecordingPreview, rhs: PulseScreenRecordingPreview) -> Bool {
+        lhs.url == rhs.url
+            && lhs.duration == rhs.duration
+            && lhs.suggestedFileName == rhs.suggestedFileName
+    }
+}
+
+enum PulseCapturePreviewMedia {
+    case screenshot(NSImage)
+    case screenRecording(PulseScreenRecordingPreview)
+}
+
+struct PulseCapturePreviewReminder: Identifiable, Equatable {
     let id: UUID
-    let image: NSImage
+    let media: PulseCapturePreviewMedia
 
     init(id: UUID = UUID(), image: NSImage) {
         self.id = id
-        self.image = image
+        self.media = .screenshot(image)
     }
 
-    static func == (lhs: PulseScreenshotPreviewReminder, rhs: PulseScreenshotPreviewReminder) -> Bool {
+    init(id: UUID = UUID(), screenRecording: PulseScreenRecordingPreview) {
+        self.id = id
+        self.media = .screenRecording(screenRecording)
+    }
+
+    var screenshotImage: NSImage? {
+        guard case .screenshot(let image) = media else {
+            return nil
+        }
+
+        return image
+    }
+
+    var screenRecording: PulseScreenRecordingPreview? {
+        guard case .screenRecording(let recording) = media else {
+            return nil
+        }
+
+        return recording
+    }
+
+    var previewImage: NSImage {
+        switch media {
+        case .screenshot(let image):
+            image
+        case .screenRecording(let recording):
+            recording.thumbnail
+        }
+    }
+
+    var isScreenRecording: Bool {
+        screenRecording != nil
+    }
+
+    static func == (lhs: PulseCapturePreviewReminder, rhs: PulseCapturePreviewReminder) -> Bool {
         lhs.id == rhs.id
+    }
+}
+
+enum PulseScreenRecordingState: Equatable {
+    case idle
+    case starting(PulseScreenshotMode)
+    case recording(PulseScreenRecordingSession)
+    case stopping(PulseScreenRecordingSession)
+
+    var activeSession: PulseScreenRecordingSession? {
+        switch self {
+        case .idle, .starting:
+            nil
+        case .recording(let session), .stopping(let session):
+            session
+        }
+    }
+
+    var isBusy: Bool {
+        switch self {
+        case .idle:
+            false
+        case .starting, .recording, .stopping:
+            true
+        }
     }
 }
 
@@ -509,8 +587,9 @@ final class PulseIslandPanelController {
     private(set) var layoutMetrics: PulseIslandLayoutMetrics = .fallback
     private(set) var isPinnedPanelPresented = false
     private(set) var selectedModule: PulseIslandModule = .applications
-    private(set) var screenshotPreviewReminder: PulseScreenshotPreviewReminder?
+    private(set) var capturePreviewReminder: PulseCapturePreviewReminder?
     private(set) var screenshotPreviewActionState: PulseScreenshotPreviewActionState = .idle
+    private(set) var screenRecordingState: PulseScreenRecordingState = .idle
     #if DEBUG
     private(set) var criticalAlertPreviewRequest: PulseIslandCriticalAlertPreviewRequest?
     #endif
@@ -522,12 +601,15 @@ final class PulseIslandPanelController {
     @ObservationIgnored private var screenTrackingTask: Task<Void, Never>?
     @ObservationIgnored private var hoverExpansionSuppressionDeadline: Date?
     @ObservationIgnored private var hoverExpansionResumeTask: Task<Void, Never>?
-    @ObservationIgnored private var screenshotPreviewTask: Task<Void, Never>?
+    @ObservationIgnored private var capturePreviewTask: Task<Void, Never>?
     @ObservationIgnored private var screenshotPreviewActionStateResetTask: Task<Void, Never>?
-    @ObservationIgnored private var screenshotPreviewAutoDismissDuration = PulseIslandPanelController.screenshotPreviewDuration
-    @ObservationIgnored private var isScreenshotPreviewHovered = false
+    @ObservationIgnored private var capturePreviewAutoDismissDuration: Duration?
+    @ObservationIgnored private var isCapturePreviewHovered = false
+    @ObservationIgnored private var isHiddenForScreenRecording = false
     @ObservationIgnored private var pinPanelAction: () -> Void = {}
     @ObservationIgnored private let screenshotOCRService = ClipboardOCRService()
+    @ObservationIgnored private let screenRecordingService = PulseScreenRecordingService()
+    @ObservationIgnored private let screenRecordingPreviewPanelController = PulseScreenRecordingPreviewPanelController()
     @ObservationIgnored private let pinnedScreenshotPanelController = PulsePinnedScreenshotPanelController()
     @ObservationIgnored private let screenshotEditorPanelController = PulseScreenshotEditorPanelController()
     @ObservationIgnored private var activeSharingPicker: NSSharingServicePicker?
@@ -539,6 +621,16 @@ final class PulseIslandPanelController {
     private static let screenTrackingInterval: Duration = .milliseconds(350)
     private static let screenCapturePreparationDelay: Duration = .milliseconds(160)
     private static let postLaunchHoverExpansionSuppressionDuration: TimeInterval = 0.45
+
+    private var isShowingScreenRecordingControls: Bool {
+        screenRecordingState.activeSession != nil
+    }
+
+    init() {
+        screenRecordingService.externalStopHandler = { [weak self] result in
+            self?.handleExternalScreenRecordingStop(result)
+        }
+    }
 
     static func shouldDeferHoverCollapse(pressedMouseButtons: Int) -> Bool {
         pressedMouseButtons != 0
@@ -605,16 +697,18 @@ final class PulseIslandPanelController {
         screenTrackingTask = nil
         hoverExpansionResumeTask?.cancel()
         hoverExpansionResumeTask = nil
-        screenshotPreviewTask?.cancel()
-        screenshotPreviewTask = nil
+        capturePreviewTask?.cancel()
+        capturePreviewTask = nil
         screenshotPreviewActionStateResetTask?.cancel()
         screenshotPreviewActionStateResetTask = nil
         screenshotEditorPanelController.close()
-        isScreenshotPreviewHovered = false
+        screenRecordingPreviewPanelController.close()
+        discardScreenRecordingPreviewIfNeeded(capturePreviewReminder)
+        isCapturePreviewHovered = false
         panel?.orderOut(nil)
         style = .seed
         hoverExpansionSuppressionDeadline = nil
-        screenshotPreviewReminder = nil
+        capturePreviewReminder = nil
         screenshotPreviewActionState = .idle
         isPresented = false
     }
@@ -627,6 +721,10 @@ final class PulseIslandPanelController {
 
         collapseTask?.cancel()
         collapseTask = nil
+
+        guard !isShowingScreenRecordingControls else {
+            return
+        }
 
         if isHovering {
             guard shouldAcceptHoverExpansion(now: now) else {
@@ -691,6 +789,107 @@ final class PulseIslandPanelController {
         }
     }
 
+    func startScreenRecording(
+        mode: PulseScreenshotMode,
+        hidesPulseDuringCapture: Bool,
+        hidesCursorDuringCapture: Bool
+    ) {
+        guard !screenRecordingState.isBusy else {
+            return
+        }
+
+        screenRecordingState = .starting(mode)
+        clearCapturePreview(deletingScreenRecording: true)
+
+        if hidesPulseDuringCapture {
+            hideForScreenRecording()
+        }
+
+        Task { @MainActor [weak self] in
+            guard let self else {
+                return
+            }
+
+            defer {
+                restoreAfterScreenRecording()
+            }
+
+            if hidesPulseDuringCapture {
+                do {
+                    try await Task.sleep(for: Self.screenCapturePreparationDelay)
+                } catch {
+                    screenRecordingState = .idle
+                    return
+                }
+            }
+
+            let result = await screenRecordingService.start(
+                mode: mode,
+                options: PulseScreenRecordingOptions(
+                    hidesPulse: hidesPulseDuringCapture,
+                    hidesCursor: hidesCursorDuringCapture
+                ),
+                sourceScreen: currentScreen()
+            )
+
+            switch result {
+            case .started(let session):
+                screenRecordingState = .recording(session)
+                collapse()
+                restoreAfterScreenRecording()
+            case .permissionDenied:
+                screenRecordingState = .idle
+                restoreAfterScreenRecording()
+                PulseScreenshotService.live.openScreenCaptureSettings()
+            case .cancelled, .failed:
+                screenRecordingState = .idle
+            }
+        }
+    }
+
+    func stopScreenRecording(strings _: PulseStrings) {
+        guard case .recording(let session) = screenRecordingState else {
+            return
+        }
+
+        screenRecordingState = .stopping(session)
+
+        Task { @MainActor [weak self] in
+            guard let self else {
+                return
+            }
+
+            let result = await screenRecordingService.stop()
+            screenRecordingState = .idle
+            restoreAfterScreenRecording()
+
+            guard case .saved(let temporaryURL) = result else {
+                return
+            }
+
+            await presentScreenRecordingPreview(
+                temporaryURL: temporaryURL,
+                suggestedFileName: temporaryURL.lastPathComponent
+            )
+        }
+    }
+
+    private func handleExternalScreenRecordingStop(_ result: PulseScreenRecordingStopResult) {
+        screenRecordingState = .idle
+        restoreAfterScreenRecording()
+
+        guard case .saved(let temporaryURL) = result else {
+            return
+        }
+
+        Task { @MainActor [weak self] in
+            await self?.presentScreenRecordingPreview(
+                temporaryURL: temporaryURL,
+                suggestedFileName: temporaryURL.lastPathComponent
+            )
+        }
+    }
+
     func presentCriticalAlert() {
         guard panel != nil, style != .expanded else {
             return
@@ -741,20 +940,28 @@ final class PulseIslandPanelController {
 
         criticalAlertPreviewRequest = PulseIslandCriticalAlertPreviewRequest(alerts: alerts)
     }
+
+    func setScreenRecordingStateForTesting(_ state: PulseScreenRecordingState) {
+        screenRecordingState = state
+        if isShowingScreenRecordingControls {
+            collapse()
+        }
+    }
     #endif
 
     private func expand() {
+        guard !isShowingScreenRecordingControls else {
+            clearHoverExpansionSuppression()
+            return
+        }
+
         clearHoverExpansionSuppression()
         setStyle(.expanded)
     }
 
     private func collapse() {
         if style == .screenshotPreview {
-            screenshotPreviewTask?.cancel()
-            screenshotPreviewTask = nil
-            screenshotPreviewReminder = nil
-            resetScreenshotPreviewActionState()
-            isScreenshotPreviewHovered = false
+            clearCapturePreview(deletingScreenRecording: true, resetsStyle: false)
         }
 
         setStyle(.seed)
@@ -791,6 +998,10 @@ final class PulseIslandPanelController {
                 return
             }
 
+            guard !self.isShowingScreenRecordingControls else {
+                return
+            }
+
             self.expand()
         }
     }
@@ -808,16 +1019,18 @@ final class PulseIslandPanelController {
         criticalAlertTask = nil
         screenTrackingTask?.cancel()
         screenTrackingTask = nil
-        screenshotPreviewTask?.cancel()
-        screenshotPreviewTask = nil
+        capturePreviewTask?.cancel()
+        capturePreviewTask = nil
         screenshotPreviewActionStateResetTask?.cancel()
         screenshotPreviewActionStateResetTask = nil
         screenshotEditorPanelController.close()
-        isScreenshotPreviewHovered = false
+        screenRecordingPreviewPanelController.close()
+        discardScreenRecordingPreviewIfNeeded(capturePreviewReminder)
+        isCapturePreviewHovered = false
         clearHoverExpansionSuppression()
         panel?.orderOut(nil)
         style = .seed
-        screenshotPreviewReminder = nil
+        capturePreviewReminder = nil
         screenshotPreviewActionState = .idle
         isPresented = false
     }
@@ -835,6 +1048,24 @@ final class PulseIslandPanelController {
         startScreenTracking()
     }
 
+    private func hideForScreenRecording() {
+        guard !isHiddenForScreenRecording else {
+            return
+        }
+
+        isHiddenForScreenRecording = true
+        hideForScreenCapture()
+    }
+
+    private func restoreAfterScreenRecording() {
+        guard isHiddenForScreenRecording else {
+            return
+        }
+
+        isHiddenForScreenRecording = false
+        restoreAfterScreenCapture()
+    }
+
     private func handleScreenshotCaptureResult(
         _ result: PulseScreenshotCaptureResult,
         service: PulseScreenshotService,
@@ -850,7 +1081,7 @@ final class PulseIslandPanelController {
                 return
             }
 
-            presentScreenshotPreview(PulseScreenshotPreviewReminder(image: image))
+            presentScreenshotPreview(PulseCapturePreviewReminder(image: image))
         case .cancelled:
             break
         case .permissionDenied:
@@ -861,75 +1092,288 @@ final class PulseIslandPanelController {
     }
 
     func presentScreenshotPreview(
-        _ reminder: PulseScreenshotPreviewReminder,
+        _ reminder: PulseCapturePreviewReminder,
         autoDismissDuration: Duration = PulseIslandPanelController.screenshotPreviewDuration
     ) {
-        screenshotPreviewTask?.cancel()
-        screenshotPreviewTask = nil
+        presentCapturePreview(reminder, autoDismissDuration: autoDismissDuration)
+    }
+
+    private func presentScreenRecordingPreview(
+        temporaryURL: URL,
+        suggestedFileName: String
+    ) async {
+        let preview = await Self.screenRecordingPreview(
+            temporaryURL: temporaryURL,
+            suggestedFileName: suggestedFileName
+        )
+
+        guard screenRecordingState == .idle else {
+            try? FileManager.default.removeItem(at: temporaryURL)
+            return
+        }
+
+        presentScreenRecordingPreview(preview)
+    }
+
+    func presentScreenRecordingPreview(_ preview: PulseScreenRecordingPreview) {
+        presentCapturePreview(PulseCapturePreviewReminder(screenRecording: preview), autoDismissDuration: nil)
+    }
+
+    private func presentCapturePreview(
+        _ reminder: PulseCapturePreviewReminder,
+        autoDismissDuration: Duration?
+    ) {
+        capturePreviewTask?.cancel()
+        capturePreviewTask = nil
         collapseTask?.cancel()
         collapseTask = nil
         criticalAlertTask?.cancel()
         criticalAlertTask = nil
         clearHoverExpansionSuppression()
+        screenRecordingPreviewPanelController.close()
+        discardScreenRecordingPreviewIfNeeded(capturePreviewReminder, keeping: reminder)
 
-        screenshotPreviewAutoDismissDuration = autoDismissDuration
-        isScreenshotPreviewHovered = false
-        screenshotPreviewReminder = reminder
+        capturePreviewAutoDismissDuration = autoDismissDuration
+        isCapturePreviewHovered = false
+        capturePreviewReminder = reminder
         resetScreenshotPreviewActionState()
         setStyle(.screenshotPreview)
 
-        if isMouseInsideCurrentContentRect() {
-            isScreenshotPreviewHovered = true
+        guard autoDismissDuration != nil else {
             return
         }
 
-        scheduleScreenshotPreviewAutoDismiss(for: reminder)
+        if isMouseInsideCurrentContentRect() {
+            isCapturePreviewHovered = true
+            return
+        }
+
+        scheduleCapturePreviewAutoDismiss(for: reminder)
     }
 
     private func setScreenshotPreviewHovering(_ isHovering: Bool) {
-        guard let reminder = screenshotPreviewReminder else {
+        guard let reminder = capturePreviewReminder else {
             return
         }
 
-        isScreenshotPreviewHovered = isHovering
+        isCapturePreviewHovered = isHovering
 
         if isHovering {
-            screenshotPreviewTask?.cancel()
-            screenshotPreviewTask = nil
-        } else {
-            scheduleScreenshotPreviewAutoDismiss(for: reminder)
+            capturePreviewTask?.cancel()
+            capturePreviewTask = nil
+        } else if capturePreviewAutoDismissDuration != nil {
+            scheduleCapturePreviewAutoDismiss(for: reminder)
         }
     }
 
-    private func scheduleScreenshotPreviewAutoDismiss(for reminder: PulseScreenshotPreviewReminder) {
-        screenshotPreviewTask?.cancel()
-        screenshotPreviewTask = Task { @MainActor [weak self] in
+    private func scheduleCapturePreviewAutoDismiss(for reminder: PulseCapturePreviewReminder) {
+        guard let autoDismissDuration = capturePreviewAutoDismissDuration else {
+            return
+        }
+
+        capturePreviewTask?.cancel()
+        capturePreviewTask = Task { @MainActor [weak self] in
             do {
-                try await Task.sleep(for: self?.screenshotPreviewAutoDismissDuration ?? Self.screenshotPreviewDuration)
+                try await Task.sleep(for: autoDismissDuration)
             } catch {
                 return
             }
 
             guard
                 let self,
-                self.screenshotPreviewReminder?.id == reminder.id,
+                self.capturePreviewReminder?.id == reminder.id,
                 self.style == .screenshotPreview,
-                !self.isScreenshotPreviewHovered
+                !self.isCapturePreviewHovered
             else {
                 return
             }
 
-            self.screenshotPreviewTask = nil
-            self.screenshotPreviewReminder = nil
-            self.resetScreenshotPreviewActionState()
-            self.setStyle(.seed)
+            self.clearCapturePreview(deletingScreenRecording: true)
         }
+    }
+
+    private func clearCapturePreview(
+        deletingScreenRecording shouldDeleteScreenRecording: Bool,
+        resetsStyle: Bool = true
+    ) {
+        capturePreviewTask?.cancel()
+        capturePreviewTask = nil
+        screenRecordingPreviewPanelController.close()
+
+        if shouldDeleteScreenRecording {
+            discardScreenRecordingPreviewIfNeeded(capturePreviewReminder)
+        }
+
+        capturePreviewReminder = nil
+        capturePreviewAutoDismissDuration = nil
+        isCapturePreviewHovered = false
+        resetScreenshotPreviewActionState()
+
+        if resetsStyle, style == .screenshotPreview {
+            setStyle(.seed)
+        }
+    }
+
+    private func discardScreenRecordingPreviewIfNeeded(
+        _ reminder: PulseCapturePreviewReminder?,
+        keeping replacement: PulseCapturePreviewReminder? = nil
+    ) {
+        guard
+            reminder?.id != replacement?.id,
+            let recording = reminder?.screenRecording
+        else {
+            return
+        }
+
+        try? FileManager.default.removeItem(at: recording.url)
+    }
+
+    func discardCapturePreview() {
+        clearCapturePreview(deletingScreenRecording: true)
+    }
+
+    func openScreenRecordingPreview(strings: PulseStrings) {
+        guard let recording = capturePreviewReminder?.screenRecording else {
+            return
+        }
+
+        screenRecordingPreviewPanelController.show(
+            recording: recording,
+            title: strings.text(.screenRecordingPreviewTitle)
+        )
+    }
+
+    func saveScreenRecordingPreview(strings: PulseStrings) {
+        guard let recording = capturePreviewReminder?.screenRecording else {
+            return
+        }
+
+        let savePanel = NSSavePanel()
+        savePanel.title = strings.text(.screenRecordingSaveAction)
+        savePanel.allowedContentTypes = [.quickTimeMovie]
+        savePanel.canCreateDirectories = true
+        savePanel.isExtensionHidden = false
+        savePanel.nameFieldStringValue = recording.suggestedFileName
+
+        NSApp.activate(ignoringOtherApps: true)
+
+        guard savePanel.runModal() == .OK, let destination = savePanel.url else {
+            return
+        }
+
+        do {
+            if destination.standardizedFileURL == recording.url.standardizedFileURL {
+                clearCapturePreview(deletingScreenRecording: false)
+                return
+            }
+
+            if FileManager.default.fileExists(atPath: destination.path) {
+                try FileManager.default.removeItem(at: destination)
+            }
+            try FileManager.default.moveItem(at: recording.url, to: destination)
+            clearCapturePreview(deletingScreenRecording: false)
+        } catch {
+            NSSound.beep()
+        }
+    }
+
+    func shareCapturePreview() {
+        guard
+            let reminder = capturePreviewReminder,
+            let contentView = panel?.contentView
+        else {
+            return
+        }
+
+        switch reminder.media {
+        case .screenshot(let image):
+            activeSharingPicker = NSSharingServicePicker(items: [image])
+        case .screenRecording(let recording):
+            activeSharingPicker = NSSharingServicePicker(items: [recording.url])
+        }
+
+        let anchorRect = screenshotPreviewShareAnchorRect(in: contentView)
+        activeSharingPicker?.show(relativeTo: anchorRect, of: contentView, preferredEdge: .minY)
+    }
+
+    func capturePreviewDragItemProvider() -> NSItemProvider {
+        guard let reminder = capturePreviewReminder else {
+            return NSItemProvider()
+        }
+
+        switch reminder.media {
+        case .screenshot(let image):
+            guard let pngData = Self.pngData(for: image) else {
+                return NSItemProvider()
+            }
+
+            return Self.screenshotPreviewDragItemProvider(
+                pngData: pngData,
+                suggestedFileName: Self.suggestedScreenshotFileName()
+            )
+        case .screenRecording(let recording):
+            let provider = NSItemProvider(contentsOf: recording.url) ?? NSItemProvider()
+            provider.suggestedName = recording.suggestedFileName
+            return provider
+        }
+    }
+
+    static func screenRecordingPreview(
+        temporaryURL: URL,
+        suggestedFileName: String
+    ) async -> PulseScreenRecordingPreview {
+        let asset = AVURLAsset(url: temporaryURL)
+        let loadedDuration = try? await asset.load(.duration)
+        let duration = loadedDuration
+            .map(\.seconds)
+            .flatMap { $0.isFinite ? $0 : nil } ?? 0
+        let thumbnail = await screenRecordingThumbnail(from: asset, fallbackURL: temporaryURL)
+
+        return PulseScreenRecordingPreview(
+            url: temporaryURL,
+            thumbnail: thumbnail,
+            duration: duration,
+            suggestedFileName: suggestedFileName
+        )
+    }
+
+    private static func screenRecordingThumbnail(from asset: AVAsset, fallbackURL: URL) async -> NSImage {
+        if let cgImage = await generatedScreenRecordingImage(from: asset) {
+            return NSImage(cgImage: cgImage, size: .zero)
+        }
+
+        return NSWorkspace.shared.icon(forFile: fallbackURL.path)
+    }
+
+    private static func generatedScreenRecordingImage(from asset: AVAsset) async -> CGImage? {
+        await withCheckedContinuation { continuation in
+            let generator = AVAssetImageGenerator(asset: asset)
+            generator.appliesPreferredTrackTransform = true
+            generator.maximumSize = CGSize(width: 720, height: 480)
+            generator.generateCGImageAsynchronously(for: .zero) { image, _, _ in
+                withExtendedLifetime(generator) {
+                    continuation.resume(returning: image)
+                }
+            }
+        }
+    }
+
+    func shareScreenshotPreview() {
+        shareCapturePreview()
+    }
+
+    func screenshotPreviewDragItemProvider() -> NSItemProvider {
+        capturePreviewDragItemProvider()
+    }
+
+    private func screenshotImageForPreview() -> NSImage? {
+        capturePreviewReminder?.screenshotImage
     }
 
     func saveScreenshotPreview() {
         guard
-            let reminder = screenshotPreviewReminder,
-            let pngData = Self.pngData(for: reminder.image)
+            let image = screenshotImageForPreview(),
+            let pngData = Self.pngData(for: image)
         else {
             return
         }
@@ -953,33 +1397,6 @@ final class PulseIslandPanelController {
         }
     }
 
-    func shareScreenshotPreview() {
-        guard
-            let reminder = screenshotPreviewReminder,
-            let contentView = panel?.contentView
-        else {
-            return
-        }
-
-        activeSharingPicker = NSSharingServicePicker(items: [reminder.image])
-        let anchorRect = screenshotPreviewShareAnchorRect(in: contentView)
-        activeSharingPicker?.show(relativeTo: anchorRect, of: contentView, preferredEdge: .minY)
-    }
-
-    func screenshotPreviewDragItemProvider() -> NSItemProvider {
-        guard
-            let reminder = screenshotPreviewReminder,
-            let pngData = Self.pngData(for: reminder.image)
-        else {
-            return NSItemProvider()
-        }
-
-        return Self.screenshotPreviewDragItemProvider(
-            pngData: pngData,
-            suggestedFileName: Self.suggestedScreenshotFileName()
-        )
-    }
-
     static func screenshotPreviewDragItemProvider(
         pngData: Data,
         suggestedFileName: String
@@ -1001,21 +1418,21 @@ final class PulseIslandPanelController {
     }
 
     func pinScreenshotPreview(strings: PulseStrings) {
-        guard let reminder = screenshotPreviewReminder else {
+        guard let image = screenshotImageForPreview() else {
             return
         }
 
-        pinnedScreenshotPanelController.pin(image: reminder.image, strings: strings)
+        pinnedScreenshotPanelController.pin(image: image, strings: strings)
         collapse()
     }
 
     func editScreenshotPreview(strings: PulseStrings) {
-        guard let reminder = screenshotPreviewReminder else {
+        guard let image = screenshotImageForPreview() else {
             return
         }
 
         screenshotEditorPanelController.edit(
-            image: reminder.image,
+            image: image,
             strings: strings,
             pinAction: { [weak self] editedImage in
                 self?.pinnedScreenshotPanelController.pin(image: editedImage, strings: strings)
@@ -1027,8 +1444,8 @@ final class PulseIslandPanelController {
 
             _ = Self.writeScreenshotImageToClipboard(editedImage)
             presentScreenshotPreview(
-                PulseScreenshotPreviewReminder(image: editedImage),
-                autoDismissDuration: screenshotPreviewAutoDismissDuration
+                PulseCapturePreviewReminder(image: editedImage),
+                autoDismissDuration: capturePreviewAutoDismissDuration ?? Self.screenshotPreviewDuration
             )
         }
     }
@@ -1039,8 +1456,9 @@ final class PulseIslandPanelController {
         }
 
         guard
-            let reminder = screenshotPreviewReminder,
-            let pngData = Self.pngData(for: reminder.image)
+            let reminder = capturePreviewReminder,
+            let image = reminder.screenshotImage,
+            let pngData = Self.pngData(for: image)
         else {
             setScreenshotPreviewActionState(.noRecognizedText, resetAfter: Self.screenshotPreviewActionFeedbackDuration)
             return
@@ -1057,7 +1475,7 @@ final class PulseIslandPanelController {
             let recognizedText = await screenshotOCRService.recognizedText(in: pngData)
                 .trimmingCharacters(in: .whitespacesAndNewlines)
 
-            guard screenshotPreviewReminder?.id == reminderID else {
+            guard capturePreviewReminder?.id == reminderID else {
                 return
             }
 
@@ -1159,11 +1577,7 @@ final class PulseIslandPanelController {
 
         if resetToSeed {
             style = .seed
-            screenshotPreviewTask?.cancel()
-            screenshotPreviewTask = nil
-            screenshotPreviewReminder = nil
-            resetScreenshotPreviewActionState()
-            isScreenshotPreviewHovered = false
+            clearCapturePreview(deletingScreenRecording: true, resetsStyle: false)
         }
         criticalAlertTask?.cancel()
         criticalAlertTask = nil

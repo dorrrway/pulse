@@ -66,9 +66,32 @@ final class PulseStore {
             notifyShortcutPreferencesDidChange()
         }
     }
+    var recordFullScreenShortcut: PulseKeyboardShortcut? {
+        didSet {
+            saveKeyboardShortcut(recordFullScreenShortcut, key: Self.recordFullScreenShortcutKey)
+            notifyShortcutPreferencesDidChange()
+        }
+    }
+    var recordWindowShortcut: PulseKeyboardShortcut? {
+        didSet {
+            saveKeyboardShortcut(recordWindowShortcut, key: Self.recordWindowShortcutKey)
+            notifyShortcutPreferencesDidChange()
+        }
+    }
+    var recordSelectionShortcut: PulseKeyboardShortcut? {
+        didSet {
+            saveKeyboardShortcut(recordSelectionShortcut, key: Self.recordSelectionShortcutKey)
+            notifyShortcutPreferencesDidChange()
+        }
+    }
     var hidePulseDuringScreenshots: Bool {
         didSet {
             userDefaults.set(hidePulseDuringScreenshots, forKey: Self.hidePulseDuringScreenshotsKey)
+        }
+    }
+    var hideCursorDuringScreenRecordings: Bool {
+        didSet {
+            userDefaults.set(hideCursorDuringScreenRecordings, forKey: Self.hideCursorDuringScreenRecordingsKey)
         }
     }
     var favoriteApplicationPaths: [String] {
@@ -100,7 +123,11 @@ final class PulseStore {
     private static let captureFullScreenShortcutKey = "pulse.settings.shortcuts.captureFullScreen"
     private static let captureWindowShortcutKey = "pulse.settings.shortcuts.captureWindow"
     private static let captureSelectionShortcutKey = "pulse.settings.shortcuts.captureSelection"
+    private static let recordFullScreenShortcutKey = "pulse.settings.shortcuts.recordFullScreen"
+    private static let recordWindowShortcutKey = "pulse.settings.shortcuts.recordWindow"
+    private static let recordSelectionShortcutKey = "pulse.settings.shortcuts.recordSelection"
     private static let hidePulseDuringScreenshotsKey = "pulse.settings.screenshots.hidePulseDuringCapture"
+    private static let hideCursorDuringScreenRecordingsKey = "pulse.settings.screenRecordings.hideCursorDuringCapture"
     private static let favoriteApplicationPathsKey = "pulse.settings.installedApps.favoritePaths"
 
     init(
@@ -155,9 +182,26 @@ final class PulseStore {
             from: userDefaults,
             key: Self.captureSelectionShortcutKey
         )
+        self.recordFullScreenShortcut = Self.loadKeyboardShortcut(
+            from: userDefaults,
+            key: Self.recordFullScreenShortcutKey
+        )
+        self.recordWindowShortcut = Self.loadKeyboardShortcut(
+            from: userDefaults,
+            key: Self.recordWindowShortcutKey
+        )
+        self.recordSelectionShortcut = Self.loadKeyboardShortcut(
+            from: userDefaults,
+            key: Self.recordSelectionShortcutKey
+        )
         self.hidePulseDuringScreenshots = Self.loadBool(
             from: userDefaults,
             key: Self.hidePulseDuringScreenshotsKey,
+            defaultValue: true
+        )
+        self.hideCursorDuringScreenRecordings = Self.loadBool(
+            from: userDefaults,
+            key: Self.hideCursorDuringScreenRecordingsKey,
             defaultValue: true
         )
         self.favoriteApplicationPaths = Self.loadFavoriteApplicationPaths(
@@ -201,7 +245,10 @@ final class PulseStore {
             wakeApplications: wakeApplicationsShortcut,
             captureFullScreen: captureFullScreenShortcut,
             captureWindow: captureWindowShortcut,
-            captureSelection: captureSelectionShortcut
+            captureSelection: captureSelectionShortcut,
+            recordFullScreen: recordFullScreenShortcut,
+            recordWindow: recordWindowShortcut,
+            recordSelection: recordSelectionShortcut
         )
     }
 
@@ -297,6 +344,10 @@ final class PulseStore {
         hidePulseDuringScreenshots = shouldHide
     }
 
+    func setHideCursorDuringScreenRecordings(_ shouldHide: Bool) {
+        hideCursorDuringScreenRecordings = shouldHide
+    }
+
     func setShortcut(_ shortcut: PulseKeyboardShortcut?, for action: PulseShortcutAction) {
         assignShortcut(shortcut, for: action)
 
@@ -323,6 +374,12 @@ final class PulseStore {
             captureWindowShortcut = shortcut
         case .captureSelection:
             captureSelectionShortcut = shortcut
+        case .recordFullScreen:
+            recordFullScreenShortcut = shortcut
+        case .recordWindow:
+            recordWindowShortcut = shortcut
+        case .recordSelection:
+            recordSelectionShortcut = shortcut
         }
     }
 

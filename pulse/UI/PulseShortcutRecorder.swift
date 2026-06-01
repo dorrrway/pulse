@@ -6,6 +6,7 @@ struct PulseShortcutRecorder: NSViewRepresentable {
     var shortcut: PulseKeyboardShortcut?
     var placeholder: String
     var recordingTitle: String
+    var isEnabled = true
     var onChange: (PulseKeyboardShortcut?) -> Void
 
     func makeNSView(context: Context) -> PulseShortcutRecorderButton {
@@ -13,6 +14,7 @@ struct PulseShortcutRecorder: NSViewRepresentable {
         button.shortcut = shortcut
         button.placeholder = placeholder
         button.recordingTitle = recordingTitle
+        button.isEnabled = isEnabled
         button.onChange = onChange
         return button
     }
@@ -21,6 +23,7 @@ struct PulseShortcutRecorder: NSViewRepresentable {
         button.shortcut = shortcut
         button.placeholder = placeholder
         button.recordingTitle = recordingTitle
+        button.isEnabled = isEnabled
         button.onChange = onChange
     }
 }
