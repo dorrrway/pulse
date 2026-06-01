@@ -260,6 +260,58 @@ nonisolated struct PulseStrings: Sendable {
         }
     }
 
+    func memoEntryCount(_ count: Int) -> String {
+        switch language {
+        case .english:
+            return count == 1 ? "1 memo" : "\(count) memos"
+        case .chinese:
+            return "\(count) 条备忘"
+        }
+    }
+
+    func memoTaskSummary(active: Int, completed: Int) -> String {
+        switch language {
+        case .english:
+            return "\(active) open · \(completed) done"
+        case .chinese:
+            return "\(active) 个待办 · \(completed) 个完成"
+        }
+    }
+
+    func memoFilterTitle(_ filter: MemoEntryFilter) -> String {
+        switch (language, filter) {
+        case (.english, .all):
+            "All"
+        case (.english, .todo):
+            "Todo"
+        case (.english, .notes):
+            "Notes"
+        case (.english, .completed):
+            "Done"
+        case (.chinese, .all):
+            "全部"
+        case (.chinese, .todo):
+            "待办"
+        case (.chinese, .notes):
+            "备忘"
+        case (.chinese, .completed):
+            "完成"
+        }
+    }
+
+    func memoKindTitle(_ kind: MemoEntryKind) -> String {
+        switch (language, kind) {
+        case (.english, .note):
+            "Note"
+        case (.english, .task):
+            "Todo"
+        case (.chinese, .note):
+            "备忘"
+        case (.chinese, .task):
+            "待办"
+        }
+    }
+
     func clipboardKind(_ kind: ClipboardContentKind) -> String {
         switch (language, kind) {
         case (.english, .text):
@@ -874,6 +926,7 @@ extension PulseStrings {
         case resourceMonitoring
         case applications
         case clipboard
+        case memos
         case screenshots
         case bluetooth
         case screenshotSectionTitle
@@ -975,6 +1028,29 @@ extension PulseStrings {
         case clipboardSearchAction
         case clipboardSearchPlaceholder
         case closeClipboardSearch
+        case memoDraftPlaceholder
+        case addMemo
+        case addTodo
+        case memoSearchPlaceholder
+        case closeMemoSearch
+        case memoEmptyTitle
+        case memoEmptyDetail
+        case memoNoResultsTitle
+        case memoNoResultsDetail
+        case copyMemo
+        case editMemo
+        case saveMemo
+        case cancelMemoEdit
+        case pinMemo
+        case unpinMemo
+        case deleteMemo
+        case markTodoDone
+        case markTodoOpen
+        case clearCompletedMemos
+        case clearCompletedMemosConfirmation
+        case confirmClearCompletedMemos
+        case cancelClearCompletedMemos
+        case memoStorageIssueTitle
         case clipboardPermissionTitle
         case clipboardPermissionDetail
         case clipboardEmptyTitle
@@ -1120,6 +1196,8 @@ private extension PulseStrings {
             "Applications"
         case .clipboard:
             "Clipboard"
+        case .memos:
+            "Memo"
         case .screenshots:
             "Capture"
         case .bluetooth:
@@ -1322,6 +1400,52 @@ private extension PulseStrings {
             "Search clipboard"
         case .closeClipboardSearch:
             "Close search"
+        case .memoDraftPlaceholder:
+            "Write a memo or todo"
+        case .addMemo:
+            "Add memo"
+        case .addTodo:
+            "Add todo"
+        case .memoSearchPlaceholder:
+            "Search memos"
+        case .closeMemoSearch:
+            "Clear memo search"
+        case .memoEmptyTitle:
+            "No memos yet"
+        case .memoEmptyDetail:
+            "Memos and todos stay local on this Mac."
+        case .memoNoResultsTitle:
+            "No matching memos"
+        case .memoNoResultsDetail:
+            "No saved memo matches this view."
+        case .copyMemo:
+            "Copy memo"
+        case .editMemo:
+            "Edit memo"
+        case .saveMemo:
+            "Save memo"
+        case .cancelMemoEdit:
+            "Cancel edit"
+        case .pinMemo:
+            "Pin memo"
+        case .unpinMemo:
+            "Unpin memo"
+        case .deleteMemo:
+            "Delete memo"
+        case .markTodoDone:
+            "Mark done"
+        case .markTodoOpen:
+            "Mark open"
+        case .clearCompletedMemos:
+            "Clear completed"
+        case .clearCompletedMemosConfirmation:
+            "Clear completed todos?"
+        case .confirmClearCompletedMemos:
+            "Clear"
+        case .cancelClearCompletedMemos:
+            "Cancel"
+        case .memoStorageIssueTitle:
+            "Memo storage issue"
         case .clipboardPermissionTitle:
             "Clipboard access needed"
         case .clipboardPermissionDetail:
@@ -1499,6 +1623,8 @@ private extension PulseStrings {
             "应用程序"
         case .clipboard:
             "剪贴板"
+        case .memos:
+            "备忘"
         case .screenshots:
             "截屏录屏"
         case .bluetooth:
@@ -1701,6 +1827,52 @@ private extension PulseStrings {
             "搜索剪贴板"
         case .closeClipboardSearch:
             "关闭搜索"
+        case .memoDraftPlaceholder:
+            "写下备忘或待办"
+        case .addMemo:
+            "添加备忘"
+        case .addTodo:
+            "添加待办"
+        case .memoSearchPlaceholder:
+            "搜索备忘"
+        case .closeMemoSearch:
+            "清空备忘搜索"
+        case .memoEmptyTitle:
+            "还没有备忘"
+        case .memoEmptyDetail:
+            "备忘和待办只保存在这台 Mac。"
+        case .memoNoResultsTitle:
+            "没有匹配的备忘"
+        case .memoNoResultsDetail:
+            "当前视图下没有匹配的已保存内容。"
+        case .copyMemo:
+            "复制备忘"
+        case .editMemo:
+            "编辑备忘"
+        case .saveMemo:
+            "保存备忘"
+        case .cancelMemoEdit:
+            "取消编辑"
+        case .pinMemo:
+            "置顶备忘"
+        case .unpinMemo:
+            "取消置顶"
+        case .deleteMemo:
+            "删除备忘"
+        case .markTodoDone:
+            "标记完成"
+        case .markTodoOpen:
+            "标记未完成"
+        case .clearCompletedMemos:
+            "清理已完成"
+        case .clearCompletedMemosConfirmation:
+            "清理已完成待办？"
+        case .confirmClearCompletedMemos:
+            "清理"
+        case .cancelClearCompletedMemos:
+            "取消"
+        case .memoStorageIssueTitle:
+            "备忘存储异常"
         case .clipboardPermissionTitle:
             "需要剪贴板访问权限"
         case .clipboardPermissionDetail:

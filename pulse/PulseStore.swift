@@ -13,6 +13,7 @@ final class PulseStore {
     var installedApplicationsRefreshedAt: Date?
     var runningApplications: RunningApplicationState
     var clipboardHistory: ClipboardHistoryStore
+    var memos: MemoStore
     var bluetoothDevices: BluetoothDeviceStore
     var capturedAt: Date = .distantPast
     var deviceName: String?
@@ -139,7 +140,8 @@ final class PulseStore {
         deviceName: String? = nil,
         reconcileLaunchAtLogin: Bool? = nil,
         startSamplingImmediately: Bool = false,
-        startClipboardImmediately: Bool = false
+        startClipboardImmediately: Bool = false,
+        memos: MemoStore? = nil
     ) {
         self.userDefaults = userDefaults
         self.launchAtLoginService = launchAtLoginService
@@ -149,6 +151,7 @@ final class PulseStore {
             userDefaults: userDefaults,
             isRunningUnitTests: isRunningUnitTests
         )
+        self.memos = memos ?? MemoStore()
         self.bluetoothDevices = bluetoothDevices ?? BluetoothDeviceStore()
         self.deviceName = Self.normalizedDeviceName(deviceName) ?? Self.currentDeviceName()
         self.languagePreference = Self.loadLanguagePreference(from: userDefaults, key: Self.languagePreferenceKey)

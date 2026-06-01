@@ -1023,6 +1023,9 @@ struct PulseIslandView: View {
                 case .clipboard:
                     ClipboardPanelView()
                         .environment(store)
+                case .memos:
+                    MemoPanelView()
+                        .environment(store)
                 case .screenshots:
                     PulseScreenshotPanelView(
                         recordingState: controller.screenRecordingState,
@@ -1098,7 +1101,7 @@ struct PulseIslandView: View {
         case .applications:
             installedAppsAttachedPanelShape
                 .fill(fill, style: FillStyle(eoFill: true))
-        case .clipboard, .screenshots, .bluetooth:
+        case .clipboard, .memos, .screenshots, .bluetooth:
             RoundedRectangle(cornerRadius: PulsePanelLayout.panelCornerRadius, style: .continuous)
                 .fill(fill)
         #if DEBUG
@@ -1118,7 +1121,7 @@ struct PulseIslandView: View {
         case .applications:
             installedAppsAttachedPanelShape
                 .fill(.black, style: FillStyle(eoFill: true))
-        case .clipboard, .screenshots, .bluetooth:
+        case .clipboard, .memos, .screenshots, .bluetooth:
             RoundedRectangle(cornerRadius: PulsePanelLayout.panelCornerRadius, style: .continuous)
                 .fill(.black)
         #if DEBUG

@@ -194,6 +194,7 @@ enum PulseIslandModule: CaseIterable, Equatable, Hashable {
     case resourceMonitor
     case applications
     case clipboard
+    case memos
     case screenshots
     case bluetooth
     #if DEBUG
@@ -202,9 +203,9 @@ enum PulseIslandModule: CaseIterable, Equatable, Hashable {
 
     static var allCases: [PulseIslandModule] {
         #if DEBUG
-        [.resourceMonitor, .applications, .clipboard, .screenshots, .bluetooth, .translation]
+        [.resourceMonitor, .applications, .clipboard, .memos, .screenshots, .bluetooth, .translation]
         #else
-        [.resourceMonitor, .applications, .clipboard, .screenshots, .bluetooth]
+        [.resourceMonitor, .applications, .clipboard, .memos, .screenshots, .bluetooth]
         #endif
     }
 
@@ -216,6 +217,8 @@ enum PulseIslandModule: CaseIterable, Equatable, Hashable {
             .applications
         case .clipboard:
             .clipboard
+        case .memos:
+            .memos
         case .screenshots:
             .screenshots
         case .bluetooth:
@@ -235,6 +238,8 @@ enum PulseIslandModule: CaseIterable, Equatable, Hashable {
             "IslandApplicationsIcon"
         case .clipboard:
             "IslandClipboardIcon"
+        case .memos:
+            "ClipboardTextFilterIcon"
         case .screenshots:
             "IslandScreenshotIcon"
         case .bluetooth:

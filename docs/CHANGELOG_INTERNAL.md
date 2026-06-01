@@ -7,6 +7,17 @@ verification notes that would make the public changelog too noisy.
 
 ## Unreleased
 
+### Memo
+
+- Added Memo as an independent island module rather than folding it into
+  Clipboard. Clipboard remains passive capture history; Memo is user-authored
+  content with its own `MemoStore`, JSON persistence, filters, search, editing,
+  pinning, copying, deletion, and completed-todo cleanup.
+- Memo v1 intentionally stays local-only: no reminders, notifications,
+  Calendar/Reminders sync, iCloud sync, or background automation. Copying a memo
+  writes text to the system clipboard and therefore follows the existing
+  Clipboard history behavior if Clipboard history is enabled.
+
 ### Capture
 
 - The Screenshots island module is now presented as Capture in English and
@@ -60,6 +71,10 @@ verification notes that would make the public changelog too noisy.
 
 ### Privacy And Documentation
 
+- Public privacy wording now covers the local Memo module, user-entered memo
+  and todo text, completion state, pin state, timestamps, local Application
+  Support JSON persistence, and the lack of network upload or system service
+  sync.
 - Public privacy wording now covers user-triggered native ScreenCaptureKit
   recordings, native screenshot picker target selection for full-screen/window
   recording, the local custom-region selection overlay, temporary

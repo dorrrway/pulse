@@ -405,7 +405,8 @@ final class PinnedPanelControllerTests: XCTestCase {
     func testIslandModulesCycleHorizontally() {
         XCTAssertEqual(PulseIslandModule.resourceMonitor.shifted(by: 1), .applications)
         XCTAssertEqual(PulseIslandModule.applications.shifted(by: 1), .clipboard)
-        XCTAssertEqual(PulseIslandModule.clipboard.shifted(by: 1), .screenshots)
+        XCTAssertEqual(PulseIslandModule.clipboard.shifted(by: 1), .memos)
+        XCTAssertEqual(PulseIslandModule.memos.shifted(by: 1), .screenshots)
         XCTAssertEqual(PulseIslandModule.screenshots.shifted(by: 1), .bluetooth)
         #if DEBUG
         XCTAssertEqual(PulseIslandModule.bluetooth.shifted(by: 1), .translation)
@@ -418,7 +419,8 @@ final class PinnedPanelControllerTests: XCTestCase {
         #endif
         XCTAssertEqual(PulseIslandModule.applications.shifted(by: -1), .resourceMonitor)
         XCTAssertEqual(PulseIslandModule.clipboard.shifted(by: -1), .applications)
-        XCTAssertEqual(PulseIslandModule.screenshots.shifted(by: -1), .clipboard)
+        XCTAssertEqual(PulseIslandModule.memos.shifted(by: -1), .clipboard)
+        XCTAssertEqual(PulseIslandModule.screenshots.shifted(by: -1), .memos)
         XCTAssertEqual(PulseIslandModule.bluetooth.shifted(by: -1), .screenshots)
     }
 
