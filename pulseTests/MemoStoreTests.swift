@@ -4,6 +4,10 @@ import XCTest
 
 @MainActor
 final class MemoStoreTests: XCTestCase {
+    func testFilterOrderMatchesMemoPanelContract() {
+        XCTAssertEqual(MemoEntryFilter.allCases, [.all, .notes, .todo, .completed])
+    }
+
     func testCreatesNotesAndTasksThenFiltersAndSearches() throws {
         let store = makeStore()
 
@@ -23,6 +27,26 @@ final class MemoStoreTests: XCTestCase {
         store.selectedFilter = .all
         store.searchText = "todo"
         XCTAssertEqual(store.filteredEntries.map(\.text), ["Ship local todo support"])
+    }
+
+    func testAddsDraftAsNoteAndMarksNoteAsTask() throws {
+        let store = makeStore()
+        store.draftText = "Review capture naming"
+
+        XCTAssertTrue(store.addNote())
+        let note = try XCTUnwrap(store.entries.first)
+        XCTAssertEqual(note.kind, .note)
+        XCTAssertEqual(note.text, "Review capture naming")
+        XCTAssertEqual(store.draftText, "")
+        XCTAssertEqual(store.activeTaskCount, 0)
+
+        store.markAsTask(note)
+
+        let task = try XCTUnwrap(store.entries.first)
+        XCTAssertEqual(task.id, note.id)
+        XCTAssertEqual(task.kind, .task)
+        XCTAssertFalse(task.isCompleted)
+        XCTAssertEqual(store.activeTaskCount, 1)
     }
 
     func testCompletionAndClearCompletedTasks() throws {

@@ -13,6 +13,9 @@ verification notes that would make the public changelog too noisy.
   Clipboard. Clipboard remains passive capture history; Memo is user-authored
   content with its own `MemoStore`, JSON persistence, filters, search, editing,
   pinning, copying, deletion, and completed-todo cleanup.
+- The Memo composer is a larger full-width input. Pressing Return creates a
+  note by default; notes can be promoted to todos from the row context menu via
+  Set as todo / 设为待办.
 - Memo v1 intentionally stays local-only: no reminders, notifications,
   Calendar/Reminders sync, iCloud sync, or background automation. Copying a memo
   writes text to the system clipboard and therefore follows the existing
@@ -42,9 +45,13 @@ verification notes that would make the public changelog too noisy.
   the saved video output.
 - Recordings are written as `.mov` files in the system temporary directory, then
   surfaced in the island as a video preview with thumbnail, duration, local
-  playback, save, share, and discard actions. The temporary recording is moved
-  only after the user chooses a save location; discarding, replacing the preview,
-  quitting, or a failed save removes the still-unsaved file.
+  playback, save, share, close, and discard actions. The temporary recording is
+  moved only after the user chooses a save location; closing, discarding,
+  replacing the preview, quitting, or a failed save removes the still-unsaved
+  file.
+- The capture preview header now uses a top-right close button instead of a
+  passive completion/play status icon. Closing a preview clears the preview
+  state and restores the previous seed or expanded island style.
 - The shared Hide Pulse option keeps the screenshot pre-hide behavior. For
   recording, Pulse hides briefly before target selection, restores the island
   after recording starts, and excludes the Pulse app from ScreenCaptureKit

@@ -13,7 +13,7 @@
 </h3>
 
 <p align="center">
-  <img alt="release" src="https://img.shields.io/badge/release-v2.3.0-0A84FF">
+  <img alt="release" src="https://img.shields.io/badge/release-v2.4.0-0A84FF">
   <img alt="platform" src="https://img.shields.io/badge/platform-macOS-147EFB">
   <img alt="Swift" src="https://img.shields.io/badge/Swift-6-FA7343">
   <img alt="notarized" src="https://img.shields.io/badge/Developer%20ID-notarized-34C759">
@@ -29,18 +29,18 @@ Pulse is a local-first macOS control center that stays at the top of your screen
 
 Latest release:
 
-- [Pulse 2.3.0](https://github.com/dorrrway/pulse/releases/tag/v2.3.0)
-- DMG: [Pulse-2.3.0.dmg](https://github.com/dorrrway/pulse/releases/download/v2.3.0/Pulse-2.3.0.dmg)
+- [Pulse 2.4.0](https://github.com/dorrrway/pulse/releases/tag/v2.4.0)
+- DMG: [Pulse-2.4.0.dmg](https://github.com/dorrrway/pulse/releases/download/v2.4.0/Pulse-2.4.0.dmg)
 
 SHA-256:
 
 ```text
-66be3ba207946b71e449bf547a963bd4c4bd8f15d780146235958bb405c3efde  Pulse-2.3.0.dmg
+5937825a99e43f2fbf599cd2efb9d871ba16e339bac1b73a504db553c2e3bdae  Pulse-2.4.0.dmg
 ```
 
 ## Installation
 
-1. Download `Pulse-2.3.0.dmg`.
+1. Download `Pulse-2.4.0.dmg`.
 2. Open the DMG.
 3. Follow the bilingual DMG guide and drag `Pulse.app` to Applications.
 4. Launch Pulse from Applications.
@@ -60,7 +60,7 @@ Pulse reads local system metrics, such as CPU, memory, disk, network byte counte
 
 The Capture module calls native macOS screenshot and recording APIs only when the user clicks an action or triggers a shortcut; first use requires macOS Screen Recording permission. Screenshots continue to use native `screencapture`, hide Pulse before capture by default, and are written to the system clipboard. If clipboard history is enabled, that image follows the existing local Clipboard history rules. Full-screen and window recordings first reuse the native macOS screenshot picker to create and immediately delete a temporary target-selection screenshot only to read macOS's selected target metadata. Custom-region recording shows a local AppKit selection layer that dims unselected areas while keeping the selected region at its original brightness. After recording starts, custom-region recording keeps a non-interactive local region guide visible so the unrecorded area stays dimmed and the selected area keeps a blue boundary; Pulse excludes that guide from the final recording output. Pulse then records the selected display, window, or region with native ScreenCaptureKit and writes the temporary `.mov` with AVFoundation.
 
-Recordings do not capture system audio or microphone audio and hide the mouse pointer by default. After recording starts, the Pulse island returns with an elapsed-time label and a stop button. When Hide Pulse is enabled, ScreenCaptureKit excludes Pulse itself from the final recording output, so the saved video does not contain the Pulse island. The live macOS sharing indicator is controlled by the system and is not written into the final video by Pulse. After recording stops, Pulse keeps the temporary `.mov` in an island video preview, lets the user play it locally first, and then save, share, or discard it. Discarding or replacing the preview removes the temporary file.
+Recordings do not capture system audio or microphone audio and hide the mouse pointer by default. After recording starts, the Pulse island returns with an elapsed-time label and a stop button. When Hide Pulse is enabled, ScreenCaptureKit excludes Pulse itself from the final recording output, so the saved video does not contain the Pulse island. The live macOS sharing indicator is controlled by the system and is not written into the final video by Pulse. After recording stops, Pulse keeps the temporary `.mov` in an island video preview, lets the user play it locally first, and then save, share, close, or discard it. Closing, discarding, or replacing the preview removes the temporary file.
 
 The screenshot completion reminder's Save, Share, Edit, Pin, and Recognize Text actions run only after the user clicks them: Save writes a PNG to the user-selected location, Share hands the image to the macOS share sheet, Edit opens a local foreground floating editor for brush-based mosaic redaction, rectangles, circles, arrows, pen strokes, and text; the editor's Save, Share, and Pin actions also operate only on the current edited image, and completing the edit writes the edited image back to the system clipboard. Pin keeps the current screenshot in a local foreground floating window until the user closes it, and Recognize Text uses local Vision before letting the user choose whether to copy text to the clipboard. Dragging the screenshot preview to Finder, chat windows, or documents provides PNG data for that drag and prepares a PNG file representation in the system temporary directory; old temporary drag files are cleaned up by later drags.
 
@@ -70,14 +70,16 @@ See [Privacy Policy](PRIVACY.en.md) for details.
 
 ## Changelog
 
-### Unreleased
+### 2.4.0 - 2026-06-03
 
 - Renamed the Screenshots module to Capture and added native recording actions below the existing full-screen, window, and selection screenshot actions; full-screen and window target selection still reuse the native macOS screenshot picker, custom-region recording uses local selection and recording guide layers that dim unselected areas, and recording output is written with ScreenCaptureKit + AVFoundation.
 - After recording starts, the Pulse island shows elapsed time and a stop button; when Hide Pulse is enabled, Pulse is hidden before target selection and excluded from the final recording output.
-- Each recording mode can also have a global shortcut set from the Capture panel or Settings; shortcuts follow the Hide Pulse and Hide Mouse options, and triggering the same mode while it is recording stops the recording and opens an island video preview so the user can play, save, share, or discard the temporary `.mov`.
+- Each recording mode can also have a global shortcut set from the Capture panel or Settings; shortcuts follow the Hide Pulse and Hide Mouse options, and triggering the same mode while it is recording stops the recording and opens an island video preview so the user can play, save, share, close, or discard the temporary `.mov`.
+- Screenshot and video previews now use a top-right close button. It exits the preview directly, restores the expanded island when the preview started from an expanded panel, and removes an unsaved temporary `.mov` when closing a video preview.
 - Added Hide Pulse and Hide Mouse options so screenshots can hide Pulse before capture, recordings can exclude Pulse from saved videos, and recordings can hide the pointer for cleaner screen videos.
 - Refined Capture panel icons and mode labels: recording actions now use dedicated icons, recording buttons reuse the Full Screen, Window, and Selection mode names, and Hide Pulse uses a clearer dedicated icon.
-- Added a Memo module for local notes and todos in the Pulse island, with all/todo/notes/done filters, search, editing, pinning, copy, delete, and clearing completed todos. All memo content stays local.
+- Added a Memo module for local notes and todos in the Pulse island, with a larger full-width composer that creates notes on Return, right-click Set as todo, all/notes/todo/done filters, search, editing, pinning, copy, delete, and clearing completed todos. All memo content stays local.
+- Release archive: [Pulse-2.4.0.dmg](https://github.com/dorrrway/pulse/releases/download/v2.4.0/Pulse-2.4.0.dmg); SHA-256: `5937825a99e43f2fbf599cd2efb9d871ba16e339bac1b73a504db553c2e3bdae`.
 
 ### 2.3.0 - 2026-06-01
 

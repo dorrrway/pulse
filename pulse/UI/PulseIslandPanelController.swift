@@ -604,6 +604,7 @@ final class PulseIslandPanelController {
     @ObservationIgnored private var capturePreviewTask: Task<Void, Never>?
     @ObservationIgnored private var screenshotPreviewActionStateResetTask: Task<Void, Never>?
     @ObservationIgnored private var capturePreviewAutoDismissDuration: Duration?
+    @ObservationIgnored private var capturePreviewReturnStyle: PulseIslandStyle = .seed
     @ObservationIgnored private var isCapturePreviewHovered = false
     @ObservationIgnored private var isHiddenForScreenRecording = false
     @ObservationIgnored private var pinPanelAction: () -> Void = {}
@@ -709,6 +710,7 @@ final class PulseIslandPanelController {
         style = .seed
         hoverExpansionSuppressionDeadline = nil
         capturePreviewReminder = nil
+        capturePreviewReturnStyle = .seed
         screenshotPreviewActionState = .idle
         isPresented = false
     }
@@ -1031,6 +1033,7 @@ final class PulseIslandPanelController {
         panel?.orderOut(nil)
         style = .seed
         capturePreviewReminder = nil
+        capturePreviewReturnStyle = .seed
         screenshotPreviewActionState = .idle
         isPresented = false
     }
@@ -1123,6 +1126,12 @@ final class PulseIslandPanelController {
         _ reminder: PulseCapturePreviewReminder,
         autoDismissDuration: Duration?
     ) {
+        let returnStyle: PulseIslandStyle
+        if style == .screenshotPreview {
+            returnStyle = capturePreviewReturnStyle
+        } else {
+            returnStyle = Self.normalizedCapturePreviewReturnStyle(style)
+        }
         capturePreviewTask?.cancel()
         capturePreviewTask = nil
         collapseTask?.cancel()
@@ -1134,6 +1143,7 @@ final class PulseIslandPanelController {
         discardScreenRecordingPreviewIfNeeded(capturePreviewReminder, keeping: reminder)
 
         capturePreviewAutoDismissDuration = autoDismissDuration
+        capturePreviewReturnStyle = returnStyle
         isCapturePreviewHovered = false
         capturePreviewReminder = reminder
         resetScreenshotPreviewActionState()
@@ -1194,7 +1204,8 @@ final class PulseIslandPanelController {
 
     private func clearCapturePreview(
         deletingScreenRecording shouldDeleteScreenRecording: Bool,
-        resetsStyle: Bool = true
+        resetsStyle: Bool = true,
+        restoredStyle: PulseIslandStyle? = nil
     ) {
         capturePreviewTask?.cancel()
         capturePreviewTask = nil
@@ -1206,11 +1217,22 @@ final class PulseIslandPanelController {
 
         capturePreviewReminder = nil
         capturePreviewAutoDismissDuration = nil
+        let nextStyle = restoredStyle.map { Self.normalizedCapturePreviewReturnStyle($0) } ?? .seed
+        capturePreviewReturnStyle = .seed
         isCapturePreviewHovered = false
         resetScreenshotPreviewActionState()
 
         if resetsStyle, style == .screenshotPreview {
-            setStyle(.seed)
+            setStyle(nextStyle)
+        }
+    }
+
+    private static func normalizedCapturePreviewReturnStyle(_ style: PulseIslandStyle) -> PulseIslandStyle {
+        switch style {
+        case .expanded:
+            return .expanded
+        case .seed, .criticalSeed, .screenshotPreview:
+            return .seed
         }
     }
 
@@ -1230,6 +1252,13 @@ final class PulseIslandPanelController {
 
     func discardCapturePreview() {
         clearCapturePreview(deletingScreenRecording: true)
+    }
+
+    func closeCapturePreview() {
+        clearCapturePreview(
+            deletingScreenRecording: true,
+            restoredStyle: capturePreviewReturnStyle
+        )
     }
 
     func openScreenRecordingPreview(strings: PulseStrings) {

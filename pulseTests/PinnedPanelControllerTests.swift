@@ -342,6 +342,22 @@ final class PinnedPanelControllerTests: XCTestCase {
     }
 
     @MainActor
+    func testClosingScreenshotPreviewRestoresExpandedStyleWhenPreviewStartedExpanded() {
+        let controller = PulseIslandPanelController()
+        let reminder = PulseCapturePreviewReminder(image: NSImage(size: NSSize(width: 8, height: 8)))
+
+        controller.toggleStyle()
+        controller.presentScreenshotPreview(reminder)
+
+        XCTAssertEqual(controller.style, .screenshotPreview)
+
+        controller.closeCapturePreview()
+
+        XCTAssertEqual(controller.style, .expanded)
+        XCTAssertNil(controller.capturePreviewReminder)
+    }
+
+    @MainActor
     func testScreenRecordingPreviewPersistsUntilDiscardedAndRemovesTemporaryFile() throws {
         let controller = PulseIslandPanelController()
         let temporaryURL = FileManager.default.temporaryDirectory
@@ -362,6 +378,27 @@ final class PinnedPanelControllerTests: XCTestCase {
 
         controller.setHovering(false)
         controller.discardCapturePreview()
+
+        XCTAssertEqual(controller.style, .seed)
+        XCTAssertNil(controller.capturePreviewReminder)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: temporaryURL.path))
+    }
+
+    @MainActor
+    func testClosingScreenRecordingPreviewRemovesTemporaryFile() throws {
+        let controller = PulseIslandPanelController()
+        let temporaryURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("pulse-recording-preview-close-\(UUID().uuidString).mov")
+        try Data([0, 1, 2, 3]).write(to: temporaryURL, options: .atomic)
+        let preview = PulseScreenRecordingPreview(
+            url: temporaryURL,
+            thumbnail: NSImage(size: NSSize(width: 16, height: 9)),
+            duration: 24,
+            suggestedFileName: "Pulse Recording Close Test.mov"
+        )
+
+        controller.presentScreenRecordingPreview(preview)
+        controller.closeCapturePreview()
 
         XCTAssertEqual(controller.style, .seed)
         XCTAssertNil(controller.capturePreviewReminder)

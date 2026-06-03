@@ -654,6 +654,8 @@ final class LanguagePreferenceTests: XCTestCase {
         XCTAssertEqual(PulseStrings(language: .chinese).text(.screenshotShareAction), "分享")
         XCTAssertEqual(PulseStrings(language: .english).text(.screenshotRecognizeTextAction), "Recognize Text")
         XCTAssertEqual(PulseStrings(language: .chinese).text(.screenshotTextCopied), "文字已复制")
+        XCTAssertEqual(PulseStrings(language: .english).text(.capturePreviewCloseAction), "Close preview")
+        XCTAssertEqual(PulseStrings(language: .chinese).text(.capturePreviewCloseAction), "关闭预览")
         XCTAssertEqual(PulseStrings(language: .english).text(.screenshotAuthorizeScreenRecording), "Authorize")
         XCTAssertEqual(PulseStrings(language: .chinese).text(.screenshotAuthorizeScreenRecording), "授权")
         XCTAssertEqual(

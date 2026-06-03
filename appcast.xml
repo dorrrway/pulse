@@ -3,6 +3,21 @@
     <channel>
         <title>Pulse</title>
         <item>
+            <title>2.4.0</title>
+            <pubDate>Wed, 03 Jun 2026 14:13:25 +0800</pubDate>
+            <sparkle:version>12</sparkle:version>
+            <sparkle:shortVersionString>2.4.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[# Pulse 2.4.0
+
+- Renamed Screenshots to Capture and added native screen recording with full-screen, window, and custom-region modes, recording shortcuts, Hide Pulse, Hide Mouse, and local `.mov` previews.
+- Added a local Memo module with notes, todo conversion, filters, search, editing, pinning, copy, delete, and completed-todo cleanup.
+- Added a top-right close button for screenshot and video previews; video close removes unsaved temporary recordings and screenshot previews restore the expanded island when appropriate.
+- Refined Capture panel icons and mode labels.
+]]></description>
+            <enclosure url="https://github.com/dorrrway/pulse/releases/download/v2.4.0/Pulse-2.4.0.dmg" length="4536369" type="application/octet-stream" sparkle:edSignature="TIZiMUInft8YMfZMeoYh+BQ4lCET81/9+D5pI4vgTWBrXyifIjKsiPaf+ifxjKWrPEUro33zselr8Qmjqt/DAQ=="/>
+        </item>
+        <item>
             <title>2.3.0</title>
             <pubDate>Mon, 01 Jun 2026 00:10:45 +0800</pubDate>
             <sparkle:version>11</sparkle:version>

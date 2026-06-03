@@ -25,14 +25,7 @@ struct MemoPanelView: View {
                 ),
                 strings: strings,
                 addNoteAction: {
-                    if memos.addNote() {
-                        isComposerFocused = false
-                    }
-                },
-                addTaskAction: {
-                    if memos.addTask() {
-                        isComposerFocused = false
-                    }
+                    memos.addNote()
                 }
             )
             .focused($isComposerFocused)
@@ -111,6 +104,9 @@ struct MemoPanelView: View {
                             ),
                             toggleCompletionAction: {
                                 memos.toggleCompletion(entry)
+                            },
+                            markAsTaskAction: {
+                                memos.markAsTask(entry)
                             },
                             togglePinAction: {
                                 memos.togglePin(entry)
@@ -248,31 +244,20 @@ private struct MemoComposer: View {
     @Binding var text: String
     var strings: PulseStrings
     var addNoteAction: () -> Void
-    var addTaskAction: () -> Void
-
-    private var isEmpty: Bool {
-        text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: PulseDesign.Spacing.xs) {
-            TextField(strings.text(.memoDraftPlaceholder), text: $text, axis: .vertical)
-                .textFieldStyle(.plain)
-                .font(.system(.callout, design: .rounded, weight: .medium))
-                .foregroundStyle(.white.opacity(0.92))
-                .lineLimit(1...3)
-                .padding(.horizontal, PulseDesign.Spacing.sm)
-                .padding(.vertical, PulseDesign.Spacing.xs)
-                .background(.white.opacity(0.09), in: RoundedRectangle(cornerRadius: PulseDesign.Radius.card, style: .continuous))
-
-            MemoIconButton(systemName: "note.text", help: strings.text(.addMemo), isDisabled: isEmpty) {
-                addNoteAction()
-            }
-
-            MemoIconButton(systemName: "checklist", help: strings.text(.addTodo), isDisabled: isEmpty) {
-                addTaskAction()
-            }
-        }
+        TextField(strings.text(.memoDraftPlaceholder), text: $text, axis: .vertical)
+            .textFieldStyle(.plain)
+            .font(.system(.body, design: .rounded, weight: .medium))
+            .foregroundStyle(.white.opacity(0.92))
+            .lineLimit(3...6)
+            .submitLabel(.done)
+            .onSubmit(addNoteAction)
+            .padding(.horizontal, PulseDesign.Spacing.sm)
+            .padding(.vertical, PulseDesign.Spacing.sm)
+            .frame(maxWidth: .infinity)
+            .frame(minHeight: 82, alignment: .topLeading)
+            .background(.white.opacity(0.09), in: RoundedRectangle(cornerRadius: PulseDesign.Radius.card, style: .continuous))
     }
 }
 
@@ -404,6 +389,7 @@ private struct MemoEntryRow: View {
     var isEditing: Bool
     @Binding var editingText: String
     var toggleCompletionAction: () -> Void
+    var markAsTaskAction: () -> Void
     var togglePinAction: () -> Void
     var startEditingAction: () -> Void
     var saveEditingAction: () -> Void
@@ -453,6 +439,14 @@ private struct MemoEntryRow: View {
                 startEditingAction()
             } label: {
                 Label(strings.text(.editMemo), systemImage: "pencil")
+            }
+
+            if entry.kind == .note {
+                Button {
+                    markAsTaskAction()
+                } label: {
+                    Label(strings.text(.setMemoAsTodo), systemImage: "checklist")
+                }
             }
 
             Button {

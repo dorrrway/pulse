@@ -707,7 +707,7 @@ struct PulseIslandView: View {
 
                     Spacer(minLength: PulseDesign.Spacing.sm)
 
-                    capturePreviewStatusIcon(reminder: reminder)
+                    capturePreviewCloseButton(strings: store.strings)
                 }
                 .frame(height: headerRowHeight, alignment: .center)
 
@@ -753,29 +753,23 @@ struct PulseIslandView: View {
         }
     }
 
-    @ViewBuilder
-    private func capturePreviewStatusIcon(reminder: PulseCapturePreviewReminder) -> some View {
-        if reminder.isScreenRecording {
-            Image(systemName: "play.circle.fill")
-                .font(.system(size: 18, weight: .semibold))
+    private func capturePreviewCloseButton(strings: PulseStrings) -> some View {
+        Button {
+            controller.closeCapturePreview()
+        } label: {
+            Image(systemName: "xmark")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(.white.opacity(0.90))
                 .frame(
                     width: PulseDesign.Control.iconFrameSide,
                     height: PulseDesign.Control.iconFrameSide
                 )
-                .foregroundStyle(.green.opacity(0.96))
-                .accessibilityHidden(true)
-        } else {
-            Image("IslandClipboardSavedIcon")
-                .renderingMode(.template)
-                .resizable()
-                .scaledToFit()
-                .frame(
-                    width: PulseDesign.Control.iconFrameSide,
-                    height: PulseDesign.Control.iconFrameSide
-                )
-                .foregroundStyle(.green.opacity(0.96))
-                .accessibilityHidden(true)
+                .background(.white.opacity(0.12), in: Circle())
+                .contentShape(Circle())
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel(strings.text(.capturePreviewCloseAction))
+        .help(strings.text(.capturePreviewCloseAction))
     }
 
     private func capturePreviewMedia(

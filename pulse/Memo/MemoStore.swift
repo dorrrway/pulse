@@ -97,6 +97,18 @@ final class MemoStore {
         }
     }
 
+    func markAsTask(_ entry: MemoEntry) {
+        guard entry.kind != .task else {
+            return
+        }
+
+        mutate(entry) { updatedEntry in
+            updatedEntry.kind = .task
+            updatedEntry.isCompleted = false
+            updatedEntry.updatedAt = Date()
+        }
+    }
+
     func togglePin(_ entry: MemoEntry) {
         mutate(entry) { updatedEntry in
             updatedEntry.isPinned.toggle()

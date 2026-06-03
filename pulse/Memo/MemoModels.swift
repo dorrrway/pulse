@@ -7,8 +7,8 @@ nonisolated enum MemoEntryKind: String, Codable, CaseIterable, Sendable {
 
 nonisolated enum MemoEntryFilter: String, CaseIterable, Sendable {
     case all
-    case todo
     case notes
+    case todo
     case completed
 }
 

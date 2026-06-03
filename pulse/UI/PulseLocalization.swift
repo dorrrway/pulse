@@ -955,6 +955,7 @@ extension PulseStrings {
         case screenshotRecognizedTextDetail
         case screenshotCopyRecognizedText
         case screenshotCloseRecognizedText
+        case capturePreviewCloseAction
         case screenshotTextCopied
         case screenshotScreenRecordingPermissionNotice
         case screenshotAuthorizeScreenRecording
@@ -1039,6 +1040,7 @@ extension PulseStrings {
         case memoNoResultsDetail
         case copyMemo
         case editMemo
+        case setMemoAsTodo
         case saveMemo
         case cancelMemoEdit
         case pinMemo
@@ -1254,6 +1256,8 @@ private extension PulseStrings {
             "Copy Text"
         case .screenshotCloseRecognizedText:
             "Close"
+        case .capturePreviewCloseAction:
+            "Close preview"
         case .screenshotTextCopied:
             "Text copied"
         case .screenshotScreenRecordingPermissionNotice:
@@ -1401,7 +1405,7 @@ private extension PulseStrings {
         case .closeClipboardSearch:
             "Close search"
         case .memoDraftPlaceholder:
-            "Write a memo or todo"
+            "Write a memo"
         case .addMemo:
             "Add memo"
         case .addTodo:
@@ -1422,6 +1426,8 @@ private extension PulseStrings {
             "Copy memo"
         case .editMemo:
             "Edit memo"
+        case .setMemoAsTodo:
+            "Set as todo"
         case .saveMemo:
             "Save memo"
         case .cancelMemoEdit:
@@ -1681,6 +1687,8 @@ private extension PulseStrings {
             "复制文字"
         case .screenshotCloseRecognizedText:
             "关闭"
+        case .capturePreviewCloseAction:
+            "关闭预览"
         case .screenshotTextCopied:
             "文字已复制"
         case .screenshotScreenRecordingPermissionNotice:
@@ -1828,7 +1836,7 @@ private extension PulseStrings {
         case .closeClipboardSearch:
             "关闭搜索"
         case .memoDraftPlaceholder:
-            "写下备忘或待办"
+            "写下备忘"
         case .addMemo:
             "添加备忘"
         case .addTodo:
@@ -1849,6 +1857,8 @@ private extension PulseStrings {
             "复制备忘"
         case .editMemo:
             "编辑备忘"
+        case .setMemoAsTodo:
+            "设为待办"
         case .saveMemo:
             "保存备忘"
         case .cancelMemoEdit:
