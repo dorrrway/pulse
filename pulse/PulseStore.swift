@@ -37,6 +37,19 @@ final class PulseStore {
             userDefaults.set(installedAppsDisplayMode.rawValue, forKey: Self.installedAppsDisplayModeKey)
         }
     }
+    var notificationSuggestionsEnabled: Bool {
+        didSet {
+            userDefaults.set(notificationSuggestionsEnabled, forKey: Self.notificationSuggestionsEnabledKey)
+        }
+    }
+    var dismissedNotificationSuggestionIDs: Set<String> {
+        didSet {
+            userDefaults.set(
+                dismissedNotificationSuggestionIDs.sorted(),
+                forKey: Self.dismissedNotificationSuggestionIDsKey
+            )
+        }
+    }
     var wakeClipboardShortcut: PulseKeyboardShortcut? {
         didSet {
             saveKeyboardShortcut(wakeClipboardShortcut, key: Self.wakeClipboardShortcutKey)
@@ -119,6 +132,8 @@ final class PulseStore {
     private static let launchAtLoginKey = "pulse.settings.launchAtLogin"
     private static let launchAtLoginDefaultAppliedKey = "pulse.settings.launchAtLoginDefaultApplied"
     private static let installedAppsDisplayModeKey = "pulse.settings.installedApps.displayMode"
+    private static let notificationSuggestionsEnabledKey = "pulse.settings.notifications.suggestionsEnabled"
+    private static let dismissedNotificationSuggestionIDsKey = "pulse.settings.notifications.dismissedSuggestionIDs"
     private static let wakeClipboardShortcutKey = "pulse.settings.shortcuts.wakeClipboard"
     private static let wakeApplicationsShortcutKey = "pulse.settings.shortcuts.wakeApplications"
     private static let captureFullScreenShortcutKey = "pulse.settings.shortcuts.captureFullScreen"
@@ -164,6 +179,15 @@ final class PulseStore {
         self.installedAppsDisplayMode = Self.loadInstalledAppsDisplayMode(
             from: userDefaults,
             key: Self.installedAppsDisplayModeKey
+        )
+        self.notificationSuggestionsEnabled = Self.loadBool(
+            from: userDefaults,
+            key: Self.notificationSuggestionsEnabledKey,
+            defaultValue: true
+        )
+        self.dismissedNotificationSuggestionIDs = Self.loadStringSet(
+            from: userDefaults,
+            key: Self.dismissedNotificationSuggestionIDsKey
         )
         self.wakeClipboardShortcut = Self.loadKeyboardShortcut(
             from: userDefaults,
@@ -341,6 +365,23 @@ final class PulseStore {
 
     func setInstalledAppsDisplayMode(_ mode: PulseInstalledAppsDisplayMode) {
         installedAppsDisplayMode = mode
+    }
+
+    func setNotificationSuggestionsEnabled(_ enabled: Bool) {
+        notificationSuggestionsEnabled = enabled
+    }
+
+    func dismissNotificationSuggestion(withID id: String) {
+        let trimmedID = id.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedID.isEmpty else {
+            return
+        }
+
+        dismissedNotificationSuggestionIDs.insert(trimmedID)
+    }
+
+    func reconcileDismissedNotificationSuggestions(activeIDs: Set<String>) {
+        dismissedNotificationSuggestionIDs.formIntersection(activeIDs)
     }
 
     func setHidePulseDuringScreenshots(_ shouldHide: Bool) {
@@ -696,6 +737,14 @@ final class PulseStore {
 
     private static func loadFavoriteApplicationPaths(from userDefaults: UserDefaults, key: String) -> [String] {
         sanitizedFavoriteApplicationPaths(userDefaults.stringArray(forKey: key) ?? [])
+    }
+
+    private static func loadStringSet(from userDefaults: UserDefaults, key: String) -> Set<String> {
+        Set(
+            (userDefaults.stringArray(forKey: key) ?? [])
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+        )
     }
 
     private static func loadBool(from userDefaults: UserDefaults, key: String, defaultValue: Bool) -> Bool {

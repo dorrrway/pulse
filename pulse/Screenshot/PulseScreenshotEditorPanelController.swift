@@ -236,6 +236,7 @@ private struct PulseScreenshotEditorView: View {
     @State private var activeMark: PulseScreenshotEditMark?
     @State private var activeStrokePoints: [CGPoint] = []
     @State private var textDraft: PulseScreenshotEditorTextDraft?
+    @State private var activeTextDrag: PulseScreenshotEditorTextDrag?
     @FocusState private var isTextDraftFocused: Bool
 
     init(
@@ -285,10 +286,14 @@ private struct PulseScreenshotEditorView: View {
                 .scaledToFit()
                 .frame(width: imageContentSize.width, height: imageContentSize.height)
 
+            textDraftCommitLayer
+
             PulseScreenshotEditorCanvasOverlay(
                 marks: marks,
                 activeMark: activeMark,
-                mosaicImage: mosaicPreviewImage
+                mosaicImage: mosaicPreviewImage,
+                textMarkDragGesture: textMarkDragGesture(for:),
+                textMarkTapAction: commitTextDraftIfNeeded
             )
             .frame(width: imageContentSize.width, height: imageContentSize.height)
 
@@ -314,16 +319,27 @@ private struct PulseScreenshotEditorView: View {
     }
 
     @ViewBuilder
+    private var textDraftCommitLayer: some View {
+        if textDraft != nil {
+            Color.clear
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    commitTextDraftIfNeeded()
+                }
+        }
+    }
+
+    @ViewBuilder
     private var textDraftEditor: some View {
         if let textDraft {
             TextField(strings.text(.screenshotEditorText), text: textDraftBinding)
                 .textFieldStyle(.plain)
                 .font(.system(size: textPreviewFontSize, weight: .semibold, design: .rounded))
                 .foregroundStyle(.orange.opacity(0.96))
+                .multilineTextAlignment(.center)
                 .padding(.horizontal, PulseDesign.Spacing.xs)
                 .padding(.vertical, PulseDesign.Spacing.fine)
-                .frame(width: min(max(150, imageContentSize.width * 0.26), 280), alignment: .leading)
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: PulseDesign.Radius.control, style: .continuous))
+                .frame(width: min(max(150, imageContentSize.width * 0.26), 280), alignment: .center)
                 .overlay {
                     RoundedRectangle(cornerRadius: PulseDesign.Radius.control, style: .continuous)
                         .stroke(.orange.opacity(0.55), lineWidth: 1)
@@ -515,11 +531,13 @@ private struct PulseScreenshotEditorView: View {
     private func commitTextDraftIfNeeded() {
         guard let mark = textDraftMark() else {
             textDraft = nil
+            isTextDraftFocused = false
             return
         }
 
         marks.append(mark)
         textDraft = nil
+        isTextDraftFocused = false
     }
 
     private func textDraftMark() -> PulseScreenshotEditMark? {
@@ -769,6 +787,7 @@ private struct PulseScreenshotEditorView: View {
     private func undoLastMark() {
         if textDraft != nil {
             textDraft = nil
+            isTextDraftFocused = false
             return
         }
 
@@ -777,6 +796,40 @@ private struct PulseScreenshotEditorView: View {
         }
 
         marks.removeLast()
+    }
+
+    private func textMarkDragGesture(for mark: PulseScreenshotEditMark) -> some Gesture {
+        DragGesture(minimumDistance: 1)
+            .onChanged { value in
+                commitTextDraftIfNeeded()
+
+                if activeTextDrag?.markID != mark.id {
+                    activeTextDrag = PulseScreenshotEditorTextDrag(markID: mark.id, origin: mark.start)
+                }
+
+                guard let activeTextDrag else {
+                    return
+                }
+
+                moveTextMark(
+                    id: mark.id,
+                    to: CGPoint(
+                        x: activeTextDrag.origin.x + value.translation.width / max(1, imageContentSize.width),
+                        y: activeTextDrag.origin.y + value.translation.height / max(1, imageContentSize.height)
+                    )
+                )
+            }
+            .onEnded { _ in
+                activeTextDrag = nil
+            }
+    }
+
+    private func moveTextMark(id: UUID, to point: CGPoint) {
+        guard let index = marks.firstIndex(where: { $0.id == id }) else {
+            return
+        }
+
+        marks[index] = marks[index].movingText(to: point)
     }
 
     private func saveEditing() {
@@ -839,20 +892,37 @@ private struct PulseScreenshotEditorTextDraft: Equatable, Identifiable {
     }
 }
 
-private struct PulseScreenshotEditorCanvasOverlay: View {
+private struct PulseScreenshotEditorTextDrag: Equatable {
+    var markID: UUID
+    var origin: CGPoint
+}
+
+private struct PulseScreenshotEditorCanvasOverlay<TextMarkDragGesture: Gesture>: View {
     var marks: [PulseScreenshotEditMark]
     var activeMark: PulseScreenshotEditMark?
     var mosaicImage: NSImage
+    var textMarkDragGesture: (PulseScreenshotEditMark) -> TextMarkDragGesture
+    var textMarkTapAction: () -> Void
 
     var body: some View {
         GeometryReader { proxy in
             ZStack {
                 ForEach(marks) { mark in
-                    PulseScreenshotEditorMarkView(
-                        mark: mark,
-                        canvasSize: proxy.size,
-                        mosaicImage: mosaicImage
-                    )
+                    if mark.tool == .text {
+                        PulseScreenshotEditorTextMarkView(
+                            mark: mark,
+                            canvasSize: proxy.size
+                        )
+                        .highPriorityGesture(TapGesture().onEnded { _ in textMarkTapAction() })
+                        .highPriorityGesture(textMarkDragGesture(mark))
+                    } else {
+                        PulseScreenshotEditorMarkView(
+                            mark: mark,
+                            canvasSize: proxy.size,
+                            mosaicImage: mosaicImage
+                        )
+                        .allowsHitTesting(false)
+                    }
                 }
 
                 if let activeMark {
@@ -861,10 +931,32 @@ private struct PulseScreenshotEditorCanvasOverlay: View {
                         canvasSize: proxy.size,
                         mosaicImage: mosaicImage
                     )
+                    .allowsHitTesting(false)
                 }
             }
         }
-        .allowsHitTesting(false)
+    }
+}
+
+private struct PulseScreenshotEditorTextMarkView: View {
+    var mark: PulseScreenshotEditMark
+    var canvasSize: CGSize
+
+    var body: some View {
+        if let text = mark.textValue {
+            Text(text)
+                .font(.system(size: PulseScreenshotTextStyle.fontSize(for: canvasSize), weight: .semibold, design: .rounded))
+                .foregroundStyle(.orange.opacity(0.96))
+                .shadow(color: .black.opacity(0.22), radius: 2, y: 1)
+                .fixedSize()
+                .padding(6)
+                .contentShape(Rectangle())
+                .position(point(mark.start))
+        }
+    }
+
+    private func point(_ unitPoint: CGPoint) -> CGPoint {
+        CGPoint(x: unitPoint.x * canvasSize.width, y: unitPoint.y * canvasSize.height)
     }
 }
 

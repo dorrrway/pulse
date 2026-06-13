@@ -20,7 +20,9 @@ struct BluetoothPanelView: View {
         let strings = store.strings
 
         VStack(alignment: .leading, spacing: PulseDesign.Spacing.xs) {
-            if !bluetooth.needsInitialAuthorization, let issue = bluetooth.issue {
+            if !bluetooth.needsInitialAuthorization, bluetooth.isBluetoothPoweredOff {
+                BluetoothPowerBanner(strings: strings, action: openBluetoothSettings)
+            } else if !bluetooth.needsInitialAuthorization, let issue = bluetooth.issue {
                 BluetoothIssueBanner(issue: issue, strings: strings)
             }
 
@@ -62,6 +64,8 @@ struct BluetoothPanelView: View {
     private func content(strings: PulseStrings) -> some View {
         if bluetooth.needsInitialAuthorization {
             BluetoothAuthorizationPrompt(strings: strings, action: requestBluetoothAuthorization)
+        } else if bluetooth.isBluetoothPoweredOff {
+            BluetoothPoweredOffState(strings: strings)
         } else if bluetooth.devices.isEmpty && !bluetooth.isRefreshing {
             BluetoothEmptyState(strings: strings)
         } else {
@@ -539,6 +543,62 @@ private struct BluetoothFooterActionButton: View {
     }
 }
 
+private struct BluetoothPowerBanner: View {
+    var strings: PulseStrings
+    var action: () -> Void
+
+    var body: some View {
+        HStack(spacing: PulseDesign.Spacing.sm) {
+            Image(systemName: "power.circle.fill")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(.orange.opacity(0.96))
+                .frame(width: 24, height: 24)
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(strings.text(.bluetoothPoweredOffTitle))
+                    .font(.system(.caption, design: .rounded, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.90))
+                    .lineLimit(1)
+
+                Text(strings.text(.bluetoothPoweredOffDetail))
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.62))
+                    .lineLimit(2)
+            }
+
+            Spacer(minLength: PulseDesign.Spacing.xs)
+
+            Button(action: action) {
+                HStack(spacing: PulseDesign.Spacing.fine) {
+                    Image(systemName: "power")
+                        .font(.system(size: 11, weight: .heavy))
+                        .accessibilityHidden(true)
+
+                    Text(strings.text(.turnOnBluetooth))
+                        .font(.system(.caption, design: .rounded, weight: .bold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.86)
+                }
+                .foregroundStyle(.black.opacity(0.82))
+                .padding(.horizontal, PulseDesign.Spacing.xs)
+                .frame(height: 26)
+                .background(.orange.opacity(0.92), in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .help(strings.text(.openBluetoothSettings))
+            .accessibilityLabel(strings.text(.turnOnBluetooth))
+        }
+        .padding(.horizontal, PulseDesign.Spacing.sm)
+        .padding(.vertical, PulseDesign.Spacing.compact)
+        .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: PulseDesign.Radius.card, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: PulseDesign.Radius.card, style: .continuous)
+                .stroke(.orange.opacity(0.28), lineWidth: 1)
+        }
+    }
+}
+
 private struct BluetoothIssueBanner: View {
     var issue: BluetoothDeviceIssue
     var strings: PulseStrings
@@ -649,6 +709,42 @@ private struct BluetoothAuthorizationPrompt: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel(strings.text(.authorizeBluetoothDeviceAccess))
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .padding(.horizontal, PulseDesign.Spacing.lg)
+    }
+}
+
+private struct BluetoothPoweredOffState: View {
+    var strings: PulseStrings
+
+    var body: some View {
+        VStack(spacing: PulseDesign.Spacing.xs) {
+            ZStack(alignment: .bottomTrailing) {
+                Image("IslandBluetoothIcon")
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .foregroundStyle(.white.opacity(0.62))
+                    .frame(width: 30, height: 30)
+
+                Image(systemName: "power.circle.fill")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.orange.opacity(0.96))
+                    .background(.black.opacity(0.24), in: Circle())
+                    .offset(x: 7, y: 6)
+            }
+            .frame(width: 42, height: 42)
+            .accessibilityHidden(true)
+
+            Text(strings.text(.bluetoothPoweredOffTitle))
+                .font(PulseDesign.Typography.panelBody)
+                .foregroundStyle(.white.opacity(0.82))
+
+            Text(strings.text(.bluetoothPoweredOffDetail))
+                .font(PulseDesign.Typography.panelLabel)
+                .foregroundStyle(.white.opacity(PulseDesign.Opacity.secondaryOnDark))
+                .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         .padding(.horizontal, PulseDesign.Spacing.lg)

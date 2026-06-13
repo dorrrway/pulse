@@ -73,6 +73,7 @@ enum PulseDesign {
         static let expandedSurfaceHeightMultiplier: CGFloat = 2
         static let expandedHeaderExtraHeight: CGFloat = 12
         static let expandedSurfaceWidth: CGFloat = 560
+        static let notificationPanelHeight: CGFloat = 58
         static let attachedPanelTopGap = Spacing.xs
         static let screenEdgeInset = Spacing.md
         static let seedSurfaceTopShoulderInset = Spacing.sm

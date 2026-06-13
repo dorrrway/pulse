@@ -157,6 +157,33 @@ final class ScreenshotEditorTests: XCTestCase {
     }
 
     @MainActor
+    func testMovingTextMarkPreservesIdentityAndClampsPosition() {
+        let id = UUID()
+        let mark = PulseScreenshotEditMark.text(id: id, "Pulse", at: CGPoint(x: 0.5, y: 0.5))
+
+        let moved = mark.movingText(to: CGPoint(x: 1.2, y: -0.2))
+
+        XCTAssertEqual(moved.id, id)
+        XCTAssertEqual(moved.tool, .text)
+        XCTAssertEqual(moved.textValue, "Pulse")
+        XCTAssertEqual(moved.start.x, 1, accuracy: 0.001)
+        XCTAssertEqual(moved.start.y, 0, accuracy: 0.001)
+        XCTAssertEqual(moved.end.x, 1, accuracy: 0.001)
+        XCTAssertEqual(moved.end.y, 0, accuracy: 0.001)
+    }
+
+    @MainActor
+    func testMovingTextMarkIgnoresNonTextMarks() {
+        let mark = PulseScreenshotEditMark(
+            tool: .rectangle,
+            start: CGPoint(x: 0.2, y: 0.2),
+            end: CGPoint(x: 0.8, y: 0.8)
+        )
+
+        XCTAssertEqual(mark.movingText(to: CGPoint(x: 0.4, y: 0.4)), mark)
+    }
+
+    @MainActor
     func testEditorWindowReservesSeparateToolbarArea() {
         let visibleFrame = CGRect(x: 0, y: 0, width: 1200, height: 800)
         let imageSize = CGSize(width: 900, height: 500)

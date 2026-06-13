@@ -446,6 +446,168 @@ nonisolated struct PulseStrings: Sendable {
         }
     }
 
+    func applicationUninstallTitle(_ name: String) -> String {
+        switch language {
+        case .english:
+            return "Uninstall \(name)"
+        case .chinese:
+            return "卸载 \(name)"
+        }
+    }
+
+    func applicationUninstallActionTitle(_ name: String) -> String {
+        switch language {
+        case .english:
+            return "Uninstall and Clean Up \(name)"
+        case .chinese:
+            return "卸载并清理 \(name)"
+        }
+    }
+
+    func applicationUninstallUnavailableTitle(_ availability: ApplicationUninstallAvailability) -> String {
+        switch (language, availability) {
+        case (_, .available):
+            return ""
+        case (.english, .systemApplication):
+            return "System applications cannot be uninstalled"
+        case (.chinese, .systemApplication):
+            return "系统应用不能卸载"
+        case (.english, .currentApplication):
+            return "Pulse cannot uninstall itself while running"
+        case (.chinese, .currentApplication):
+            return "Pulse 运行时不能卸载自身"
+        }
+    }
+
+    func applicationUninstallCandidateKind(_ kind: ApplicationUninstallCandidateKind) -> String {
+        switch (language, kind) {
+        case (.english, .applicationBundle):
+            return "Application"
+        case (.english, .applicationSupport):
+            return "Application Support"
+        case (.english, .container):
+            return "Container"
+        case (.english, .groupContainer):
+            return "Group Container"
+        case (.english, .preferences):
+            return "Preferences"
+        case (.english, .caches):
+            return "Caches"
+        case (.english, .logs):
+            return "Logs"
+        case (.english, .launchAgent):
+            return "Launch Agent"
+        case (.english, .savedState):
+            return "Saved State"
+        case (.english, .webKit):
+            return "WebKit"
+        case (.english, .httpStorage):
+            return "HTTP Storage"
+        case (.chinese, .applicationBundle):
+            return "应用本体"
+        case (.chinese, .applicationSupport):
+            return "应用支持文件"
+        case (.chinese, .container):
+            return "沙盒容器"
+        case (.chinese, .groupContainer):
+            return "共享容器"
+        case (.chinese, .preferences):
+            return "偏好设置"
+        case (.chinese, .caches):
+            return "缓存"
+        case (.chinese, .logs):
+            return "日志"
+        case (.chinese, .launchAgent):
+            return "登录代理"
+        case (.chinese, .savedState):
+            return "窗口状态"
+        case (.chinese, .webKit):
+            return "WebKit 数据"
+        case (.chinese, .httpStorage):
+            return "HTTP 存储"
+        }
+    }
+
+    func applicationUninstallSelectedSummary(count: Int, sizeBytes: Int64?) -> String {
+        let size = sizeBytes.map { ResourceFormatters.storageByteString(bytes: $0) }
+
+        switch (language, size) {
+        case (.english, let size?):
+            return "\(count) selected · \(size)"
+        case (.english, nil):
+            return "\(count) selected"
+        case (.chinese, let size?):
+            return "已选择 \(count) 项 · \(size)"
+        case (.chinese, nil):
+            return "已选择 \(count) 项"
+        }
+    }
+
+    func applicationUninstallResultSummary(successCount: Int, failureCount: Int) -> String {
+        switch (language, failureCount) {
+        case (.english, 0):
+            return "\(successCount) items moved to Trash"
+        case (.english, _):
+            return "\(successCount) moved · \(failureCount) failed"
+        case (.chinese, 0):
+            return "\(successCount) 项已移到废纸篓"
+        case (.chinese, _):
+            return "\(successCount) 项已移动 · \(failureCount) 项失败"
+        }
+    }
+
+    func applicationUninstallPermissionRecoveryTitle() -> String {
+        switch language {
+        case .english:
+            return "Permission needed"
+        case .chinese:
+            return "需要授予 Pulse 权限"
+        }
+    }
+
+    func applicationUninstallPermissionRecoveryDetail(_ appName: String) -> String {
+        switch language {
+        case .english:
+            return "macOS blocked Pulse from moving this app or one of its containers. Quit \(appName), then allow Pulse in System Settings > Privacy & Security > App Management. If Library containers still fail, also allow Full Disk Access."
+        case .chinese:
+            return "macOS 阻止 Pulse 移动这个 App 或它的容器。请先退出 \(appName)，然后在“系统设置 > 隐私与安全性 > App 管理”中允许 Pulse；如果 Library 容器仍失败，再允许“完全磁盘访问”。"
+        }
+    }
+
+    func applicationUninstallTrashFailureDescription(
+        _ reason: ApplicationUninstallTrashFailureReason,
+        fallback: String?
+    ) -> String {
+        switch (language, reason) {
+        case (.english, .permissionDenied):
+            return "Permission denied. Grant Pulse App Management permission, or Full Disk Access if this is a Library container, then retry."
+        case (.chinese, .permissionDenied):
+            return "权限不足。请授予 Pulse“App 管理”权限；如果这是 Library 容器，再授予“完全磁盘访问”，然后重试。"
+        case (.english, .unknown):
+            return fallback ?? "This item could not be moved to Trash."
+        case (.chinese, .unknown):
+            return fallback ?? "这个项目未能移到废纸篓。"
+        }
+    }
+
+    func applicationUninstallErrorDescription(_ error: Error) -> String {
+        if let uninstallError = error as? ApplicationUninstallError {
+            switch uninstallError {
+            case .unsupported(let availability):
+                return applicationUninstallUnavailableTitle(availability)
+            case .missingApplicationBundle(let path):
+                switch language {
+                case .english:
+                    return "The application no longer exists at \(path). Refresh the application list and try again."
+                case .chinese:
+                    return "应用已经不存在于 \(path)。请刷新应用列表后重试。"
+                }
+            }
+        }
+
+        return error.localizedDescription
+    }
+
     func pressure(_ level: PressureLevel) -> String {
         switch (language, level) {
         case (.english, .nominal):
@@ -980,10 +1142,24 @@ extension PulseStrings {
         case applicationRunning
         case refreshApplications
         case noApplicationsFound
+        case applicationUninstallScanning
+        case applicationUninstallCannotScan
+        case applicationUninstallSelectionDetail
+        case applicationUninstallCancel
+        case applicationUninstallMoveToTrash
+        case applicationUninstallDone
+        case applicationUninstallRequired
+        case applicationUninstallSizeUnavailable
+        case applicationUninstallOpenAppManagement
+        case applicationUninstallOpenFullDiskAccess
+        case applicationUninstallRetryFailedItems
         case bluetoothConnected
         case bluetoothDisconnected
         case bluetoothNoDevicesTitle
         case bluetoothNoDevicesDetail
+        case bluetoothPoweredOffTitle
+        case bluetoothPoweredOffDetail
+        case turnOnBluetooth
         case bluetoothAuthorizationTitle
         case bluetoothAuthorizationDetail
         case authorizeBluetoothDeviceAccess
@@ -996,6 +1172,14 @@ extension PulseStrings {
         case bluetoothPermissionDetail
         case bluetoothActionFailed
         case switchIslandModule
+        case notificationDiskTitle
+        case notificationPowerTitle
+        case notificationThermalTitle
+        case notificationMemoryTitle
+        case notificationDismiss
+        case notificationSuggestionsSettings
+        case notificationSuggestions
+        case notificationSuggestionsDetail
         case topIsland
         case settings
         case settingsHelp
@@ -1306,6 +1490,28 @@ private extension PulseStrings {
             "Refresh applications"
         case .noApplicationsFound:
             "No applications found"
+        case .applicationUninstallScanning:
+            "Scanning application files"
+        case .applicationUninstallCannotScan:
+            "Cannot scan this application"
+        case .applicationUninstallSelectionDetail:
+            "Review the paths before moving anything to Trash. macOS may ask for App Management or app-data permission; Pulse uses it only to move selected items to Trash, not to read file contents."
+        case .applicationUninstallCancel:
+            "Cancel"
+        case .applicationUninstallMoveToTrash:
+            "Move to Trash"
+        case .applicationUninstallDone:
+            "Done"
+        case .applicationUninstallRequired:
+            "Required"
+        case .applicationUninstallSizeUnavailable:
+            "Size unknown"
+        case .applicationUninstallOpenAppManagement:
+            "Open App Management"
+        case .applicationUninstallOpenFullDiskAccess:
+            "Open Full Disk Access"
+        case .applicationUninstallRetryFailedItems:
+            "Retry Failed Items"
         case .bluetoothConnected:
             "Connected"
         case .bluetoothDisconnected:
@@ -1314,6 +1520,12 @@ private extension PulseStrings {
             "No Bluetooth devices"
         case .bluetoothNoDevicesDetail:
             "Open Bluetooth settings or pair a device, then refresh."
+        case .bluetoothPoweredOffTitle:
+            "Bluetooth is off"
+        case .bluetoothPoweredOffDetail:
+            "Turn on Bluetooth to discover and connect devices."
+        case .turnOnBluetooth:
+            "Turn On"
         case .bluetoothAuthorizationTitle:
             "Pulse needs Bluetooth access"
         case .bluetoothAuthorizationDetail:
@@ -1338,6 +1550,22 @@ private extension PulseStrings {
             "Bluetooth action failed. Check that the device is nearby and powered on."
         case .switchIslandModule:
             "Switch view"
+        case .notificationDiskTitle:
+            "Storage cleanup"
+        case .notificationPowerTitle:
+            "Charging reminder"
+        case .notificationThermalTitle:
+            "Thermal notice"
+        case .notificationMemoryTitle:
+            "Memory suggestion"
+        case .notificationDismiss:
+            "Dismiss suggestion"
+        case .notificationSuggestionsSettings:
+            "Notifications and Suggestions"
+        case .notificationSuggestions:
+            "Suggestion panel"
+        case .notificationSuggestionsDetail:
+            "Show local suggestions for storage, power, thermal state, memory pressure, and Bluetooth battery."
         case .topIsland:
             "Pulse Dynamic Island-style entry"
         case .settings:
@@ -1737,6 +1965,28 @@ private extension PulseStrings {
             "刷新应用程序"
         case .noApplicationsFound:
             "未找到应用程序"
+        case .applicationUninstallScanning:
+            "正在扫描应用文件"
+        case .applicationUninstallCannotScan:
+            "无法扫描这个应用"
+        case .applicationUninstallSelectionDetail:
+            "移动到废纸篓前请确认路径。macOS 可能会请求 App 管理或其他 App 数据权限；Pulse 只用它把所选项目移到废纸篓，不读取文件内容。"
+        case .applicationUninstallCancel:
+            "取消"
+        case .applicationUninstallMoveToTrash:
+            "移到废纸篓"
+        case .applicationUninstallDone:
+            "完成"
+        case .applicationUninstallRequired:
+            "必选"
+        case .applicationUninstallSizeUnavailable:
+            "大小未知"
+        case .applicationUninstallOpenAppManagement:
+            "打开 App 管理"
+        case .applicationUninstallOpenFullDiskAccess:
+            "打开完全磁盘访问"
+        case .applicationUninstallRetryFailedItems:
+            "重试失败项"
         case .bluetoothConnected:
             "已连接"
         case .bluetoothDisconnected:
@@ -1745,6 +1995,12 @@ private extension PulseStrings {
             "没有蓝牙设备"
         case .bluetoothNoDevicesDetail:
             "打开蓝牙设置或配对设备后刷新。"
+        case .bluetoothPoweredOffTitle:
+            "蓝牙已关闭"
+        case .bluetoothPoweredOffDetail:
+            "开启蓝牙后才能发现和连接设备。"
+        case .turnOnBluetooth:
+            "开启"
         case .bluetoothAuthorizationTitle:
             "Pulse 需要蓝牙权限"
         case .bluetoothAuthorizationDetail:
@@ -1769,6 +2025,22 @@ private extension PulseStrings {
             "蓝牙操作失败，请确认设备在附近且已开机。"
         case .switchIslandModule:
             "切换功能"
+        case .notificationDiskTitle:
+            "空间清理建议"
+        case .notificationPowerTitle:
+            "充电提醒"
+        case .notificationThermalTitle:
+            "温度提醒"
+        case .notificationMemoryTitle:
+            "内存建议"
+        case .notificationDismiss:
+            "关闭建议"
+        case .notificationSuggestionsSettings:
+            "通知与建议"
+        case .notificationSuggestions:
+            "建议面板"
+        case .notificationSuggestionsDetail:
+            "基于本机磁盘、电源、温度、内存压力和蓝牙电量显示可关闭建议。"
         case .topIsland:
             "Pulse 灵动岛入口"
         case .settings:
@@ -1836,7 +2108,7 @@ private extension PulseStrings {
         case .closeClipboardSearch:
             "关闭搜索"
         case .memoDraftPlaceholder:
-            "写下备忘"
+            "输入"
         case .addMemo:
             "添加备忘"
         case .addTodo:

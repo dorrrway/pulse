@@ -864,6 +864,117 @@ final class PinnedPanelControllerTests: XCTestCase {
     }
 
     @MainActor
+    func testNotificationSuggestionsUseCriticalAlertPriorityAndDismissals() {
+        let highMemory = MemoryUsage(
+            totalBytes: 100_000_000_000,
+            usedBytes: 91_000_000_000,
+            availableBytes: 9_000_000_000,
+            compressedBytes: 0,
+            swapUsedBytes: 0,
+            swapTotalBytes: 0
+        )
+        let lowDisk = DiskUsage(totalBytes: 100_000_000_000, availableBytes: 4_900_000_000)
+        let criticalPower = PowerUsage(
+            hasBattery: true,
+            batteryPercentage: 0.09,
+            isPluggedIn: false,
+            isCharging: false,
+            timeRemaining: nil
+        )
+        let bluetoothDevice = BluetoothDevice(
+            id: "keyboard",
+            name: "Magic Keyboard",
+            category: .keyboard,
+            connectionState: .connected,
+            batteryLevels: [
+                BluetoothBatteryLevel(role: .device, percentage: 0.08),
+            ]
+        )
+        let bluetoothAlert = BluetoothBatteryAlert.active(devices: [bluetoothDevice])[0]
+        let core = CoreMetricsSnapshot(
+            cpu: .empty,
+            memory: highMemory,
+            network: .empty,
+            disk: lowDisk
+        )
+        let signal = SignalMetricsSnapshot(
+            memory: highMemory,
+            thermal: ThermalUsage(condition: .critical, stateDuration: 12),
+            power: criticalPower,
+            diskIO: .empty,
+            runtime: .empty
+        )
+
+        let suggestions = PulseNotificationSuggestion.active(
+            core: core,
+            signal: signal,
+            bluetoothDevices: [bluetoothDevice],
+            isEnabled: true,
+            dismissedIDs: [],
+            limit: 2
+        )
+
+        XCTAssertEqual(
+            suggestions.map(\.alert),
+            [.power, .bluetoothBattery(bluetoothAlert)]
+        )
+
+        let dismissedIDs = Set(suggestions.map(\.id))
+        let remainingSuggestions = PulseNotificationSuggestion.active(
+            core: core,
+            signal: signal,
+            bluetoothDevices: [bluetoothDevice],
+            isEnabled: true,
+            dismissedIDs: dismissedIDs,
+            limit: 3
+        )
+
+        XCTAssertEqual(
+            remainingSuggestions.map(\.alert),
+            [.thermal, .disk, .memory]
+        )
+
+        XCTAssertTrue(
+            PulseNotificationSuggestion.active(
+                core: core,
+                signal: signal,
+                bluetoothDevices: [bluetoothDevice],
+                isEnabled: false,
+                dismissedIDs: []
+            ).isEmpty
+        )
+    }
+
+    @MainActor
+    func testNotificationSuggestionPreferencesPersistAndReconcile() {
+        let defaults = makeUserDefaults()
+        let store = PulseStore(
+            userDefaults: defaults,
+            launchAtLoginService: makeLoginItemService(),
+            reconcileLaunchAtLogin: false
+        )
+
+        XCTAssertTrue(store.notificationSuggestionsEnabled)
+        XCTAssertTrue(store.dismissedNotificationSuggestionIDs.isEmpty)
+
+        store.setNotificationSuggestionsEnabled(false)
+        store.dismissNotificationSuggestion(withID: "disk")
+        store.dismissNotificationSuggestion(withID: " ")
+
+        let reloadedStore = PulseStore(
+            userDefaults: defaults,
+            launchAtLoginService: makeLoginItemService(),
+            reconcileLaunchAtLogin: false
+        )
+
+        XCTAssertFalse(reloadedStore.notificationSuggestionsEnabled)
+        XCTAssertEqual(reloadedStore.dismissedNotificationSuggestionIDs, Set(["disk"]))
+
+        reloadedStore.reconcileDismissedNotificationSuggestions(activeIDs: ["power"])
+        XCTAssertTrue(reloadedStore.dismissedNotificationSuggestionIDs.isEmpty)
+    }
+
+    @MainActor
     func testIslandCriticalAlertsUseIconAssets() {
         let criticalPower = PowerUsage(
             hasBattery: true,
@@ -1055,14 +1166,31 @@ final class PinnedPanelControllerTests: XCTestCase {
     }
 
     @MainActor
-    func testIslandExpandedLayoutIncludesAttachedPanelBelowSurface() {
+    func testIslandExpandedLayoutOmitsNotificationPanelWhenEmpty() {
         let metrics = PulseIslandLayoutMetrics(seedVisibleHeight: 38, notchUnsafeWidth: 139)
+        let heightWithoutNotificationPanel = PulseIslandLayout.expandedSurfaceVisibleHeight(metrics: metrics)
+            + PulseIslandLayout.attachedPanelTopGap
+            + PulseIslandLayout.attachedPanelSize.height
+        let heightWithNotificationPanel = heightWithoutNotificationPanel
+            + PulseIslandLayout.notificationPanelHeight
+            + PulseIslandLayout.attachedPanelTopGap
 
         XCTAssertEqual(
             PulseIslandLayout.visibleHeight(for: .expanded, metrics: metrics),
-            PulseIslandLayout.expandedSurfaceVisibleHeight(metrics: metrics)
-                + PulseIslandLayout.attachedPanelTopGap
-                + PulseIslandLayout.attachedPanelSize.height
+            heightWithoutNotificationPanel
+        )
+        XCTAssertEqual(
+            PulseIslandLayout.visibleHeight(
+                for: .expanded,
+                metrics: metrics,
+                includesNotificationPanel: true
+            ),
+            heightWithNotificationPanel
+        )
+        XCTAssertGreaterThan(PulseIslandLayout.notificationPanelHeight, 0)
+        XCTAssertLessThan(
+            PulseIslandLayout.notificationPanelHeight,
+            PulseIslandLayout.attachedPanelSize.height
         )
         XCTAssertGreaterThanOrEqual(
             PulseIslandLayout.panelContentSize.width,
@@ -1083,6 +1211,11 @@ final class PinnedPanelControllerTests: XCTestCase {
         let screenFrame = CGRect(x: 0, y: 0, width: 1512, height: 982)
         let centerX = screenFrame.midX
         let panelFrame = PulseIslandLayout.panelFrame(screenFrame: screenFrame, centerX: centerX)
+        let panelFrameWithNotification = PulseIslandLayout.panelFrame(
+            screenFrame: screenFrame,
+            centerX: centerX,
+            includesNotificationPanel: true
+        )
 
         XCTAssertEqual(
             panelFrame.size,
@@ -1093,6 +1226,15 @@ final class PinnedPanelControllerTests: XCTestCase {
             screenFrame.maxY - PulseIslandLayout.visibleHeight(for: .expanded),
             accuracy: 0.001
         )
+        XCTAssertEqual(
+            panelFrameWithNotification.minY,
+            screenFrame.maxY - PulseIslandLayout.visibleHeight(
+                for: .expanded,
+                includesNotificationPanel: true
+            ),
+            accuracy: 0.001
+        )
+        XCTAssertGreaterThan(panelFrameWithNotification.height, panelFrame.height)
     }
 
     @MainActor

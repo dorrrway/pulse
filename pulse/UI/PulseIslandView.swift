@@ -52,6 +52,7 @@ struct PulseIslandView: View {
     @State private var acknowledgedCriticalAlerts: Set<PulseIslandCriticalAlert> = []
     @State private var activeClipboardReminder: ClipboardIslandReminder?
     @State private var clipboardReminderGeneration = 0
+    @State private var isNotificationPanelRevealed = false
     #if DEBUG
     @State private var activePreviewCriticalAlerts: [PulseIslandCriticalAlert] = []
     @State private var acknowledgedPreviewCriticalAlerts: Set<PulseIslandCriticalAlert> = []
@@ -64,6 +65,13 @@ struct PulseIslandView: View {
 
     private var layoutMetrics: PulseIslandLayoutMetrics {
         controller.layoutMetrics
+    }
+
+    private func panelContentSize(includesNotificationPanel: Bool) -> CGSize {
+        PulseIslandLayout.panelContentSize(
+            metrics: layoutMetrics,
+            includesNotificationPanel: includesNotificationPanel
+        )
     }
 
     private var selectedModule: PulseIslandModule {
@@ -110,19 +118,38 @@ struct PulseIslandView: View {
             signal: store.signalMetrics,
             bluetoothDevices: store.bluetoothDevices.devices
         )
+        let activeNotificationSuggestionIDs = Set(
+            PulseNotificationSuggestion.allActive(
+                core: store.coreMetrics,
+                signal: store.signalMetrics,
+                bluetoothDevices: store.bluetoothDevices.devices
+            )
+            .map(\.id)
+        )
+        let notificationSuggestions = PulseNotificationSuggestion.active(
+            core: store.coreMetrics,
+            signal: store.signalMetrics,
+            bluetoothDevices: store.bluetoothDevices.devices,
+            isEnabled: store.notificationSuggestionsEnabled,
+            dismissedIDs: store.dismissedNotificationSuggestionIDs
+        )
+        let shouldShowNotificationPanel = !notificationSuggestions.isEmpty
         let rotationMetrics = PulseIslandSeedMetric.rotationMetrics(
             for: store.signalMetrics.power,
             bluetoothDevices: store.bluetoothDevices.devices
         )
         let activeSeedMetric = selectedSeedMetric.normalized(in: rotationMetrics)
         let presentation = seedPresentation(metric: activeSeedMetric, strings: strings)
+        let currentPanelContentSize = panelContentSize(
+            includesNotificationPanel: isNotificationPanelRevealed
+        )
 
         ZStack(alignment: .top) {
-            morphingIslandChrome()
+            morphingIslandChrome(panelContentSize: currentPanelContentSize)
 
             if shouldRenderExpandedSurface {
-                surfaceLayer(for: .expanded) {
-                    expandedIsland(strings: strings)
+                surfaceLayer(for: .expanded, panelContentSize: currentPanelContentSize) {
+                    expandedIsland(strings: strings, notificationSuggestions: notificationSuggestions)
                 }
                 .opacity(usesExpandedVisualState ? 1 : 0)
                 .scaleEffect(usesExpandedVisualState ? 1 : 0.88, anchor: .top)
@@ -130,7 +157,7 @@ struct PulseIslandView: View {
             }
 
             if let capturePreviewReminder = controller.capturePreviewReminder {
-                surfaceLayer(for: .screenshotPreview) {
+                surfaceLayer(for: .screenshotPreview, panelContentSize: currentPanelContentSize) {
                     screenshotPreviewSurface(
                         reminder: capturePreviewReminder,
                         title: capturePreviewTitle(reminder: capturePreviewReminder, strings: strings)
@@ -141,7 +168,7 @@ struct PulseIslandView: View {
                 .allowsHitTesting(usesScreenshotPreviewState)
             }
 
-            surfaceLayer(for: .seed) {
+            surfaceLayer(for: .seed, panelContentSize: currentPanelContentSize) {
                 seedSurface(presentation: presentation)
             }
             .opacity(usesSeedVisualState ? 1 : 0)
@@ -149,17 +176,19 @@ struct PulseIslandView: View {
             .allowsHitTesting(usesSeedVisualState)
         }
         .frame(
-            width: PulseIslandLayout.panelContentSize(metrics: layoutMetrics).width,
-            height: PulseIslandLayout.panelContentSize(metrics: layoutMetrics).height,
+            width: currentPanelContentSize.width,
+            height: currentPanelContentSize.height,
             alignment: .top
         )
         .foregroundStyle(.white)
         .animation(transitionAnimation, value: style)
         .onAppear {
+            syncNotificationPanelVisibility(isVisible: shouldShowNotificationPanel, immediate: true)
             syncExpandedSurfaceMount(with: style, immediate: true)
             #if DEBUG
             handleCriticalAlertPreviewRequest(controller.criticalAlertPreviewRequest)
             #endif
+            store.reconcileDismissedNotificationSuggestions(activeIDs: activeNotificationSuggestionIDs)
             reconcileVisibleCriticalAlerts(criticalAlerts)
         }
         .onChange(of: style) { _, newStyle in
@@ -171,6 +200,12 @@ struct PulseIslandView: View {
         }
         .onChange(of: criticalAlerts) { _, alerts in
             reconcileVisibleCriticalAlerts(alerts)
+        }
+        .onChange(of: activeNotificationSuggestionIDs) { _, ids in
+            store.reconcileDismissedNotificationSuggestions(activeIDs: ids)
+        }
+        .onChange(of: shouldShowNotificationPanel) { _, isVisible in
+            syncNotificationPanelVisibility(isVisible: isVisible)
         }
         .onChange(of: store.clipboardHistory.latestRecordNotice) { _, notice in
             handleClipboardRecordNotice(notice, strings: store.strings)
@@ -196,7 +231,7 @@ struct PulseIslandView: View {
         .accessibilityLabel(strings.text(.topIsland))
     }
 
-    private func morphingIslandChrome() -> some View {
+    private func morphingIslandChrome(panelContentSize: CGSize) -> some View {
         let chromeSize = PulseIslandLayout.chromeSize(for: style, metrics: layoutMetrics)
         let topShoulderRadius = PulseIslandLayout.surfaceTopShoulderRadius(for: style)
         let topShoulderInset = PulseIslandLayout.surfaceTopShoulderInset(for: style)
@@ -224,8 +259,8 @@ struct PulseIslandView: View {
             Spacer(minLength: 0)
         }
         .frame(
-            width: PulseIslandLayout.panelContentSize(metrics: layoutMetrics).width,
-            height: PulseIslandLayout.panelContentSize(metrics: layoutMetrics).height,
+            width: panelContentSize.width,
+            height: panelContentSize.height,
             alignment: .top
         )
         .allowsHitTesting(false)
@@ -233,6 +268,7 @@ struct PulseIslandView: View {
 
     private func surfaceLayer<Surface: View>(
         for style: PulseIslandStyle,
+        panelContentSize: CGSize,
         @ViewBuilder surface: () -> Surface
     ) -> some View {
         return VStack(spacing: 0) {
@@ -244,10 +280,37 @@ struct PulseIslandView: View {
             Spacer(minLength: 0)
         }
         .frame(
-            width: PulseIslandLayout.panelContentSize(metrics: layoutMetrics).width,
-            height: PulseIslandLayout.panelContentSize(metrics: layoutMetrics).height,
+            width: panelContentSize.width,
+            height: panelContentSize.height,
             alignment: .top
         )
+    }
+
+    private func syncNotificationPanelVisibility(isVisible: Bool, immediate: Bool = false) {
+        if isVisible {
+            if immediate {
+                isNotificationPanelRevealed = true
+            } else {
+                withAnimation(attachedPanelRevealAnimation) {
+                    isNotificationPanelRevealed = true
+                }
+            }
+
+            controller.setNotificationPanelVisible(true)
+
+            return
+        }
+
+        if immediate {
+            isNotificationPanelRevealed = false
+            controller.setNotificationPanelVisible(false)
+            return
+        }
+
+        withAnimation(attachedPanelConcealAnimation) {
+            isNotificationPanelRevealed = false
+        }
+        controller.setNotificationPanelVisible(false)
     }
 
     private func syncExpandedSurfaceMount(with style: PulseIslandStyle, immediate: Bool = false) {
@@ -327,7 +390,7 @@ struct PulseIslandView: View {
         .clipShape(surfaceShape(for: seedStyle))
         .contentShape(surfaceShape(for: seedStyle))
         .onHover { hovering in
-            controller.setHovering(hovering)
+            controller.setSeedHovering(hovering)
         }
         .onTapGesture(perform: expandAction)
     }
@@ -987,14 +1050,93 @@ struct PulseIslandView: View {
         }
     }
 
-    private func expandedIsland(strings: PulseStrings) -> some View {
+    private func expandedIsland(
+        strings: PulseStrings,
+        notificationSuggestions: [PulseNotificationSuggestion]
+    ) -> some View {
         VStack(spacing: PulseIslandLayout.attachedPanelTopGap) {
             expandedSurface(strings: strings)
+
+            if isNotificationPanelRevealed && !notificationSuggestions.isEmpty {
+                notificationSuggestionPanel(
+                    suggestions: notificationSuggestions,
+                    strings: strings
+                )
+            }
 
             attachedPanel()
         }
         .onHover { hovering in
-            controller.setHovering(hovering)
+            controller.setPanelHovering(hovering)
+        }
+    }
+
+    private func notificationSuggestionPanel(
+        suggestions: [PulseNotificationSuggestion],
+        strings: PulseStrings
+    ) -> some View {
+        HStack(spacing: 8) {
+            ForEach(suggestions) { suggestion in
+                notificationSuggestionCard(suggestion, strings: strings)
+            }
+        }
+        .frame(
+            width: PulseIslandLayout.expandedSurfaceWidth,
+            height: PulseIslandLayout.notificationPanelHeight
+        )
+        .transition(.opacity.combined(with: .move(edge: .top)))
+    }
+
+    private func notificationSuggestionCard(
+        _ suggestion: PulseNotificationSuggestion,
+        strings: PulseStrings
+    ) -> some View {
+        let activity = criticalActivity(alert: suggestion.alert, strings: strings)
+        let module = notificationModule(for: suggestion.alert)
+        let title = notificationTitle(for: suggestion.alert, activity: activity, strings: strings)
+        let detail = activity.detail ?? title
+
+        return IslandNotificationSuggestionCard(
+            title: title,
+            value: activity.value,
+            detail: detail,
+            iconAssetName: activity.iconAssetName ?? "PulseStatusIcon",
+            tint: activity.tint,
+            dismissTitle: strings.text(.notificationDismiss),
+            openAction: {
+                switchModule(to: module)
+            },
+            dismissAction: {
+                store.dismissNotificationSuggestion(withID: suggestion.id)
+            }
+        )
+    }
+
+    private func notificationTitle(
+        for alert: PulseIslandCriticalAlert,
+        activity: IslandActivity,
+        strings: PulseStrings
+    ) -> String {
+        switch alert {
+        case .power:
+            strings.text(.notificationPowerTitle)
+        case .bluetoothBattery:
+            activity.title
+        case .thermal:
+            strings.text(.notificationThermalTitle)
+        case .disk:
+            strings.text(.notificationDiskTitle)
+        case .memory:
+            strings.text(.notificationMemoryTitle)
+        }
+    }
+
+    private func notificationModule(for alert: PulseIslandCriticalAlert) -> PulseIslandModule {
+        switch alert {
+        case .bluetoothBattery:
+            .bluetooth
+        case .power, .thermal, .disk, .memory:
+            .resourceMonitor
         }
     }
 
@@ -1010,9 +1152,15 @@ struct PulseIslandView: View {
                         .environment(\.pulsePanelIsPinned, controller.isPinnedPanelPresented)
                         .environment(\.pulsePanelPinAction, pinAction)
                 case .applications:
-                    InstalledAppsPanelView(openApplication: .live(afterLaunch: {
-                        controller.collapseAfterLaunchingApplication()
-                    }))
+                    InstalledAppsPanelView(
+                        openApplication: .live(afterLaunch: {
+                            controller.collapseAfterLaunchingApplication()
+                        }),
+                        uninstallWindowController: controller.applicationUninstallWindowController,
+                        afterUninstallWindowPresented: {
+                            controller.collapseAfterLaunchingApplication()
+                        }
+                    )
                         .environment(store)
                 case .clipboard:
                     ClipboardPanelView()
@@ -1654,6 +1802,89 @@ struct PulseIslandView: View {
             topShoulderDepth: PulseIslandLayout.surfaceTopShoulderDepth(for: style),
             bottomCornerRadius: PulseIslandLayout.surfaceBottomCornerRadius(for: style)
         )
+    }
+}
+
+private struct IslandNotificationSuggestionCard: View {
+    var title: String
+    var value: String
+    var detail: String
+    var iconAssetName: String
+    var tint: Color
+    var dismissTitle: String
+    var openAction: () -> Void
+    var dismissAction: () -> Void
+
+    var body: some View {
+        let backgroundShape = RoundedRectangle(cornerRadius: PulseDesign.Radius.panel, style: .continuous)
+
+        HStack(spacing: 8) {
+            Button(action: openAction) {
+                HStack(spacing: 9) {
+                    ZStack {
+                        Circle()
+                            .fill(tint.opacity(0.18))
+
+                        PanelControlIconImage(name: iconAssetName, side: 16)
+                            .foregroundStyle(tint)
+                    }
+                    .frame(width: 30, height: 30)
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(title)
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                            .lineLimit(1)
+
+                        Text(detail)
+                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.68))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
+
+                    Spacer(minLength: 8)
+
+                    Text(value)
+                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(tint)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.82)
+                        .frame(minWidth: 24, alignment: .center)
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.42))
+                        .accessibilityHidden(true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .help(detail)
+            .accessibilityLabel(title)
+            .accessibilityValue(detail)
+
+            Button(action: dismissAction) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 10, weight: .bold))
+                    .frame(width: 18, height: 18)
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.white.opacity(0.58))
+            .help(dismissTitle)
+            .accessibilityLabel(dismissTitle)
+        }
+        .padding(.horizontal, 10)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background {
+            backgroundShape
+                .fill(Color.black.opacity(0.86))
+                .overlay {
+                    backgroundShape.fill(tint.opacity(0.32))
+                }
+        }
     }
 }
 

@@ -220,6 +220,14 @@ struct PulseScreenshotEditMark: Equatable, Identifiable {
         )
     }
 
+    func movingText(to point: CGPoint) -> PulseScreenshotEditMark {
+        guard tool == .text, let text else {
+            return self
+        }
+
+        return PulseScreenshotEditMark.text(id: id, text, at: point)
+    }
+
     var unitRect: CGRect {
         let minX = min(start.x, end.x)
         let minY = min(start.y, end.y)

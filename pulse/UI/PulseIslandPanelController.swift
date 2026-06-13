@@ -29,6 +29,7 @@ enum PulseIslandLayout {
     static let expandedSurfaceHeightMultiplier: CGFloat = PulseDesign.Island.expandedSurfaceHeightMultiplier
     static let expandedHeaderExtraHeight: CGFloat = PulseDesign.Island.expandedHeaderExtraHeight
     static let expandedSurfaceWidth: CGFloat = PulseDesign.Island.expandedSurfaceWidth
+    static let notificationPanelHeight: CGFloat = PulseDesign.Island.notificationPanelHeight
     static let attachedPanelTopGap: CGFloat = PulseDesign.Island.attachedPanelTopGap
     static let screenEdgeInset: CGFloat = PulseDesign.Island.screenEdgeInset
     static let seedSurfaceTopShoulderRadius: CGFloat = PulseDesign.Radius.islandSeedShoulder
@@ -188,8 +189,15 @@ enum PulseIslandLayout {
             .rounded(.toNearestOrAwayFromZero)
     }
 
-    static func panelContentSize(metrics: PulseIslandLayoutMetrics) -> CGSize {
-        contentSize(for: .expanded, metrics: metrics)
+    static func panelContentSize(
+        metrics: PulseIslandLayoutMetrics,
+        includesNotificationPanel: Bool = false
+    ) -> CGSize {
+        contentSize(
+            for: .expanded,
+            metrics: metrics,
+            includesNotificationPanel: includesNotificationPanel
+        )
     }
 
     static func seedVisibleSize(metrics: PulseIslandLayoutMetrics) -> CGSize {
@@ -229,7 +237,8 @@ enum PulseIslandLayout {
 
     static func contentSize(
         for style: PulseIslandStyle,
-        metrics: PulseIslandLayoutMetrics = .fallback
+        metrics: PulseIslandLayoutMetrics = .fallback,
+        includesNotificationPanel: Bool = false
     ) -> CGSize {
         switch style {
         case .seed:
@@ -250,24 +259,35 @@ enum PulseIslandLayout {
         case .expanded:
             CGSize(
                 width: max(surfaceWidth(for: style, metrics: metrics), attachedPanelSize.width),
-                height: visibleHeight(for: style, metrics: metrics) + topAttachmentDepth(for: style)
+                height: visibleHeight(
+                    for: style,
+                    metrics: metrics,
+                    includesNotificationPanel: includesNotificationPanel
+                ) + topAttachmentDepth(for: style)
             )
         }
     }
 
     static func visibleHeight(
         for style: PulseIslandStyle,
-        metrics: PulseIslandLayoutMetrics = .fallback
+        metrics: PulseIslandLayoutMetrics = .fallback,
+        includesNotificationPanel: Bool = false
     ) -> CGFloat {
         switch style {
         case .seed:
-            metrics.seedVisibleHeight
+            return metrics.seedVisibleHeight
         case .criticalSeed:
-            expandedHeaderContentHeight(metrics: metrics)
+            return expandedHeaderContentHeight(metrics: metrics)
         case .screenshotPreview:
-            screenshotPreviewVisibleHeight
+            return screenshotPreviewVisibleHeight
         case .expanded:
-            expandedSurfaceVisibleHeight(metrics: metrics) + attachedPanelTopGap + attachedPanelSize.height
+            let notificationHeight = includesNotificationPanel
+                ? notificationPanelHeight + attachedPanelTopGap
+                : 0
+            return expandedSurfaceVisibleHeight(metrics: metrics)
+                + attachedPanelTopGap
+                + notificationHeight
+                + attachedPanelSize.height
         }
     }
 
@@ -420,9 +440,14 @@ enum PulseIslandLayout {
     static func surfaceFrame(
         for style: PulseIslandStyle,
         in bounds: CGRect,
-        metrics: PulseIslandLayoutMetrics = .fallback
+        metrics: PulseIslandLayoutMetrics = .fallback,
+        includesNotificationPanel: Bool = false
     ) -> CGRect {
-        let size = contentSize(for: style, metrics: metrics)
+        let size = contentSize(
+            for: style,
+            metrics: metrics,
+            includesNotificationPanel: includesNotificationPanel
+        )
         let topOffset = surfaceTopOffset(for: style)
         let origin = CGPoint(
             x: bounds.midX - size.width / 2,
@@ -435,14 +460,22 @@ enum PulseIslandLayout {
     static func panelFrame(
         screenFrame: CGRect,
         centerX: CGFloat,
-        metrics: PulseIslandLayoutMetrics = .fallback
+        metrics: PulseIslandLayoutMetrics = .fallback,
+        includesNotificationPanel: Bool = false
     ) -> CGRect {
-        let size = panelContentSize(metrics: metrics)
+        let size = panelContentSize(
+            metrics: metrics,
+            includesNotificationPanel: includesNotificationPanel
+        )
         let originX = min(
             max(centerX - size.width / 2, screenFrame.minX + screenEdgeInset),
             screenFrame.maxX - size.width - screenEdgeInset
         )
-        let originY = screenFrame.maxY - visibleHeight(for: .expanded, metrics: metrics)
+        let originY = screenFrame.maxY - visibleHeight(
+            for: .expanded,
+            metrics: metrics,
+            includesNotificationPanel: includesNotificationPanel
+        )
 
         return CGRect(origin: CGPoint(x: originX, y: originY), size: size)
     }
@@ -585,6 +618,7 @@ final class PulseIslandPanelController {
     private(set) var isPresented = false
     private(set) var style: PulseIslandStyle = .seed
     private(set) var layoutMetrics: PulseIslandLayoutMetrics = .fallback
+    private(set) var isNotificationPanelVisible = false
     private(set) var isPinnedPanelPresented = false
     private(set) var selectedModule: PulseIslandModule = .applications
     private(set) var capturePreviewReminder: PulseCapturePreviewReminder?
@@ -606,8 +640,10 @@ final class PulseIslandPanelController {
     @ObservationIgnored private var capturePreviewAutoDismissDuration: Duration?
     @ObservationIgnored private var capturePreviewReturnStyle: PulseIslandStyle = .seed
     @ObservationIgnored private var isCapturePreviewHovered = false
+    @ObservationIgnored private var restrictHitTestingToSeedSurface = false
     @ObservationIgnored private var isHiddenForScreenRecording = false
     @ObservationIgnored private var pinPanelAction: () -> Void = {}
+    @ObservationIgnored private(set) var applicationUninstallWindowController = ApplicationUninstallWindowController()
     @ObservationIgnored private let screenshotOCRService = ClipboardOCRService()
     @ObservationIgnored private let screenRecordingService = PulseScreenRecordingService()
     @ObservationIgnored private let screenRecordingPreviewPanelController = PulseScreenRecordingPreviewPanelController()
@@ -615,13 +651,14 @@ final class PulseIslandPanelController {
     @ObservationIgnored private let screenshotEditorPanelController = PulseScreenshotEditorPanelController()
     @ObservationIgnored private var activeSharingPicker: NSSharingServicePicker?
 
-    private static let hoverCollapseDelay: Duration = .milliseconds(360)
+    private static let hoverCollapseDelay: Duration = .milliseconds(120)
     private static let criticalAlertDuration: Duration = .seconds(3)
     private static let screenshotPreviewDuration: Duration = .seconds(3)
     private static let screenshotPreviewActionFeedbackDuration: Duration = .seconds(2)
     private static let screenTrackingInterval: Duration = .milliseconds(350)
     private static let screenCapturePreparationDelay: Duration = .milliseconds(160)
     private static let postLaunchHoverExpansionSuppressionDuration: TimeInterval = 0.45
+    private static let panelLevel: NSWindow.Level = .statusBar
 
     private var isShowingScreenRecordingControls: Bool {
         screenRecordingState.activeSession != nil
@@ -689,6 +726,24 @@ final class PulseIslandPanelController {
         selectedModule = module
     }
 
+    func setNotificationPanelVisible(_ isVisible: Bool) {
+        guard isNotificationPanelVisible != isVisible else {
+            return
+        }
+
+        isNotificationPanelVisible = isVisible
+        guard let panel else {
+            return
+        }
+
+        let screen = screen(for: style)
+        anchorScreen = screen
+        layoutMetrics = PulseIslandLayout.metrics(for: screen)
+        restorePulsePanelLevel(panel)
+        panel.setFrame(targetFrame(screen: screen), display: true, animate: true)
+        panel.orderFrontRegardless()
+    }
+
     func dismiss() {
         collapseTask?.cancel()
         collapseTask = nil
@@ -708,6 +763,7 @@ final class PulseIslandPanelController {
         isCapturePreviewHovered = false
         panel?.orderOut(nil)
         style = .seed
+        restrictHitTestingToSeedSurface = false
         hoverExpansionSuppressionDeadline = nil
         capturePreviewReminder = nil
         capturePreviewReturnStyle = .seed
@@ -718,6 +774,18 @@ final class PulseIslandPanelController {
     func setHovering(_ isHovering: Bool, now: Date = Date()) {
         if style == .screenshotPreview {
             setScreenshotPreviewHovering(isHovering)
+            return
+        }
+
+        if style == .seed || style == .criticalSeed {
+            setSeedHovering(isHovering, now: now)
+        } else {
+            setPanelHovering(isHovering)
+        }
+    }
+
+    func setSeedHovering(_ isHovering: Bool, now: Date = Date()) {
+        guard style == .seed || style == .criticalSeed else {
             return
         }
 
@@ -736,6 +804,23 @@ final class PulseIslandPanelController {
 
             expand()
         } else {
+            scheduleHoverCollapse()
+        }
+    }
+
+    func setPanelHovering(_ isHovering: Bool) {
+        guard style == .expanded else {
+            return
+        }
+
+        collapseTask?.cancel()
+        collapseTask = nil
+
+        guard !isShowingScreenRecordingControls else {
+            return
+        }
+
+        if !isHovering {
             scheduleHoverCollapse()
         }
     }
@@ -958,6 +1043,7 @@ final class PulseIslandPanelController {
         }
 
         clearHoverExpansionSuppression()
+        restrictHitTestingToSeedSurface = false
         setStyle(.expanded)
     }
 
@@ -966,6 +1052,7 @@ final class PulseIslandPanelController {
             clearCapturePreview(deletingScreenRecording: true, resetsStyle: false)
         }
 
+        restrictHitTestingToSeedSurface = true
         setStyle(.seed)
     }
 
@@ -1032,6 +1119,7 @@ final class PulseIslandPanelController {
         clearHoverExpansionSuppression()
         panel?.orderOut(nil)
         style = .seed
+        restrictHitTestingToSeedSurface = false
         capturePreviewReminder = nil
         capturePreviewReturnStyle = .seed
         screenshotPreviewActionState = .idle
@@ -1045,6 +1133,7 @@ final class PulseIslandPanelController {
 
         anchorScreen = currentScreen()
         layoutMetrics = PulseIslandLayout.metrics(for: anchorScreen)
+        restorePulsePanelLevel(panel)
         panel.setFrame(targetFrame(screen: anchorScreen), display: true)
         panel.orderFrontRegardless()
         isPresented = true
@@ -1606,6 +1695,7 @@ final class PulseIslandPanelController {
 
         if resetToSeed {
             style = .seed
+            restrictHitTestingToSeedSurface = false
             clearCapturePreview(deletingScreenRecording: true, resetsStyle: false)
         }
         criticalAlertTask?.cancel()
@@ -1622,6 +1712,7 @@ final class PulseIslandPanelController {
             installRootView(in: panel, store: store, updateController: updateController)
         }
 
+        restorePulsePanelLevel(panel)
         panel.setFrame(targetFrame(screen: anchorScreen), display: true)
         panel.orderFrontRegardless()
         isPresented = true
@@ -1724,6 +1815,8 @@ final class PulseIslandPanelController {
     }
 
     private func setStyle(_ newStyle: PulseIslandStyle) {
+        restrictHitTestingToSeedSurface = restrictHitTestingToSeedSurface && newStyle == .seed
+
         guard style != newStyle else {
             return
         }
@@ -1736,6 +1829,7 @@ final class PulseIslandPanelController {
         let screen = screen(for: newStyle)
         anchorScreen = screen
         layoutMetrics = PulseIslandLayout.metrics(for: screen)
+        restorePulsePanelLevel(panel)
         panel.setFrame(targetFrame(screen: screen), display: true)
         panel.orderFrontRegardless()
         isPresented = true
@@ -1753,7 +1847,7 @@ final class PulseIslandPanelController {
         panel.isFloatingPanel = true
         panel.becomesKeyOnlyIfNeeded = true
         panel.hidesOnDeactivate = false
-        panel.level = .statusBar
+        restorePulsePanelLevel(panel)
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle, .stationary]
         panel.backgroundColor = .clear
         panel.isOpaque = false
@@ -1800,12 +1894,23 @@ final class PulseIslandPanelController {
         }
     }
 
+    private func restorePulsePanelLevel(_ panel: NSPanel) {
+        panel.level = Self.panelLevel
+    }
+
     func contentRect(in bounds: CGRect) -> CGRect? {
         guard isPresented || panel == nil else {
             return nil
         }
 
-        return PulseIslandLayout.surfaceFrame(for: style, in: bounds, metrics: layoutMetrics)
+        let hitTestStyle: PulseIslandStyle = restrictHitTestingToSeedSurface ? .seed : style
+
+        return PulseIslandLayout.surfaceFrame(
+            for: hitTestStyle,
+            in: bounds,
+            metrics: layoutMetrics,
+            includesNotificationPanel: isNotificationPanelVisible
+        )
     }
 
     private func startScreenTracking() {
@@ -1935,12 +2040,20 @@ final class PulseIslandPanelController {
     }
 
     private func targetFrame(screen: NSScreen?) -> CGRect {
-        let fallbackSize = PulseIslandLayout.panelContentSize(metrics: layoutMetrics)
+        let fallbackSize = PulseIslandLayout.panelContentSize(
+            metrics: layoutMetrics,
+            includesNotificationPanel: isNotificationPanelVisible
+        )
         let screenFrame = (screen ?? NSScreen.main)?.frame ?? CGRect(origin: .zero, size: fallbackSize)
         let centerX = PulseIslandLayout.preferredTopAnchorCenterX(
             screenFrame: screenFrame
         )
-        return PulseIslandLayout.panelFrame(screenFrame: screenFrame, centerX: centerX, metrics: layoutMetrics)
+        return PulseIslandLayout.panelFrame(
+            screenFrame: screenFrame,
+            centerX: centerX,
+            metrics: layoutMetrics,
+            includesNotificationPanel: isNotificationPanelVisible
+        )
     }
 
     private func currentScreen() -> NSScreen? {

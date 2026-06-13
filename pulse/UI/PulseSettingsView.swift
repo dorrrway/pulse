@@ -85,6 +85,30 @@ struct PulseSettingsView: View {
                     .frame(maxWidth: .infinity, alignment: .center)
                 }
 
+                Section(strings.text(.notificationSuggestionsSettings)) {
+                    HStack(alignment: .center) {
+                        Text(strings.text(.notificationSuggestions))
+                        Spacer()
+
+                        Toggle(
+                            "",
+                            isOn: Binding(
+                                get: { store.notificationSuggestionsEnabled },
+                                set: { store.setNotificationSuggestionsEnabled($0) }
+                            )
+                        )
+                        .labelsHidden()
+                        .controlSize(.small)
+                        .frame(height: settingsControlHeight)
+                    }
+                    .frame(height: settingsControlHeight)
+
+                    Text(strings.text(.notificationSuggestionsDetail))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
                 Section(strings.text(.clipboardSettings)) {
                     HStack(alignment: .center) {
                         Text(strings.text(.clipboardOCR))
@@ -334,9 +358,9 @@ private extension PulseSettingsView {
 
     var settingsWindowHeight: CGFloat {
         #if DEBUG
-        return 748
+        return 822
         #else
-        return 662
+        return 736
         #endif
     }
 

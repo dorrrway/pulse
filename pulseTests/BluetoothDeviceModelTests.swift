@@ -1,4 +1,5 @@
 import AppKit
+import CoreBluetooth
 import XCTest
 @testable import pulse
 
@@ -8,6 +9,21 @@ final class BluetoothDeviceModelTests: XCTestCase {
         XCTAssertFalse(BluetoothAuthorizationStatus.notDetermined.canSampleDevices)
         XCTAssertFalse(BluetoothAuthorizationStatus.denied.canSampleDevices)
         XCTAssertTrue(BluetoothAuthorizationStatus.allowed.canSampleDevices)
+    }
+
+    func testBluetoothPowerStateCapabilities() {
+        XCTAssertTrue(BluetoothPowerState.unknown.canSampleDevices)
+        XCTAssertTrue(BluetoothPowerState.poweredOn.canSampleDevices)
+        XCTAssertFalse(BluetoothPowerState.poweredOff.canSampleDevices)
+        XCTAssertFalse(BluetoothPowerState.unavailable.canSampleDevices)
+    }
+
+    func testBluetoothPowerStateMapsCoreBluetoothState() {
+        XCTAssertEqual(BluetoothPowerState(managerState: .poweredOn), .poweredOn)
+        XCTAssertEqual(BluetoothPowerState(managerState: .poweredOff), .poweredOff)
+        XCTAssertEqual(BluetoothPowerState(managerState: .unsupported), .unavailable)
+        XCTAssertEqual(BluetoothPowerState(managerState: .unauthorized), .unavailable)
+        XCTAssertEqual(BluetoothPowerState(managerState: .resetting), .unknown)
     }
 
     func testParsesBatteryPercentageStrings() {

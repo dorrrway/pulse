@@ -69,6 +69,8 @@ struct InstalledAppsPanelView: View {
     @State private var activeDragPayload: InstalledApplicationDragPayload?
 
     var openApplication: InstalledApplicationOpenAction = .live()
+    var uninstallWindowController: ApplicationUninstallWindowController
+    var afterUninstallWindowPresented: () -> Void = {}
 
     var body: some View {
         let strings = store.strings
@@ -120,6 +122,8 @@ struct InstalledAppsPanelView: View {
             openApplication(application)
         } removeAction: { application in
             store.removeFavoriteApplication(application)
+        } uninstallAction: { application in
+            requestApplicationUninstall(application)
         } dropAction: { bundlePath, index in
             let didDrop = store.addOrMoveFavoriteApplication(bundlePath: bundlePath, atFavoriteIndex: index)
             if didDrop {
@@ -193,6 +197,8 @@ struct InstalledAppsPanelView: View {
                         store.toggleFavoriteApplication(application)
                     } openAction: {
                         openApplication(application)
+                    } uninstallAction: {
+                        requestApplicationUninstall(application)
                     }
                     .onHover { isHovering in
                         hoveredApplicationID = isHovering ? application.id : nil
@@ -222,6 +228,8 @@ struct InstalledAppsPanelView: View {
                         store.toggleFavoriteApplication(application)
                     } openAction: {
                         openApplication(application)
+                    } uninstallAction: {
+                        requestApplicationUninstall(application)
                     }
                     .onDrag {
                         dragItemProvider(for: InstalledApplicationDragPayload(
@@ -237,6 +245,15 @@ struct InstalledAppsPanelView: View {
             .padding(.vertical, 2)
         }
         .scrollIndicators(.visible)
+    }
+
+    private func requestApplicationUninstall(_ application: InstalledApplication) {
+        guard ApplicationUninstallPolicy.availability(for: application) == .available else {
+            return
+        }
+
+        uninstallWindowController.present(application: application, store: store)
+        afterUninstallWindowPresented()
     }
 
     private func footer(strings: PulseStrings) -> some View {
@@ -455,6 +472,7 @@ private struct FavoriteApplicationsStrip: View {
     var isRunning: (InstalledApplication) -> Bool
     var openAction: (InstalledApplication) -> Void
     var removeAction: (InstalledApplication) -> Void
+    var uninstallAction: (InstalledApplication) -> Void
     var dropAction: (String, Int) -> Bool
     var dragItemProvider: (InstalledApplicationDragPayload) -> NSItemProvider
 
@@ -588,6 +606,8 @@ private struct FavoriteApplicationsStrip: View {
                 openAction(application)
             } removeAction: {
                 removeAction(application)
+            } uninstallAction: {
+                uninstallAction(application)
             }
             .onDrag {
                 return dragItemProvider(InstalledApplicationDragPayload(
@@ -767,6 +787,7 @@ private struct FavoriteApplicationTile: View {
     var removalEffectID: UUID?
     var openAction: () -> Void
     var removeAction: () -> Void
+    var uninstallAction: () -> Void
 
     private var isRemoving: Bool {
         removalEffectID != nil
@@ -810,6 +831,12 @@ private struct FavoriteApplicationTile: View {
             Button(strings.removeFavoriteApplicationHelp(application.name), systemImage: "pin.slash") {
                 removeAction()
             }
+
+            ApplicationUninstallMenuItem(
+                application: application,
+                strings: strings,
+                action: uninstallAction
+            )
         }
     }
 }
@@ -964,6 +991,7 @@ private struct InstalledAppRow: View {
     var isRunning: Bool
     var toggleFavoriteAction: () -> Void
     var openAction: () -> Void
+    var uninstallAction: () -> Void
 
     var body: some View {
         HStack(spacing: PulseDesign.Spacing.fine) {
@@ -1016,6 +1044,22 @@ private struct InstalledAppRow: View {
         .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .accessibilityLabel(application.name)
         .accessibilityValue(accessibilityValue)
+        .contextMenu {
+            Button(
+                isFavorite
+                    ? strings.removeFavoriteApplicationHelp(application.name)
+                    : strings.addFavoriteApplicationHelp(application.name),
+                systemImage: isFavorite ? "pin.slash" : "pin"
+            ) {
+                toggleFavoriteAction()
+            }
+
+            ApplicationUninstallMenuItem(
+                application: application,
+                strings: strings,
+                action: uninstallAction
+            )
+        }
     }
 
     private var detailText: String {
@@ -1084,6 +1128,7 @@ private struct InstalledAppIconTile: View {
     var isRunning: Bool
     var toggleFavoriteAction: () -> Void
     var openAction: () -> Void
+    var uninstallAction: () -> Void
 
     var body: some View {
         Button(action: openAction) {
@@ -1128,6 +1173,12 @@ private struct InstalledAppIconTile: View {
             ) {
                 toggleFavoriteAction()
             }
+
+            ApplicationUninstallMenuItem(
+                application: application,
+                strings: strings,
+                action: uninstallAction
+            )
         }
     }
 
@@ -1138,6 +1189,28 @@ private struct InstalledAppIconTile: View {
         }
 
         return source
+    }
+}
+
+private struct ApplicationUninstallMenuItem: View {
+    var application: InstalledApplication
+    var strings: PulseStrings
+    var action: () -> Void
+
+    var body: some View {
+        let availability = ApplicationUninstallPolicy.availability(for: application)
+
+        Divider()
+
+        Button(
+            availability == .available
+                ? strings.applicationUninstallActionTitle(application.name)
+                : strings.applicationUninstallUnavailableTitle(availability),
+            systemImage: availability == .available ? "trash" : "lock"
+        ) {
+            action()
+        }
+        .disabled(availability != .available)
     }
 }
 

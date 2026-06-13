@@ -7,6 +7,45 @@ verification notes that would make the public changelog too noisy.
 
 ## Unreleased
 
+### Notifications
+
+- Added a dismissible suggestion panel between the island header and attached
+  module panel. It reuses the existing critical alert sources for internal
+  battery, Bluetooth battery, thermal state, low disk space, and high memory
+  pressure instead of introducing a second threshold system.
+- The panel stores only a local on/off preference and dismissed suggestion IDs.
+  Dismissed IDs are reconciled against active suggestions so a suggestion can
+  return after the underlying issue clears and later reappears.
+- Notification suggestion cards now own a single status-tinted surface instead
+  of rendering a black outer container plus a separate tinted inner card. The
+  surface keeps a high-opacity dark mix for text contrast and uses the alert
+  color as the visible background tone.
+
+### Applications
+
+- Added a right-click Uninstall and Clean Up flow to the Applications module.
+  The entry is available from list rows, icon tiles, and Favorite Apps tiles,
+  while system apps and the running Pulse app show disabled menu items.
+- The cleanup scanner is conservative: it includes the selected app bundle and
+  only checks exact bundle-id/name candidates in common user Library locations,
+  including Application Support, Containers, Group Containers, Preferences,
+  Caches, Logs, LaunchAgents, Saved Application State, WebKit, and HTTPStorages.
+- Deletion is intentionally implemented as a regular confirmation window plus
+  `FileManager.trashItem(at:)`. Pulse shows full candidate paths, lets users
+  uncheck non-required leftovers, and moves selected items to the system Trash
+  instead of permanently deleting files.
+- Trash failures are now classified before presentation. Permission-denied
+  failures get localized recovery guidance, App Management and Full Disk Access
+  settings handoffs, and a retry-failed-items action instead of exposing only
+  the raw system error string.
+- The uninstall confirmation UI now lives in a dedicated normal-level `NSWindow`
+  instead of a sheet attached to the island `NSPanel`, so macOS TCC prompts for
+  App Management or app-data access can appear above Pulse without any island
+  handoff or window-level workaround.
+- After an uninstall window is presented from the Applications module, the
+  island collapses back to seed state so the dedicated confirmation window is
+  the only prominent Pulse surface during the permission-sensitive flow.
+
 ### Memo
 
 - Added Memo as an independent island module rather than folding it into
@@ -72,6 +111,9 @@ verification notes that would make the public changelog too noisy.
   keeping full recording labels in shortcut settings.
 - The Hide Pulse setting now uses the dedicated eye-slash vector asset instead
   of the SF Symbols fallback.
+- Screenshot editor text input now uses a transparent, center-aligned editing
+  background, commits when the user clicks the canvas outside the field, and
+  allows committed text marks to be dragged to a new position.
 - Recording output intentionally disables system audio and microphone capture in
   this first version so the new permission and privacy surface remains limited
   to screen pixels.
@@ -89,6 +131,10 @@ verification notes that would make the public changelog too noisy.
   resolution, temporary `.mov` files, post-stop video previews, no audio
   capture, Hide Pulse output exclusion, the live island recording state, the
   Hide Mouse local preference, and local recording shortcut preferences.
+- Public privacy wording now covers application uninstall cleanup candidate
+  scanning, explicit user confirmation, selected-item Trash moves, no
+  background scanning, no direct permanent deletion, and no upload of candidate
+  paths or file contents.
 
 ## 2.3.0 - 2026-06-01
 

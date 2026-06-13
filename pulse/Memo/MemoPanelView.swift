@@ -1,5 +1,12 @@
 import AppKit
+import AppKit
 import SwiftUI
+
+private enum MemoPanelMetrics {
+    static let emptyStateHeight: CGFloat = 170
+    static let composerMinHeight: CGFloat = 82
+    static let composerMaxHeight: CGFloat = 132
+}
 
 struct MemoPanelView: View {
     @Environment(PulseStore.self) private var store
@@ -7,6 +14,7 @@ struct MemoPanelView: View {
     @FocusState private var isSearchFocused: Bool
     @State private var editingEntryID: UUID?
     @State private var editingText = ""
+    @State private var isSearchFooterVisible = false
     @State private var isClearCompletedConfirmationVisible = false
 
     private var memos: MemoStore {
@@ -18,6 +26,24 @@ struct MemoPanelView: View {
         let entries = memos.filteredEntries
 
         VStack(alignment: .leading, spacing: PulseDesign.Spacing.xs) {
+            if !memos.entries.isEmpty {
+                MemoFilterControl(
+                    selectedFilter: memos.selectedFilter,
+                    strings: strings
+                ) { filter in
+                    memos.selectedFilter = filter
+                    isClearCompletedConfirmationVisible = false
+                }
+            }
+
+            if let persistenceIssue = memos.persistenceIssue {
+                MemoPersistenceIssueBanner(message: persistenceIssue, strings: strings)
+            }
+
+            content(entries: entries, strings: strings)
+                .frame(maxHeight: .infinity, alignment: .top)
+                .layoutPriority(1)
+
             MemoComposer(
                 text: Binding(
                     get: { memos.draftText },
@@ -30,34 +56,8 @@ struct MemoPanelView: View {
             )
             .focused($isComposerFocused)
 
-            if !memos.entries.isEmpty {
-                MemoFilterControl(
-                    selectedFilter: memos.selectedFilter,
-                    strings: strings
-                ) { filter in
-                    memos.selectedFilter = filter
-                    isClearCompletedConfirmationVisible = false
-                }
-
-                MemoSearchField(
-                    text: Binding(
-                        get: { memos.searchText },
-                        set: { memos.searchText = $0 }
-                    ),
-                    strings: strings
-                )
-                .focused($isSearchFocused)
-            }
-
-            if let persistenceIssue = memos.persistenceIssue {
-                MemoPersistenceIssueBanner(message: persistenceIssue, strings: strings)
-            }
-
-            content(entries: entries, strings: strings)
-                .frame(maxHeight: .infinity, alignment: .top)
-
             footer(strings: strings)
-                .padding(.top, PulsePanelLayout.footerTopSpacing)
+                .padding(.top, PulseDesign.Spacing.xxs)
         }
         .padding(.horizontal, PulsePanelLayout.outerPadding)
         .padding(.top, PulsePanelLayout.outerPadding)
@@ -75,6 +75,17 @@ struct MemoPanelView: View {
             editingEntryID = nil
             editingText = ""
             isClearCompletedConfirmationVisible = false
+            isSearchFooterVisible = false
+            isSearchFocused = false
+        }
+        .onChange(of: isSearchFocused) { _, isFocused in
+            guard !isFocused, memos.searchText.isEmpty else {
+                return
+            }
+
+            withAnimation(.easeInOut(duration: 0.16)) {
+                isSearchFooterVisible = false
+            }
         }
     }
 
@@ -85,53 +96,61 @@ struct MemoPanelView: View {
                 title: strings.text(.memoEmptyTitle),
                 detail: strings.text(.memoEmptyDetail)
             )
+            .frame(height: MemoPanelMetrics.emptyStateHeight)
         } else if entries.isEmpty {
             MemoEmptyState(
                 title: strings.text(.memoNoResultsTitle),
                 detail: strings.text(.memoNoResultsDetail)
             )
+            .frame(height: MemoPanelMetrics.emptyStateHeight)
         } else {
             ScrollView {
                 LazyVStack(spacing: PulseDesign.Spacing.xs) {
-                    ForEach(entries) { entry in
-                        MemoEntryRow(
-                            entry: entry,
-                            strings: strings,
-                            isEditing: editingEntryID == entry.id,
-                            editingText: Binding(
-                                get: { editingText },
-                                set: { editingText = $0 }
-                            ),
-                            toggleCompletionAction: {
-                                memos.toggleCompletion(entry)
-                            },
-                            markAsTaskAction: {
-                                memos.markAsTask(entry)
-                            },
-                            togglePinAction: {
-                                memos.togglePin(entry)
-                            },
-                            startEditingAction: {
-                                startEditing(entry)
-                            },
-                            saveEditingAction: {
-                                saveEditing(entry)
-                            },
-                            cancelEditingAction: {
-                                cancelEditing()
-                            },
-                            copyAction: {
-                                copy(entry)
-                            },
-                            deleteAction: {
-                                delete(entry)
-                            }
-                        )
-                    }
+                    memoEntryRows(entries: entries, strings: strings)
                 }
                 .padding(.vertical, 2)
             }
             .scrollIndicators(.hidden)
+            .frame(maxHeight: .infinity, alignment: .top)
+        }
+    }
+
+    @ViewBuilder
+    private func memoEntryRows(entries: [MemoEntry], strings: PulseStrings) -> some View {
+        ForEach(entries) { entry in
+            MemoEntryRow(
+                entry: entry,
+                strings: strings,
+                isEditing: editingEntryID == entry.id,
+                editingText: Binding(
+                    get: { editingText },
+                    set: { editingText = $0 }
+                ),
+                toggleCompletionAction: {
+                    memos.toggleCompletion(entry)
+                },
+                markAsTaskAction: {
+                    memos.markAsTask(entry)
+                },
+                togglePinAction: {
+                    memos.togglePin(entry)
+                },
+                startEditingAction: {
+                    startEditing(entry)
+                },
+                saveEditingAction: {
+                    saveEditing(entry)
+                },
+                cancelEditingAction: {
+                    cancelEditing()
+                },
+                copyAction: {
+                    copy(entry)
+                },
+                deleteAction: {
+                    delete(entry)
+                }
+            )
         }
     }
 
@@ -141,41 +160,149 @@ struct MemoPanelView: View {
             if isClearCompletedConfirmationVisible {
                 clearCompletedConfirmationFooter(strings: strings)
                     .transition(.opacity)
+            } else if isSearchFooterVisible || !memos.searchText.isEmpty {
+                searchFooter(strings: strings)
+                    .transition(.opacity)
             } else {
                 defaultFooter(strings: strings)
                     .transition(.opacity)
             }
         }
         .animation(.easeInOut(duration: 0.16), value: isClearCompletedConfirmationVisible)
+        .animation(.easeInOut(duration: 0.16), value: isSearchFooterVisible)
+        .frame(maxWidth: .infinity)
         .frame(height: PulsePanelLayout.footerHeight, alignment: .center)
+    }
+
+    private func searchField(strings: PulseStrings) -> some View {
+        HStack(spacing: PulseDesign.Spacing.xs) {
+            Image("ClipboardSearchIcon")
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 14, height: 14)
+                .foregroundStyle(.white.opacity(0.42))
+
+            TextField(
+                strings.text(.memoSearchPlaceholder),
+                text: Binding(
+                    get: { memos.searchText },
+                    set: { memos.searchText = $0 }
+                )
+            )
+            .textFieldStyle(.plain)
+            .font(.system(.callout, design: .rounded, weight: .medium))
+            .foregroundStyle(.white.opacity(0.92))
+            .focused($isSearchFocused)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, PulseDesign.Spacing.sm)
+        .frame(maxWidth: .infinity)
+        .frame(height: 34)
+        .background(.white.opacity(0.09), in: RoundedRectangle(cornerRadius: PulseDesign.Radius.card, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: PulseDesign.Radius.card, style: .continuous))
+        .onTapGesture {
+            isSearchFocused = true
+        }
+    }
+
+    private func searchFooterControl(strings: PulseStrings) -> some View {
+        Button {
+            showSearchFooter()
+        } label: {
+            HStack(spacing: PulseDesign.Spacing.fine) {
+                Image("ClipboardSearchIcon")
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 14, height: 14)
+                    .accessibilityHidden(true)
+
+                Text(strings.text(.clipboardSearchAction))
+                    .font(.system(.caption, design: .rounded, weight: .medium))
+                    .lineLimit(1)
+            }
+            .foregroundStyle(.white.opacity(0.54))
+            .padding(.horizontal, PulseDesign.Spacing.fine)
+            .frame(minWidth: PulseDesign.Control.buttonSide, alignment: .leading)
+            .frame(height: PulseDesign.Control.buttonSide)
+            .contentShape(RoundedRectangle(cornerRadius: PulseDesign.Radius.selectedControl, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .disabled(memos.entries.isEmpty)
+        .help(strings.text(.clipboardSearchAction))
+        .accessibilityLabel(strings.text(.clipboardSearchAction))
+    }
+
+    private func searchFooter(strings: PulseStrings) -> some View {
+        HStack(spacing: PulseDesign.Spacing.xs) {
+            searchField(strings: strings)
+                .frame(maxWidth: .infinity)
+
+            MemoIconButton(systemName: "xmark", help: strings.text(.closeMemoSearch)) {
+                closeSearchFooter()
+            }
+        }
+    }
+
+    private func showSearchFooter() {
+        isComposerFocused = false
+
+        withAnimation(.easeInOut(duration: 0.16)) {
+            isClearCompletedConfirmationVisible = false
+            isSearchFooterVisible = true
+        }
+
+        DispatchQueue.main.async {
+            isSearchFocused = true
+        }
+    }
+
+    private func closeSearchFooter() {
+        memos.searchText = ""
+        isSearchFocused = false
+
+        withAnimation(.easeInOut(duration: 0.16)) {
+            isSearchFooterVisible = false
+        }
     }
 
     private func defaultFooter(strings: PulseStrings) -> some View {
         HStack(spacing: PulseDesign.Spacing.xs) {
-            Text(strings.memoEntryCount(memos.entries.count))
-                .font(.system(.caption, design: .rounded, weight: .medium))
-                .foregroundStyle(.white.opacity(0.46))
-                .lineLimit(1)
+            searchFooterControl(strings: strings)
 
             Spacer(minLength: 0)
 
-            Text(strings.memoTaskSummary(active: memos.activeTaskCount, completed: memos.completedTaskCount))
+            Text(memoSummaryText(strings))
                 .font(.system(.caption, design: .rounded, weight: .medium))
                 .foregroundStyle(.white.opacity(0.46))
                 .lineLimit(1)
+                .minimumScaleFactor(0.82)
 
-            MemoIconButton(
-                systemName: "checkmark.circle",
-                help: strings.text(.clearCompletedMemos),
+            MemoClearHistoryButton(
+                title: strings.text(.clearCompletedMemos),
                 isDisabled: memos.completedTaskCount == 0
             ) {
-                isSearchFocused = false
-                isComposerFocused = false
-                withAnimation(.easeInOut(duration: 0.16)) {
-                    isClearCompletedConfirmationVisible = true
-                }
+                showClearCompletedConfirmation()
             }
         }
+    }
+
+    private func showClearCompletedConfirmation() {
+        isSearchFocused = false
+        isComposerFocused = false
+        withAnimation(.easeInOut(duration: 0.16)) {
+            isSearchFooterVisible = false
+            isClearCompletedConfirmationVisible = true
+        }
+    }
+
+    private func memoSummaryText(_ strings: PulseStrings) -> String {
+        let memoCount = memos.entries.filter { $0.kind == .note }.count
+        let todoCount = memos.activeTaskCount
+        let completedCount = memos.completedTaskCount
+
+        return "\(strings.memoFilterTitle(.notes)) \(memoCount) · \(strings.memoFilterTitle(.todo)) \(todoCount) · \(strings.memoFilterTitle(.completed)) \(completedCount)"
     }
 
     private func clearCompletedConfirmationFooter(strings: PulseStrings) -> some View {
@@ -244,59 +371,212 @@ private struct MemoComposer: View {
     @Binding var text: String
     var strings: PulseStrings
     var addNoteAction: () -> Void
+    @State private var isSendButtonHovered = false
+    @State private var composerTextHeight = MemoPanelMetrics.composerMinHeight
 
     var body: some View {
-        TextField(strings.text(.memoDraftPlaceholder), text: $text, axis: .vertical)
-            .textFieldStyle(.plain)
-            .font(.system(.body, design: .rounded, weight: .medium))
-            .foregroundStyle(.white.opacity(0.92))
-            .lineLimit(3...6)
-            .submitLabel(.done)
-            .onSubmit(addNoteAction)
-            .padding(.horizontal, PulseDesign.Spacing.sm)
-            .padding(.vertical, PulseDesign.Spacing.sm)
-            .frame(maxWidth: .infinity)
-            .frame(minHeight: 82, alignment: .topLeading)
-            .background(.white.opacity(0.09), in: RoundedRectangle(cornerRadius: PulseDesign.Radius.card, style: .continuous))
+        let hasText = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+
+        ZStack(alignment: .bottomTrailing) {
+            ZStack(alignment: .topLeading) {
+                MemoComposerTextView(
+                    text: $text,
+                    submitAction: addNoteAction,
+                    heightChangeAction: { composerTextHeight = $0 }
+                )
+
+                if text.isEmpty {
+                    Text(strings.text(.memoDraftPlaceholder))
+                        .font(.system(.body, design: .rounded, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.58))
+                        .allowsHitTesting(false)
+                }
+            }
+                .padding(.leading, PulseDesign.Spacing.sm)
+                .padding(.trailing, PulseDesign.Control.buttonSide + PulseDesign.Spacing.md)
+                .padding(.vertical, PulseDesign.Spacing.sm)
+                .frame(maxWidth: .infinity)
+                .frame(
+                    height: min(
+                        max(composerTextHeight + PulseDesign.Spacing.sm * 2, MemoPanelMetrics.composerMinHeight),
+                        MemoPanelMetrics.composerMaxHeight
+                    ),
+                    alignment: .topLeading
+                )
+                .fixedSize(horizontal: false, vertical: true)
+                .background(.white.opacity(0.09), in: RoundedRectangle(cornerRadius: PulseDesign.Radius.card, style: .continuous))
+
+            Button {
+                addNoteAction()
+            } label: {
+                Image(systemName: "arrow.up")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(hasText ? .white.opacity(0.94) : .white.opacity(0.24))
+                    .frame(width: PulseDesign.Control.buttonSide, height: PulseDesign.Control.buttonSide)
+                    .background {
+                        RoundedRectangle(cornerRadius: PulseDesign.Radius.selectedControl, style: .continuous)
+                            .fill(hasText ? (isSendButtonHovered ? .white.opacity(0.21) : .white.opacity(0.16)) : .white.opacity(0.11))
+                    }
+            }
+            .buttonStyle(.plain)
+            .disabled(!hasText)
+            .onHover { isSendButtonHovered = $0 }
+            .padding(.trailing, PulseDesign.Spacing.sm)
+            .padding(.bottom, PulseDesign.Spacing.sm)
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .fixedSize(horizontal: false, vertical: true)
     }
 }
 
-private struct MemoSearchField: View {
+private struct MemoComposerTextView: NSViewRepresentable {
     @Binding var text: String
-    var strings: PulseStrings
+    var submitAction: () -> Void
+    var heightChangeAction: (CGFloat) -> Void = { _ in }
 
-    var body: some View {
-        HStack(spacing: PulseDesign.Spacing.xs) {
-            Image("ClipboardSearchIcon")
-                .renderingMode(.template)
-                .resizable()
-                .scaledToFit()
-                .frame(width: 14, height: 14)
-                .foregroundStyle(.white.opacity(0.42))
+    func makeCoordinator() -> Coordinator {
+        Coordinator(text: $text, submitAction: submitAction, heightChangeAction: heightChangeAction)
+    }
 
-            TextField(strings.text(.memoSearchPlaceholder), text: $text)
-                .textFieldStyle(.plain)
-                .font(.system(.callout, design: .rounded, weight: .medium))
-                .foregroundStyle(.white.opacity(0.92))
-                .frame(maxWidth: .infinity, alignment: .leading)
+    func makeNSView(context: Context) -> NSScrollView {
+        let scrollView = MemoComposerScrollView()
+        scrollView.drawsBackground = false
+        scrollView.borderType = .noBorder
+        scrollView.hasVerticalScroller = true
+        scrollView.hasHorizontalScroller = false
+        scrollView.autohidesScrollers = true
+        scrollView.scrollerStyle = .overlay
 
-            if !text.isEmpty {
-                Button {
-                    text = ""
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.36))
-                        .frame(width: 18, height: 18)
-                }
-                .buttonStyle(.plain)
-                .help(strings.text(.closeMemoSearch))
-                .accessibilityLabel(strings.text(.closeMemoSearch))
+        let textView = MemoComposerNSTextView()
+        textView.delegate = context.coordinator
+        textView.submitAction = submitAction
+        textView.string = text
+        textView.drawsBackground = false
+        textView.isRichText = false
+        textView.importsGraphics = false
+        textView.allowsUndo = true
+        textView.isEditable = true
+        textView.isSelectable = true
+        textView.isVerticallyResizable = true
+        textView.isHorizontallyResizable = false
+        textView.autoresizingMask = [.width]
+        textView.font = .systemFont(ofSize: NSFont.systemFontSize, weight: .medium)
+        textView.textColor = NSColor.white.withAlphaComponent(0.92)
+        textView.insertionPointColor = .controlAccentColor
+        textView.textContainerInset = .zero
+        textView.textContainer?.lineFragmentPadding = 0
+        textView.textContainer?.widthTracksTextView = true
+        textView.textContainer?.containerSize = NSSize(width: scrollView.contentSize.width, height: .greatestFiniteMagnitude)
+
+        scrollView.documentView = textView
+        context.coordinator.textView = textView
+        context.coordinator.updateMeasuredHeight(for: textView)
+        return scrollView
+    }
+
+    func updateNSView(_ scrollView: NSScrollView, context: Context) {
+        context.coordinator.submitAction = submitAction
+        context.coordinator.heightChangeAction = heightChangeAction
+
+        guard let textView = scrollView.documentView as? MemoComposerNSTextView else {
+            return
+        }
+
+        textView.submitAction = submitAction
+        textView.textContainer?.containerSize = NSSize(width: scrollView.contentSize.width, height: .greatestFiniteMagnitude)
+        if textView.string != text {
+            textView.string = text
+        }
+        context.coordinator.updateMeasuredHeight(for: textView)
+    }
+
+    final class Coordinator: NSObject, NSTextViewDelegate {
+        @Binding var text: String
+        var submitAction: () -> Void
+        var heightChangeAction: (CGFloat) -> Void
+        weak var textView: NSTextView?
+
+        init(
+            text: Binding<String>,
+            submitAction: @escaping () -> Void,
+            heightChangeAction: @escaping (CGFloat) -> Void
+        ) {
+            _text = text
+            self.submitAction = submitAction
+            self.heightChangeAction = heightChangeAction
+        }
+
+        func textDidChange(_ notification: Notification) {
+            guard let textView = notification.object as? NSTextView else {
+                return
+            }
+
+            text = textView.string
+            updateMeasuredHeight(for: textView)
+        }
+
+        func updateMeasuredHeight(for textView: NSTextView) {
+            guard let layoutManager = textView.layoutManager, let textContainer = textView.textContainer else {
+                return
+            }
+
+            layoutManager.ensureLayout(for: textContainer)
+            let usedHeight = ceil(layoutManager.usedRect(for: textContainer).height)
+            let lineHeight = ceil(textView.font.map { $0.ascender - $0.descender + $0.leading } ?? NSFont.systemFontSize)
+            let measuredHeight = max(usedHeight, lineHeight)
+
+            Task { @MainActor [heightChangeAction] in
+                heightChangeAction(measuredHeight)
             }
         }
-        .padding(.horizontal, PulseDesign.Spacing.sm)
-        .frame(height: 34)
-        .background(.white.opacity(0.09), in: RoundedRectangle(cornerRadius: PulseDesign.Radius.card, style: .continuous))
+    }
+}
+
+private final class MemoComposerNSTextView: NSTextView {
+    var submitAction: (() -> Void)?
+
+    override func keyDown(with event: NSEvent) {
+        guard event.keyCode == 36 || event.keyCode == 76 else {
+            super.keyDown(with: event)
+            return
+        }
+
+        let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        if modifiers.contains(.shift) {
+            insertText("\n", replacementRange: selectedRange())
+            return
+        }
+
+        guard modifiers.isDisjoint(with: [.command, .control, .option]) else {
+            super.keyDown(with: event)
+            return
+        }
+
+        submitAction?()
+    }
+}
+
+private final class MemoComposerScrollView: NSScrollView {
+    override func scrollWheel(with event: NSEvent) {
+        let verticalDelta = event.scrollingDeltaY
+
+        guard abs(verticalDelta) >= abs(event.scrollingDeltaX) else {
+            return
+        }
+
+        guard let documentView else {
+            return
+        }
+
+        let visibleHeight = contentView.bounds.height
+        let documentHeight = documentView.bounds.height
+        let maxY = max(0, documentHeight - visibleHeight)
+        let proposedY = contentView.bounds.origin.y - verticalDelta
+        let clampedY = min(max(proposedY, 0), maxY)
+        let targetOrigin = CGPoint(x: contentView.bounds.origin.x, y: clampedY)
+
+        contentView.scroll(to: targetOrigin)
+        reflectScrolledClipView(contentView)
     }
 }
 
@@ -398,6 +678,7 @@ private struct MemoEntryRow: View {
     var deleteAction: () -> Void
 
     @State private var isHovering = false
+    @State private var editingTextHeight: CGFloat = 54
 
     var body: some View {
         HStack(alignment: .top, spacing: PulseDesign.Spacing.xs) {
@@ -418,8 +699,6 @@ private struct MemoEntryRow: View {
             }
 
             Spacer(minLength: 0)
-
-            actionStrip
         }
         .padding(.horizontal, PulseDesign.Spacing.xs)
         .padding(.vertical, PulseDesign.Spacing.xs)
@@ -500,32 +779,46 @@ private struct MemoEntryRow: View {
         HStack(spacing: PulseDesign.Spacing.xxs) {
             if entry.isPinned {
                 Image(systemName: "pin.fill")
-                    .font(.system(size: 9, weight: .semibold))
+                    .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(.orange.opacity(0.84))
                     .accessibilityHidden(true)
             }
 
             Text(strings.memoKindTitle(entry.kind))
-                .font(.system(.caption2, design: .rounded, weight: .semibold))
+                .font(.system(.caption, design: .rounded, weight: .semibold))
                 .foregroundStyle(.white.opacity(0.44))
                 .lineLimit(1)
 
             Text(entry.updatedAt, style: .time)
-                .font(.system(.caption2, design: .rounded, weight: .medium))
+                .font(.system(.caption, design: .rounded, weight: .medium))
                 .foregroundStyle(.white.opacity(0.36))
                 .lineLimit(1)
         }
+        .frame(height: 24, alignment: .center)
     }
 
     private var editingField: some View {
         HStack(alignment: .bottom, spacing: PulseDesign.Spacing.xs) {
-            TextField(strings.text(.memoDraftPlaceholder), text: $editingText, axis: .vertical)
-                .textFieldStyle(.plain)
-                .font(.system(.body, design: .rounded, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.92))
-                .lineLimit(1...4)
+            ZStack(alignment: .topLeading) {
+                MemoComposerTextView(
+                    text: $editingText,
+                    submitAction: saveEditingAction,
+                    heightChangeAction: { editingTextHeight = $0 }
+                )
+
+                if editingText.isEmpty {
+                    Text(strings.text(.memoDraftPlaceholder))
+                        .font(.system(.body, design: .rounded, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.58))
+                        .allowsHitTesting(false)
+                }
+            }
                 .padding(.horizontal, PulseDesign.Spacing.xs)
                 .padding(.vertical, PulseDesign.Spacing.fine)
+                .frame(
+                    height: min(max(editingTextHeight + PulseDesign.Spacing.fine * 2, 54), 132),
+                    alignment: .topLeading
+                )
                 .background(.white.opacity(0.09), in: RoundedRectangle(cornerRadius: PulseDesign.Radius.selectedControl, style: .continuous))
 
             MemoIconButton(
@@ -542,25 +835,6 @@ private struct MemoEntryRow: View {
         }
     }
 
-    @ViewBuilder
-    private var actionStrip: some View {
-        if isEditing {
-            EmptyView()
-        } else {
-            HStack(spacing: PulseDesign.Spacing.micro) {
-                MemoIconButton(
-                    systemName: entry.isPinned ? "pin.fill" : "pin",
-                    help: entry.isPinned ? strings.text(.unpinMemo) : strings.text(.pinMemo)
-                ) {
-                    togglePinAction()
-                }
-
-                MemoIconButton(systemName: "pencil", help: strings.text(.editMemo)) {
-                    startEditingAction()
-                }
-            }
-        }
-    }
 }
 
 private struct MemoPersistenceIssueBanner: View {
@@ -650,6 +924,40 @@ private struct MemoIconButton: View {
         .disabled(isDisabled)
         .help(help)
         .accessibilityLabel(help)
+        .onHover { hovering in
+            isHovering = hovering
+        }
+    }
+}
+
+private struct MemoClearHistoryButton: View {
+    var title: String
+    var isDisabled: Bool
+    var action: () -> Void
+
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: action) {
+            ZStack {
+                RoundedRectangle(cornerRadius: PulseDesign.Radius.selectedControl, style: .continuous)
+                    .fill(.white.opacity(isHovering && !isDisabled ? PulseDesign.Opacity.hoverFillOnDark : 0))
+
+                Image("ClipboardClearIcon")
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 14, height: 14)
+                    .accessibilityHidden(true)
+                    .foregroundStyle(.white.opacity(isDisabled ? 0.24 : 0.54))
+            }
+            .frame(width: PulseDesign.Control.buttonSide, height: PulseDesign.Control.buttonSide)
+            .contentShape(RoundedRectangle(cornerRadius: PulseDesign.Radius.selectedControl, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .disabled(isDisabled)
+        .help(title)
+        .accessibilityLabel(title)
         .onHover { hovering in
             isHovering = hovering
         }

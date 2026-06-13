@@ -19,6 +19,22 @@ nonisolated enum BluetoothAuthorizationStatus: Equatable, Sendable {
     }
 }
 
+nonisolated enum BluetoothPowerState: Equatable, Sendable {
+    case unknown
+    case poweredOn
+    case poweredOff
+    case unavailable
+
+    var canSampleDevices: Bool {
+        switch self {
+        case .unknown, .poweredOn:
+            true
+        case .poweredOff, .unavailable:
+            false
+        }
+    }
+}
+
 nonisolated enum BluetoothDeviceCategory: String, Codable, Sendable {
     case keyboard
     case trackpad

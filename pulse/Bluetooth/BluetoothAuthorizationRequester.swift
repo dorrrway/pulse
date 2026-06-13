@@ -22,6 +22,23 @@ extension BluetoothAuthorizationStatus {
     }
 }
 
+extension BluetoothPowerState {
+    nonisolated init(managerState: CBManagerState) {
+        switch managerState {
+        case .poweredOn:
+            self = .poweredOn
+        case .poweredOff:
+            self = .poweredOff
+        case .unsupported, .unauthorized:
+            self = .unavailable
+        case .unknown, .resetting:
+            self = .unknown
+        @unknown default:
+            self = .unknown
+        }
+    }
+}
+
 @MainActor
 final class BluetoothAuthorizationRequester: NSObject, CBCentralManagerDelegate {
     static let shared = BluetoothAuthorizationRequester()
@@ -76,5 +93,41 @@ final class BluetoothAuthorizationRequester: NSObject, CBCentralManagerDelegate 
         continuations.removeAll()
         manager = nil
         pending.forEach { $0.resume(returning: status) }
+    }
+}
+
+@MainActor
+final class BluetoothPowerMonitor: NSObject, CBCentralManagerDelegate {
+    private var manager: CBCentralManager?
+    private let stateDidChange: @MainActor (BluetoothPowerState) -> Void
+
+    init(stateDidChange: @escaping @MainActor (BluetoothPowerState) -> Void) {
+        self.stateDidChange = stateDidChange
+        super.init()
+    }
+
+    func start() {
+        guard manager == nil else {
+            return
+        }
+
+        manager = CBCentralManager(
+            delegate: self,
+            queue: .main,
+            options: [
+                CBCentralManagerOptionShowPowerAlertKey: false,
+            ]
+        )
+    }
+
+    func stop() {
+        manager = nil
+    }
+
+    nonisolated func centralManagerDidUpdateState(_ central: CBCentralManager) {
+        let state = BluetoothPowerState(managerState: central.state)
+        Task { @MainActor in
+            stateDidChange(state)
+        }
     }
 }

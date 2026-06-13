@@ -10,9 +10,11 @@ final class BluetoothDeviceStore {
     var lastRefreshedAt: Date?
     var issue: BluetoothDeviceIssue?
     var authorizationStatus = BluetoothAuthorizationStatus.current
+    var powerState = BluetoothPowerState.unknown
     var activeActionDeviceID: BluetoothDevice.ID?
 
     @ObservationIgnored private let sampler: BluetoothDeviceSampler
+    @ObservationIgnored private var powerMonitor: BluetoothPowerMonitor?
     @ObservationIgnored private var refreshTask: Task<Void, Never>?
     @ObservationIgnored private var monitoringTask: Task<Void, Never>?
     @ObservationIgnored private var monitoringCadence: BluetoothMonitoringCadence?
@@ -28,6 +30,10 @@ final class BluetoothDeviceStore {
 
     var needsInitialAuthorization: Bool {
         authorizationStatus.needsInitialRequest
+    }
+
+    var isBluetoothPoweredOff: Bool {
+        powerState == .poweredOff
     }
 
     func startBackgroundMonitoring() {
@@ -54,6 +60,7 @@ final class BluetoothDeviceStore {
         isBackgroundMonitoringEnabled = false
         foregroundMonitoringCount = 0
         cancelMonitoringTask()
+        stopPowerMonitoring()
         refreshTask?.cancel()
         refreshTask = nil
         isRefreshing = false
@@ -62,7 +69,13 @@ final class BluetoothDeviceStore {
     func refresh() {
         refreshAuthorizationStatus()
         guard authorizationStatus.canSampleDevices else {
+            stopPowerMonitoring()
             publishAuthorizationBlock()
+            return
+        }
+
+        guard powerState.canSampleDevices else {
+            publishPowerBlock()
             return
         }
 
@@ -115,12 +128,21 @@ final class BluetoothDeviceStore {
 
         guard let cadence = desiredMonitoringCadence else {
             cancelMonitoringTask()
+            stopPowerMonitoring()
             return
         }
 
         guard authorizationStatus.canSampleDevices else {
+            stopPowerMonitoring()
             cancelMonitoringTask()
             publishAuthorizationBlock()
+            return
+        }
+
+        startPowerMonitoring()
+        guard powerState.canSampleDevices else {
+            cancelMonitoringTask()
+            publishPowerBlock()
             return
         }
 
@@ -160,7 +182,53 @@ final class BluetoothDeviceStore {
             : nil
     }
 
+    private func startPowerMonitoring() {
+        guard powerMonitor == nil else {
+            return
+        }
+
+        let monitor = BluetoothPowerMonitor { [weak self] state in
+            self?.publishPowerState(state)
+        }
+        powerMonitor = monitor
+        monitor.start()
+    }
+
+    private func stopPowerMonitoring() {
+        powerMonitor?.stop()
+        powerMonitor = nil
+        powerState = .unknown
+    }
+
+    private func publishPowerState(_ state: BluetoothPowerState) {
+        guard powerState != state else {
+            return
+        }
+
+        powerState = state
+        if state.canSampleDevices {
+            reconcileMonitoring()
+        } else {
+            cancelMonitoringTask()
+            publishPowerBlock()
+        }
+    }
+
+    private func publishPowerBlock() {
+        refreshTask?.cancel()
+        refreshTask = nil
+        activeActionDeviceID = nil
+        devices = []
+        isRefreshing = false
+        issue = nil
+    }
+
     private func performConnectionAction(_ device: BluetoothDevice, action: BluetoothConnectionAction) {
+        guard powerState.canSampleDevices else {
+            publishPowerBlock()
+            return
+        }
+
         guard let address = device.address else {
             issue = .actionFailed
             return
