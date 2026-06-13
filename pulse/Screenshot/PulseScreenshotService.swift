@@ -60,6 +60,53 @@ nonisolated enum PulseScreenshotMode: CaseIterable, Equatable, Hashable, Identif
     }
 }
 
+nonisolated enum PulseCaptureDisplayResolver {
+    static func activeDisplays() throws -> [CGDirectDisplayID] {
+        var count: UInt32 = 0
+        guard CGGetActiveDisplayList(0, nil, &count) == .success, count > 0 else {
+            throw NativeDisplaySelectionError.failed
+        }
+
+        var displays = [CGDirectDisplayID](repeating: 0, count: Int(count))
+        guard CGGetActiveDisplayList(count, &displays, &count) == .success else {
+            throw NativeDisplaySelectionError.failed
+        }
+
+        let activeDisplays = Array(displays.prefix(Int(count)))
+        let mainDisplay = CGMainDisplayID()
+        guard let mainDisplayIndex = activeDisplays.firstIndex(of: mainDisplay) else {
+            return activeDisplays
+        }
+
+        var orderedDisplays = [mainDisplay]
+        orderedDisplays.append(contentsOf: activeDisplays[..<mainDisplayIndex])
+        orderedDisplays.append(contentsOf: activeDisplays[activeDisplays.index(after: mainDisplayIndex)...])
+        return orderedDisplays
+    }
+
+    @MainActor
+    static func displayID(for screen: NSScreen?) -> CGDirectDisplayID? {
+        screen?.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")]
+            .flatMap { $0 as? NSNumber }?
+            .uint32Value
+    }
+
+    static func screencaptureDisplayIndex(for displayID: CGDirectDisplayID) -> Int? {
+        guard
+            let displays = try? activeDisplays(),
+            let index = displays.firstIndex(of: displayID)
+        else {
+            return nil
+        }
+
+        return index + 1
+    }
+
+    private enum NativeDisplaySelectionError: Error {
+        case failed
+    }
+}
+
 nonisolated enum PulseScreenshotCaptureResult: Equatable, Sendable {
     case copiedToClipboard
     case permissionDenied
@@ -71,7 +118,7 @@ struct PulseScreenshotService: Sendable {
     var preflightAccess: @Sendable () -> Bool
     var requestAccess: @Sendable () -> Bool
     var openScreenCaptureSettings: @MainActor @Sendable () -> Void
-    var capture: @Sendable (PulseScreenshotMode) async -> PulseScreenshotCaptureResult
+    var capture: @MainActor @Sendable (PulseScreenshotMode, NSScreen?, PulseStrings) async -> PulseScreenshotCaptureResult
 
     static let live = PulseScreenshotService(
         preflightAccess: {
@@ -87,15 +134,34 @@ struct PulseScreenshotService: Sendable {
 
             NSWorkspace.shared.open(url)
         },
-        capture: { mode in
-            await runScreencapture(arguments: arguments(for: mode))
+        capture: { mode, sourceScreen, strings in
+            if mode == .fullScreen {
+                let displaySelectionController = PulseDisplaySelectionController()
+                guard
+                    let displayID = await displaySelectionController.selectDisplay(strings: strings, preferredScreen: sourceScreen),
+                    let displayIndex = PulseCaptureDisplayResolver.screencaptureDisplayIndex(for: displayID)
+                else {
+                    return .cancelled
+                }
+
+                return await runScreencapture(arguments: arguments(for: mode, displayIndex: displayIndex))
+            }
+
+            return await runScreencapture(arguments: arguments(for: mode))
         }
     )
 
-    nonisolated static func arguments(for mode: PulseScreenshotMode) -> [String] {
+    nonisolated static func arguments(
+        for mode: PulseScreenshotMode,
+        displayIndex: Int? = nil
+    ) -> [String] {
         switch mode {
         case .fullScreen:
-            ["-c", "-i", "-w", "-S", "-x"]
+            if let displayIndex {
+                ["-c", "-D\(displayIndex)", "-x"]
+            } else {
+                ["-c", "-x"]
+            }
         case .window:
             ["-c", "-i", "-w", "-o", "-x"]
         case .selection:
@@ -181,7 +247,8 @@ final class PulseScreenRecordingService {
     func start(
         mode: PulseScreenshotMode,
         options: PulseScreenRecordingOptions,
-        sourceScreen: NSScreen?
+        sourceScreen: NSScreen?,
+        strings: PulseStrings
     ) async -> PulseScreenRecordingStartResult {
         guard !isRecording else {
             return .failed
@@ -192,7 +259,7 @@ final class PulseScreenRecordingService {
         }
 
         do {
-            let target = try await selectedTarget(for: mode, sourceScreen: sourceScreen)
+            let target = try await selectedTarget(for: mode, sourceScreen: sourceScreen, strings: strings)
             let outputURL = try Self.temporaryRecordingURL()
             let session = PulseScreenRecordingSession(
                 id: UUID(),
@@ -248,8 +315,18 @@ final class PulseScreenRecordingService {
 
     private func selectedTarget(
         for mode: PulseScreenshotMode,
-        sourceScreen: NSScreen?
+        sourceScreen: NSScreen?,
+        strings: PulseStrings
     ) async throws -> NativeRecordingTarget {
+        if mode == .fullScreen {
+            let displaySelectionController = PulseDisplaySelectionController()
+            guard let displayID = await displaySelectionController.selectDisplay(strings: strings, preferredScreen: sourceScreen) else {
+                throw NativeScreenRecordingError.cancelled
+            }
+
+            return .display(displayID)
+        }
+
         if mode == .selection {
             let selectionController = PulseScreenRecordingSelectionController()
             guard let selectedRect = await selectionController.selectRegion() else {
@@ -272,7 +349,7 @@ final class PulseScreenRecordingService {
         let selectedRect = try Self.screenCaptureGlobalRect(from: selectionURL)
         switch mode {
         case .fullScreen:
-            return .display(try Self.displayID(containing: selectedRect, fallbackScreen: sourceScreen))
+            throw NativeScreenRecordingError.failed
         case .window:
             return .window(try Self.windowID(matching: selectedRect))
         case .selection:
@@ -528,7 +605,7 @@ final class PulseScreenRecordingService {
         fallbackScreen: NSScreen?
     ) throws -> CGDirectDisplayID {
         let displayCenter = rect.center
-        let displays = try activeDisplays()
+        let displays = try PulseCaptureDisplayResolver.activeDisplays()
         if let index = displays.firstIndex(where: { CGDisplayBounds($0).contains(displayCenter) }) {
             return displays[index]
         }
@@ -546,29 +623,6 @@ final class PulseScreenRecordingService {
         }
 
         throw NativeScreenRecordingError.failed
-    }
-
-    private nonisolated static func activeDisplays() throws -> [CGDirectDisplayID] {
-        var count: UInt32 = 0
-        guard CGGetActiveDisplayList(0, nil, &count) == .success, count > 0 else {
-            throw NativeScreenRecordingError.failed
-        }
-
-        var displays = [CGDirectDisplayID](repeating: 0, count: Int(count))
-        guard CGGetActiveDisplayList(count, &displays, &count) == .success else {
-            throw NativeScreenRecordingError.failed
-        }
-
-        let activeDisplays = Array(displays.prefix(Int(count)))
-        let mainDisplay = CGMainDisplayID()
-        guard let mainDisplayIndex = activeDisplays.firstIndex(of: mainDisplay) else {
-            return activeDisplays
-        }
-
-        var orderedDisplays = [mainDisplay]
-        orderedDisplays.append(contentsOf: activeDisplays[..<mainDisplayIndex])
-        orderedDisplays.append(contentsOf: activeDisplays[activeDisplays.index(after: mainDisplayIndex)...])
-        return orderedDisplays
     }
 
     private nonisolated static func windowID(matching rect: CGRect) throws -> CGWindowID {

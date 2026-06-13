@@ -842,6 +842,7 @@ final class PulseIslandPanelController {
     func captureScreenshot(
         mode: PulseScreenshotMode,
         hidesPulseDuringCapture: Bool = true,
+        strings: PulseStrings = PulseStrings(language: PulseLanguage.systemResolved),
         service: PulseScreenshotService = .live
     ) {
         guard service.preflightAccess() || service.requestAccess() else {
@@ -864,7 +865,7 @@ final class PulseIslandPanelController {
                 }
             }
 
-            let result = await service.capture(mode)
+            let result = await service.capture(mode, self?.currentScreen(), strings)
             if hidesPulseDuringCapture {
                 self?.restoreAfterScreenCapture()
             }
@@ -879,7 +880,8 @@ final class PulseIslandPanelController {
     func startScreenRecording(
         mode: PulseScreenshotMode,
         hidesPulseDuringCapture: Bool,
-        hidesCursorDuringCapture: Bool
+        hidesCursorDuringCapture: Bool,
+        strings: PulseStrings = PulseStrings(language: PulseLanguage.systemResolved)
     ) {
         guard !screenRecordingState.isBusy else {
             return
@@ -916,7 +918,8 @@ final class PulseIslandPanelController {
                     hidesPulse: hidesPulseDuringCapture,
                     hidesCursor: hidesCursorDuringCapture
                 ),
-                sourceScreen: currentScreen()
+                sourceScreen: currentScreen(),
+                strings: strings
             )
 
             switch result {

@@ -37,7 +37,7 @@ final class ProjectConfigurationTests: XCTestCase {
     }
 
     func testScreenshotModesUseNativeClipboardCaptureArguments() {
-        XCTAssertEqual(PulseScreenshotService.arguments(for: .fullScreen), ["-c", "-i", "-w", "-S", "-x"])
+        XCTAssertEqual(PulseScreenshotService.arguments(for: .fullScreen, displayIndex: 2), ["-c", "-D2", "-x"])
         XCTAssertEqual(PulseScreenshotService.arguments(for: .window), ["-c", "-i", "-w", "-o", "-x"])
         XCTAssertEqual(PulseScreenshotService.arguments(for: .selection), ["-c", "-i", "-s", "-x"])
     }
@@ -53,13 +53,9 @@ final class ProjectConfigurationTests: XCTestCase {
         XCTAssertEqual(PulseScreenshotMode.window.screenRecordingShortcutAction, .recordWindow)
     }
 
-    func testScreenRecordingTargetSelectionUsesNativeScreenshotPickersForDisplayAndWindow() {
+    func testScreenRecordingTargetSelectionUsesNativeScreenshotPickerForWindow() {
         let selectionURL = URL(fileURLWithPath: "/tmp/pulse-recording-selection.png")
 
-        XCTAssertEqual(
-            PulseScreenRecordingService.selectionArguments(for: .fullScreen, outputURL: selectionURL),
-            ["-i", "-w", "-S", "-x", selectionURL.path]
-        )
         XCTAssertEqual(
             PulseScreenRecordingService.selectionArguments(for: .window, outputURL: selectionURL),
             ["-i", "-w", "-o", "-x", selectionURL.path]

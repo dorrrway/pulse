@@ -7,6 +7,14 @@ verification notes that would make the public changelog too noisy.
 
 ## Unreleased
 
+### Capture
+
+- Full-screen screenshot and recording target selection now resolves a concrete
+  display before capture starts. Multi-display setups use a local display picker;
+  single-display setups skip the extra prompt and use that display directly.
+- Window recording intentionally keeps the native macOS screenshot picker
+  handoff because the current window-selection path is already stable.
+
 ### Notifications
 
 - Added a dismissible suggestion panel between the island header and attached

@@ -418,7 +418,7 @@ final class PinnedPanelControllerTests: XCTestCase {
             preflightAccess: { true },
             requestAccess: { false },
             openScreenCaptureSettings: {},
-            capture: { _ in .cancelled }
+            capture: { _, _, _ in .cancelled }
         )
 
         controller.present(store: store, updateController: updateController)

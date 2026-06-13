@@ -1175,7 +1175,8 @@ struct PulseIslandView: View {
                             controller.startScreenRecording(
                                 mode: mode,
                                 hidesPulseDuringCapture: store.hidePulseDuringScreenshots,
-                                hidesCursorDuringCapture: store.hideCursorDuringScreenRecordings
+                                hidesCursorDuringCapture: store.hideCursorDuringScreenRecordings,
+                                strings: store.strings
                             )
                         },
                         stopRecordingAction: {
@@ -1184,7 +1185,8 @@ struct PulseIslandView: View {
                         captureAction: { mode in
                             controller.captureScreenshot(
                                 mode: mode,
-                                hidesPulseDuringCapture: store.hidePulseDuringScreenshots
+                                hidesPulseDuringCapture: store.hidePulseDuringScreenshots,
+                                strings: store.strings
                             )
                         }
                     )

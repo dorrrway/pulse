@@ -1105,6 +1105,8 @@ extension PulseStrings {
         case screenRecordingDiscardAction
         case screenRecordingHideCursorDuringCapture
         case screenRecordingHideCursorDuringCaptureDetail
+        case displaySelectionHint
+        case displaySelectionHoveredHint
         case screenshotCaptured
         case screenshotSaveAction
         case screenshotShareAction
@@ -1416,6 +1418,10 @@ private extension PulseStrings {
             "Hide Mouse"
         case .screenRecordingHideCursorDuringCaptureDetail:
             "Recordings omit the pointer for a cleaner screen video."
+        case .displaySelectionHint:
+            "Click anywhere to select this display"
+        case .displaySelectionHoveredHint:
+            "Click to select this display"
         case .screenshotCaptured:
             "Screenshot"
         case .screenshotSaveAction:
@@ -1891,6 +1897,10 @@ private extension PulseStrings {
             "隐藏鼠标"
         case .screenRecordingHideCursorDuringCaptureDetail:
             "录屏时不录入鼠标指针，让视频画面更干净。"
+        case .displaySelectionHint:
+            "点击任意位置选择此显示器"
+        case .displaySelectionHoveredHint:
+            "点击选择此显示器"
         case .screenshotCaptured:
             "截图"
         case .screenshotSaveAction:

@@ -70,7 +70,8 @@ struct PulseApp: App {
                     islandPanelController.startScreenRecording(
                         mode: screenRecordingMode,
                         hidesPulseDuringCapture: store.hidePulseDuringScreenshots,
-                        hidesCursorDuringCapture: store.hideCursorDuringScreenRecordings
+                        hidesCursorDuringCapture: store.hideCursorDuringScreenRecordings,
+                        strings: store.strings
                     )
                 }
                 return
@@ -79,7 +80,8 @@ struct PulseApp: App {
             if let screenshotMode = action.screenshotMode {
                 islandPanelController.captureScreenshot(
                     mode: screenshotMode,
-                    hidesPulseDuringCapture: store.hidePulseDuringScreenshots
+                    hidesPulseDuringCapture: store.hidePulseDuringScreenshots,
+                    strings: store.strings
                 )
                 return
             }
