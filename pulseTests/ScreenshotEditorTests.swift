@@ -207,6 +207,47 @@ final class ScreenshotEditorTests: XCTestCase {
     }
 
     @MainActor
+    func testEditorWindowFrameCentersImageCanvasInVisibleFrame() {
+        let visibleFrame = CGRect(x: 100, y: 80, width: 1200, height: 800)
+        let imageSize = CGSize(width: 240, height: 160)
+        let imageContentSize = PulseScreenshotEditorPanelLayout.imageContentSize(
+            imageSize: imageSize,
+            visibleFrame: visibleFrame
+        )
+        let frame = PulseScreenshotEditorPanelLayout.windowFrame(
+            imageSize: imageSize,
+            visibleFrame: visibleFrame,
+            cascadeIndex: 0
+        )
+        let imageCanvasCenterY = frame.minY
+            + PulseScreenshotEditorPanelLayout.toolbarHeight
+            + PulseScreenshotEditorPanelLayout.toolbarGap
+            + imageContentSize.height / 2
+
+        XCTAssertEqual(frame.midX, visibleFrame.midX, accuracy: 0.001)
+        XCTAssertEqual(imageCanvasCenterY, visibleFrame.midY, accuracy: 0.001)
+    }
+
+    @MainActor
+    func testEditorWindowFrameStaysInsideVisibleFrameWhenCentered() {
+        let visibleFrame = CGRect(x: 120, y: 90, width: 900, height: 620)
+        let frame = PulseScreenshotEditorPanelLayout.windowFrame(
+            imageSize: CGSize(width: 2400, height: 1600),
+            visibleFrame: visibleFrame,
+            cascadeIndex: 5
+        )
+        let safeFrame = visibleFrame.insetBy(
+            dx: PulseScreenshotEditorPanelLayout.edgeInset,
+            dy: PulseScreenshotEditorPanelLayout.edgeInset
+        )
+
+        XCTAssertGreaterThanOrEqual(frame.minX, safeFrame.minX)
+        XCTAssertGreaterThanOrEqual(frame.minY, safeFrame.minY)
+        XCTAssertLessThanOrEqual(frame.maxX, safeFrame.maxX)
+        XCTAssertLessThanOrEqual(frame.maxY, safeFrame.maxY)
+    }
+
+    @MainActor
     private func makeImage(color: NSColor, size: NSSize) -> NSImage {
         let image = NSImage(size: size)
         image.lockFocus()

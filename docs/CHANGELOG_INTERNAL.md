@@ -14,6 +14,10 @@ verification notes that would make the public changelog too noisy.
   single-display setups skip the extra prompt and use that display directly.
 - Window recording intentionally keeps the native macOS screenshot picker
   handoff because the current window-selection path is already stable.
+- Screenshot editing now centers the editable image canvas in the current
+  screen's visible frame and collapses the island preview before opening the
+  editor, with hover expansion briefly suppressed so the top panel does not
+  immediately cover small screenshots.
 
 ### Notifications
 

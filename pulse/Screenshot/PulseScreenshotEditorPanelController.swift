@@ -17,6 +17,10 @@ nonisolated enum PulseScreenshotEditorPanelLayout {
 
     static func windowSize(imageSize: CGSize, visibleFrame: CGRect) -> CGSize {
         let imageContentSize = imageContentSize(imageSize: imageSize, visibleFrame: visibleFrame)
+        return windowSize(imageContentSize: imageContentSize)
+    }
+
+    private static func windowSize(imageContentSize: CGSize) -> CGSize {
         return CGSize(
             width: max(minimumToolbarWidth, imageContentSize.width),
             height: imageContentSize.height + toolbarGap + toolbarHeight
@@ -41,21 +45,18 @@ nonisolated enum PulseScreenshotEditorPanelLayout {
     static func windowFrame(
         imageSize: CGSize,
         visibleFrame: CGRect,
-        pointerLocation: CGPoint,
         cascadeIndex: Int
     ) -> CGRect {
-        let size = windowSize(imageSize: imageSize, visibleFrame: visibleFrame)
+        let imageContentSize = imageContentSize(imageSize: imageSize, visibleFrame: visibleFrame)
+        let size = windowSize(imageContentSize: imageContentSize)
         let safeFrame = visibleFrame.insetBy(
             dx: min(edgeInset, visibleFrame.width / 4),
             dy: min(edgeInset, visibleFrame.height / 4)
         )
-        let anchor = visibleFrame.contains(pointerLocation)
-            ? pointerLocation
-            : CGPoint(x: visibleFrame.midX, y: visibleFrame.midY)
         let cascade = CGFloat(cascadeIndex % 6) * cascadeOffset
         let proposedOrigin = CGPoint(
-            x: anchor.x - size.width / 2 + cascade,
-            y: anchor.y - size.height / 2 - cascade
+            x: visibleFrame.midX - size.width / 2 + cascade,
+            y: visibleFrame.midY - imageContentSize.height / 2 - toolbarGap - toolbarHeight - cascade
         )
         let maxX = max(safeFrame.minX, safeFrame.maxX - size.width)
         let maxY = max(safeFrame.minY, safeFrame.maxY - size.height)
@@ -105,7 +106,6 @@ final class PulseScreenshotEditorPanelController {
         let frame = PulseScreenshotEditorPanelLayout.windowFrame(
             imageSize: image.size,
             visibleFrame: visibleFrame,
-            pointerLocation: pointerLocation,
             cascadeIndex: 0
         )
         let imageContentSize = PulseScreenshotEditorPanelLayout.imageContentSize(

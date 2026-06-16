@@ -77,6 +77,7 @@ See [Privacy Policy](PRIVACY.en.md) for details.
 - The Applications module now opens right-click Uninstall and Clean Up in a regular confirmation window that scans the app bundle and common local Library leftovers, then moves only user-selected items to the system Trash.
 - Uninstall and Clean Up now explains why macOS may ask for App Management or app-data permission. The confirmation flow no longer runs inside the island panel, and the island collapses after the uninstall window opens so macOS authorization prompts are not covered by the island layer; on permission failure, Pulse opens App Management or Full Disk Access settings and lets users retry only the failed items after granting permission.
 - Full-screen screenshots and recordings now choose a target display first, so multi-display setups no longer fall into window selection; window recording continues to use the native macOS window picker.
+- The screenshot editor now opens centered on the current screen and collapses the island preview before editing, so small images are not covered by the top panel.
 
 ### 2.4.0 - 2026-06-03
 

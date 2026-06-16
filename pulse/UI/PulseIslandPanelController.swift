@@ -835,6 +835,10 @@ final class PulseIslandPanelController {
     }
 
     func collapseAfterLaunchingApplication(now: Date = Date()) {
+        collapseForForegroundSurface(now: now)
+    }
+
+    func collapseForForegroundSurface(now: Date = Date()) {
         suppressHoverExpansionBriefly(now: now)
         collapse()
     }
@@ -1551,6 +1555,8 @@ final class PulseIslandPanelController {
         guard let image = screenshotImageForPreview() else {
             return
         }
+
+        collapseForForegroundSurface()
 
         screenshotEditorPanelController.edit(
             image: image,

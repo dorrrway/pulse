@@ -1371,6 +1371,27 @@ final class PinnedPanelControllerTests: XCTestCase {
         XCTAssertEqual(controller.style, .expanded)
     }
 
+    @MainActor
+    func testForegroundSurfaceCollapseClearsScreenshotPreviewAndSuppressesImmediateHover() {
+        let controller = PulseIslandPanelController()
+        let reminder = PulseCapturePreviewReminder(image: NSImage(size: NSSize(width: 8, height: 8)))
+        let now = Date()
+
+        controller.presentScreenshotPreview(reminder)
+        XCTAssertEqual(controller.style, .screenshotPreview)
+
+        controller.collapseForForegroundSurface(now: now)
+
+        XCTAssertEqual(controller.style, .seed)
+        XCTAssertNil(controller.capturePreviewReminder)
+
+        controller.setHovering(true, now: now)
+        XCTAssertEqual(controller.style, .seed)
+
+        controller.setHovering(true, now: now.addingTimeInterval(1))
+        XCTAssertEqual(controller.style, .expanded)
+    }
+
     #if DEBUG
     @MainActor
     func testIslandPanelKeepsRecordingControlsCollapsedWhenHoverBegins() {
