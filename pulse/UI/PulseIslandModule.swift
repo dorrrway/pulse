@@ -188,6 +188,11 @@ struct PulseIslandCriticalAlertPreviewRequest: Equatable, Sendable {
     var id = UUID()
     var alerts: [PulseIslandCriticalAlert]
 }
+
+struct PulseIslandNotificationSuggestionPreviewRequest: Equatable, Sendable {
+    var id = UUID()
+    var alerts: [PulseIslandCriticalAlert]
+}
 #endif
 
 enum PulseIslandModule: CaseIterable, Equatable, Hashable {

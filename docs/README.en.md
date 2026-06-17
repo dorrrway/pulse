@@ -13,7 +13,7 @@
 </h3>
 
 <p align="center">
-  <img alt="release" src="https://img.shields.io/badge/release-v2.4.0-0A84FF">
+  <img alt="release" src="https://img.shields.io/badge/release-v2.5.0-0A84FF">
   <img alt="platform" src="https://img.shields.io/badge/platform-macOS-147EFB">
   <img alt="Swift" src="https://img.shields.io/badge/Swift-6-FA7343">
   <img alt="notarized" src="https://img.shields.io/badge/Developer%20ID-notarized-34C759">
@@ -29,18 +29,18 @@ Pulse is a local-first macOS control center that stays at the top of your screen
 
 Latest release:
 
-- [Pulse 2.4.0](https://github.com/dorrrway/pulse/releases/tag/v2.4.0)
-- DMG: [Pulse-2.4.0.dmg](https://github.com/dorrrway/pulse/releases/download/v2.4.0/Pulse-2.4.0.dmg)
+- [Pulse 2.5.0](https://github.com/dorrrway/pulse/releases/tag/v2.5.0)
+- DMG: [Pulse-2.5.0.dmg](https://github.com/dorrrway/pulse/releases/download/v2.5.0/Pulse-2.5.0.dmg)
 
 SHA-256:
 
 ```text
-5937825a99e43f2fbf599cd2efb9d871ba16e339bac1b73a504db553c2e3bdae  Pulse-2.4.0.dmg
+38da615c20d487aa5d1bb8929420b53015af662fa860ac4874376d611dcaa612  Pulse-2.5.0.dmg
 ```
 
 ## Installation
 
-1. Download `Pulse-2.4.0.dmg`.
+1. Download `Pulse-2.5.0.dmg`.
 2. Open the DMG.
 3. Follow the bilingual DMG guide and drag `Pulse.app` to Applications.
 4. Launch Pulse from Applications.
@@ -70,14 +70,15 @@ See [Privacy Policy](PRIVACY.en.md) for details.
 
 ## Changelog
 
-### Unreleased
+### 2.5.0 - 2026-06-17
 
 - The Bluetooth panel now shows a top notice when system Bluetooth is off and offers a Turn On handoff to Bluetooth Settings, so the state is not mistaken for an empty device list.
-- Added a suggestion panel between the island header and main panel for dismissible storage, power, thermal, memory pressure, and Bluetooth battery suggestions, with a Settings toggle to turn it off.
+- Added a suggestion panel between the island header and main panel for dismissible storage, power, thermal, memory pressure, and Bluetooth battery suggestions; when multiple suggestions are active, one item expands as a full card in the same horizontal queue while the others collapse into circular icons, and clicking an icon linearly expands it in place while switching to the owning panel. The panel can still be turned off in Settings.
 - The Applications module now opens right-click Uninstall and Clean Up in a regular confirmation window that scans the app bundle and common local Library leftovers, then moves only user-selected items to the system Trash.
 - Uninstall and Clean Up now explains why macOS may ask for App Management or app-data permission. The confirmation flow no longer runs inside the island panel, and the island collapses after the uninstall window opens so macOS authorization prompts are not covered by the island layer; on permission failure, Pulse opens App Management or Full Disk Access settings and lets users retry only the failed items after granting permission.
 - Full-screen screenshots and recordings now choose a target display first, so multi-display setups no longer fall into window selection; window recording continues to use the native macOS window picker.
 - The screenshot editor now opens centered on the current screen and collapses the island preview before editing, so small images are not covered by the top panel.
+- Release archive: [Pulse-2.5.0.dmg](https://github.com/dorrrway/pulse/releases/download/v2.5.0/Pulse-2.5.0.dmg); SHA-256: `38da615c20d487aa5d1bb8929420b53015af662fa860ac4874376d611dcaa612`.
 
 ### 2.4.0 - 2026-06-03
 

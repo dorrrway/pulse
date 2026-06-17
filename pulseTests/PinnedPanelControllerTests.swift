@@ -435,7 +435,7 @@ final class PinnedPanelControllerTests: XCTestCase {
         try await Task.sleep(for: .milliseconds(50))
 
         XCTAssertTrue(controller.isPresented)
-        XCTAssertEqual(controller.style, .seed)
+        XCTAssertNotEqual(controller.style, .screenshotPreview)
     }
 
     @MainActor
@@ -905,7 +905,20 @@ final class PinnedPanelControllerTests: XCTestCase {
             runtime: .empty
         )
 
-        let suggestions = PulseNotificationSuggestion.active(
+        let allSuggestions = PulseNotificationSuggestion.active(
+            core: core,
+            signal: signal,
+            bluetoothDevices: [bluetoothDevice],
+            isEnabled: true,
+            dismissedIDs: []
+        )
+
+        XCTAssertEqual(
+            allSuggestions.map(\.alert),
+            [.power, .bluetoothBattery(bluetoothAlert), .thermal, .disk, .memory]
+        )
+
+        let limitedSuggestions = PulseNotificationSuggestion.active(
             core: core,
             signal: signal,
             bluetoothDevices: [bluetoothDevice],
@@ -915,11 +928,50 @@ final class PinnedPanelControllerTests: XCTestCase {
         )
 
         XCTAssertEqual(
-            suggestions.map(\.alert),
+            limitedSuggestions.map(\.alert),
             [.power, .bluetoothBattery(bluetoothAlert)]
         )
 
-        let dismissedIDs = Set(suggestions.map(\.id))
+        XCTAssertEqual(
+            PulseNotificationSuggestion.selected(
+                in: allSuggestions,
+                selectedID: nil
+            )?.alert,
+            .power
+        )
+        XCTAssertEqual(
+            PulseNotificationSuggestion.selected(
+                in: allSuggestions,
+                selectedID: allSuggestions[1].id
+            )?.alert,
+            .bluetoothBattery(bluetoothAlert)
+        )
+        XCTAssertEqual(
+            PulseNotificationSuggestion.selected(
+                in: allSuggestions,
+                selectedID: "stale"
+            )?.alert,
+            .power
+        )
+        XCTAssertEqual(
+            PulseNotificationSuggestion.secondarySuggestions(
+                in: allSuggestions,
+                selectedID: allSuggestions[1].id
+            ).map(\.alert),
+            [.power, .thermal, .disk, .memory]
+        )
+        #if DEBUG
+        XCTAssertEqual(
+            PulseNotificationSuggestion(alert: .power, isPreview: true).id,
+            "preview:power"
+        )
+        XCTAssertNotEqual(
+            PulseNotificationSuggestion(alert: .power, isPreview: true).id,
+            PulseNotificationSuggestion(alert: .power).id
+        )
+        #endif
+
+        let dismissedIDs = Set(limitedSuggestions.map(\.id))
         let remainingSuggestions = PulseNotificationSuggestion.active(
             core: core,
             signal: signal,

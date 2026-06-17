@@ -23,6 +23,11 @@ private let seedMetricFadeAnimation = Animation.easeInOut(duration: 0.16)
 private let criticalSeedAnimation = Animation.spring(response: 0.42, dampingFraction: 0.84, blendDuration: 0)
 private let screenshotPreviewAnimation = Animation.spring(response: 0.38, dampingFraction: 0.84, blendDuration: 0)
 private let clipboardRecordReminderDuration: TimeInterval = 1.5
+private let notificationSuggestionSwitchAnimation = Animation.linear(duration: 0.20)
+private let notificationSuggestionIconButtonSide: CGFloat = PulseIslandLayout.notificationPanelHeight
+private let notificationSuggestionIconAssetSide: CGFloat = 20
+private let notificationSuggestionItemSpacing: CGFloat = 6
+private let notificationSuggestionExpandedMinimumWidth: CGFloat = 260
 
 private enum ScreenshotPreviewActionIcon {
     case system(String)
@@ -53,10 +58,13 @@ struct PulseIslandView: View {
     @State private var activeClipboardReminder: ClipboardIslandReminder?
     @State private var clipboardReminderGeneration = 0
     @State private var isNotificationPanelRevealed = false
+    @State private var selectedNotificationSuggestionID: String?
     #if DEBUG
     @State private var activePreviewCriticalAlerts: [PulseIslandCriticalAlert] = []
     @State private var acknowledgedPreviewCriticalAlerts: Set<PulseIslandCriticalAlert> = []
     @State private var handledPreviewCriticalAlertRequestID: UUID?
+    @State private var activePreviewNotificationAlerts: [PulseIslandCriticalAlert] = []
+    @State private var handledPreviewNotificationRequestID: UUID?
     #endif
 
     private var style: PulseIslandStyle {
@@ -126,13 +134,19 @@ struct PulseIslandView: View {
             )
             .map(\.id)
         )
-        let notificationSuggestions = PulseNotificationSuggestion.active(
+        let liveNotificationSuggestions = PulseNotificationSuggestion.active(
             core: store.coreMetrics,
             signal: store.signalMetrics,
             bluetoothDevices: store.bluetoothDevices.devices,
             isEnabled: store.notificationSuggestionsEnabled,
             dismissedIDs: store.dismissedNotificationSuggestionIDs
         )
+        #if DEBUG
+        let notificationSuggestions = notificationSuggestionsWithPreview(liveNotificationSuggestions)
+        #else
+        let notificationSuggestions = liveNotificationSuggestions
+        #endif
+        let notificationSuggestionIDs = notificationSuggestions.map(\.id)
         let shouldShowNotificationPanel = !notificationSuggestions.isEmpty
         let rotationMetrics = PulseIslandSeedMetric.rotationMetrics(
             for: store.signalMetrics.power,
@@ -187,8 +201,10 @@ struct PulseIslandView: View {
             syncExpandedSurfaceMount(with: style, immediate: true)
             #if DEBUG
             handleCriticalAlertPreviewRequest(controller.criticalAlertPreviewRequest)
+            handleNotificationSuggestionPreviewRequest(controller.notificationSuggestionPreviewRequest)
             #endif
             store.reconcileDismissedNotificationSuggestions(activeIDs: activeNotificationSuggestionIDs)
+            reconcileSelectedNotificationSuggestion(notificationSuggestions)
             reconcileVisibleCriticalAlerts(criticalAlerts)
         }
         .onChange(of: style) { _, newStyle in
@@ -207,12 +223,18 @@ struct PulseIslandView: View {
         .onChange(of: shouldShowNotificationPanel) { _, isVisible in
             syncNotificationPanelVisibility(isVisible: isVisible)
         }
+        .onChange(of: notificationSuggestionIDs) { _, _ in
+            reconcileSelectedNotificationSuggestion(notificationSuggestions)
+        }
         .onChange(of: store.clipboardHistory.latestRecordNotice) { _, notice in
             handleClipboardRecordNotice(notice, strings: store.strings)
         }
         #if DEBUG
         .onChange(of: controller.criticalAlertPreviewRequest) { _, request in
             handleCriticalAlertPreviewRequest(request)
+        }
+        .onChange(of: controller.notificationSuggestionPreviewRequest) { _, request in
+            handleNotificationSuggestionPreviewRequest(request)
         }
         #endif
         .task {
@@ -312,6 +334,42 @@ struct PulseIslandView: View {
         }
         controller.setNotificationPanelVisible(false)
     }
+
+    private func reconcileSelectedNotificationSuggestion(_ suggestions: [PulseNotificationSuggestion]) {
+        selectedNotificationSuggestionID = PulseNotificationSuggestion.resolvedSelectionID(
+            selectedNotificationSuggestionID,
+            in: suggestions
+        )
+    }
+
+    private func selectNotificationSuggestion(_ suggestion: PulseNotificationSuggestion) {
+        withAnimation(reduceMotion ? nil : notificationSuggestionSwitchAnimation) {
+            selectedNotificationSuggestionID = suggestion.id
+        }
+    }
+
+    private func openNotificationSuggestion(_ suggestion: PulseNotificationSuggestion) {
+        selectNotificationSuggestion(suggestion)
+        switchModule(to: notificationModule(for: suggestion.alert))
+    }
+
+    #if DEBUG
+    private func notificationSuggestionsWithPreview(
+        _ liveSuggestions: [PulseNotificationSuggestion]
+    ) -> [PulseNotificationSuggestion] {
+        guard !activePreviewNotificationAlerts.isEmpty else {
+            return liveSuggestions
+        }
+
+        let previewSuggestions = activePreviewNotificationAlerts.map {
+            PulseNotificationSuggestion(alert: $0, isPreview: true)
+        }
+        let previewAlerts = Set(activePreviewNotificationAlerts)
+        let nonDuplicateLiveSuggestions = liveSuggestions.filter { !previewAlerts.contains($0.alert) }
+
+        return previewSuggestions + nonDuplicateLiveSuggestions
+    }
+    #endif
 
     private func syncExpandedSurfaceMount(with style: PulseIslandStyle, immediate: Bool = false) {
         expandedSurfaceMountGeneration &+= 1
@@ -1075,24 +1133,73 @@ struct PulseIslandView: View {
         suggestions: [PulseNotificationSuggestion],
         strings: PulseStrings
     ) -> some View {
-        HStack(spacing: 8) {
-            ForEach(suggestions) { suggestion in
+        let selectedID = PulseNotificationSuggestion.resolvedSelectionID(
+            selectedNotificationSuggestionID,
+            in: suggestions
+        )
+
+        return ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: notificationSuggestionItemSpacing) {
+                    ForEach(suggestions) { suggestion in
+                        notificationSuggestionQueueItem(
+                            suggestion,
+                            isSelected: suggestion.id == selectedID,
+                            totalCount: suggestions.count,
+                            strings: strings
+                        )
+                        .id(suggestion.id)
+                    }
+                }
+                .frame(
+                    width: notificationSuggestionQueueContentWidth(for: suggestions.count),
+                    height: PulseIslandLayout.notificationPanelHeight,
+                    alignment: .leading
+                )
+                .animation(reduceMotion ? nil : notificationSuggestionSwitchAnimation, value: selectedID)
+            }
+            .frame(
+                width: PulseIslandLayout.expandedSurfaceWidth,
+                height: PulseIslandLayout.notificationPanelHeight,
+                alignment: .leading
+            )
+            .onAppear {
+                scrollNotificationSuggestionIfNeeded(selectedID, in: suggestions, proxy: proxy)
+            }
+            .onChange(of: selectedID) { _, newSelectedID in
+                scrollNotificationSuggestionIfNeeded(newSelectedID, in: suggestions, proxy: proxy)
+            }
+        }
+        .transition(.opacity.combined(with: .move(edge: .top)))
+    }
+
+    private func notificationSuggestionQueueItem(
+        _ suggestion: PulseNotificationSuggestion,
+        isSelected: Bool,
+        totalCount: Int,
+        strings: PulseStrings
+    ) -> some View {
+        Group {
+            if isSelected {
                 notificationSuggestionCard(suggestion, strings: strings)
+                    .transition(.opacity)
+            } else {
+                notificationSuggestionIconButton(suggestion, strings: strings)
+                    .transition(.opacity)
             }
         }
         .frame(
-            width: PulseIslandLayout.expandedSurfaceWidth,
+            width: notificationSuggestionItemWidth(isSelected: isSelected, totalCount: totalCount),
             height: PulseIslandLayout.notificationPanelHeight
         )
-        .transition(.opacity.combined(with: .move(edge: .top)))
+        .clipped()
     }
 
     private func notificationSuggestionCard(
         _ suggestion: PulseNotificationSuggestion,
         strings: PulseStrings
     ) -> some View {
-        let activity = criticalActivity(alert: suggestion.alert, strings: strings)
-        let module = notificationModule(for: suggestion.alert)
+        let activity = notificationActivity(for: suggestion, strings: strings)
         let title = notificationTitle(for: suggestion.alert, activity: activity, strings: strings)
         let detail = activity.detail ?? title
 
@@ -1104,12 +1211,139 @@ struct PulseIslandView: View {
             tint: activity.tint,
             dismissTitle: strings.text(.notificationDismiss),
             openAction: {
-                switchModule(to: module)
+                openNotificationSuggestion(suggestion)
             },
             dismissAction: {
-                store.dismissNotificationSuggestion(withID: suggestion.id)
+                dismissNotificationSuggestion(suggestion)
             }
         )
+    }
+
+    private func notificationSuggestionIconButton(
+        _ suggestion: PulseNotificationSuggestion,
+        strings: PulseStrings
+    ) -> some View {
+        let activity = notificationActivity(for: suggestion, strings: strings)
+        let title = notificationTitle(for: suggestion.alert, activity: activity, strings: strings)
+        let detail = activity.detail ?? title
+
+        return Button {
+            openNotificationSuggestion(suggestion)
+        } label: {
+            ZStack {
+                Circle()
+                    .fill(Color.black.opacity(0.86))
+                    .overlay {
+                        Circle().fill(activity.tint.opacity(0.32))
+                    }
+
+                PanelControlIconImage(name: activity.iconAssetName ?? "PulseStatusIcon", side: notificationSuggestionIconAssetSide)
+                    .foregroundStyle(activity.tint)
+            }
+            .frame(
+                width: notificationSuggestionIconButtonSide,
+                height: notificationSuggestionIconButtonSide
+            )
+            .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .help(detail)
+        .accessibilityLabel(title)
+        .accessibilityValue(detail)
+    }
+
+    private func notificationSuggestionItemWidth(isSelected: Bool, totalCount: Int) -> CGFloat {
+        guard isSelected else {
+            return notificationSuggestionIconButtonSide
+        }
+
+        return notificationSuggestionExpandedWidth(for: totalCount)
+    }
+
+    private func notificationSuggestionExpandedWidth(for count: Int) -> CGFloat {
+        let compactCount = max(count - 1, 0)
+        let compactWidth = CGFloat(compactCount) * notificationSuggestionIconButtonSide
+        let spacingWidth = CGFloat(max(count - 1, 0)) * notificationSuggestionItemSpacing
+        let availableWidth = PulseIslandLayout.expandedSurfaceWidth - compactWidth - spacingWidth
+
+        return max(notificationSuggestionExpandedMinimumWidth, availableWidth)
+    }
+
+    private func notificationSuggestionQueueContentWidth(for count: Int) -> CGFloat {
+        guard count > 0 else {
+            return PulseIslandLayout.expandedSurfaceWidth
+        }
+
+        let compactCount = max(count - 1, 0)
+        let compactWidth = CGFloat(compactCount) * notificationSuggestionIconButtonSide
+        let spacingWidth = CGFloat(max(count - 1, 0)) * notificationSuggestionItemSpacing
+        let contentWidth = notificationSuggestionExpandedWidth(for: count) + compactWidth + spacingWidth
+
+        return max(PulseIslandLayout.expandedSurfaceWidth, contentWidth)
+    }
+
+    private func scrollNotificationSuggestionIfNeeded(
+        _ selectedID: String?,
+        in suggestions: [PulseNotificationSuggestion],
+        proxy: ScrollViewProxy
+    ) {
+        guard let selectedID else {
+            return
+        }
+
+        withAnimation(reduceMotion ? nil : notificationSuggestionSwitchAnimation) {
+            proxy.scrollTo(
+                selectedID,
+                anchor: notificationSuggestionScrollAnchor(selectedID: selectedID, in: suggestions)
+            )
+        }
+    }
+
+    private func notificationSuggestionScrollAnchor(
+        selectedID: String,
+        in suggestions: [PulseNotificationSuggestion]
+    ) -> UnitPoint {
+        guard let selectedIndex = suggestions.firstIndex(where: { $0.id == selectedID }) else {
+            return .center
+        }
+
+        if selectedIndex == suggestions.startIndex {
+            return .leading
+        }
+
+        if selectedIndex == suggestions.index(before: suggestions.endIndex) {
+            return .trailing
+        }
+
+        return .center
+    }
+
+    private func notificationActivity(
+        for suggestion: PulseNotificationSuggestion,
+        strings: PulseStrings
+    ) -> IslandActivity {
+        #if DEBUG
+        if suggestion.isPreview {
+            return previewCriticalActivity(alert: suggestion.alert, strings: strings)
+        }
+        #endif
+
+        return criticalActivity(alert: suggestion.alert, strings: strings)
+    }
+
+    private func dismissNotificationSuggestion(_ suggestion: PulseNotificationSuggestion) {
+        #if DEBUG
+        if suggestion.isPreview {
+            withAnimation(reduceMotion ? nil : notificationSuggestionSwitchAnimation) {
+                activePreviewNotificationAlerts.removeAll { $0 == suggestion.alert }
+            }
+            return
+        }
+        #endif
+
+        withAnimation(reduceMotion ? nil : notificationSuggestionSwitchAnimation) {
+            store.dismissNotificationSuggestion(withID: suggestion.id)
+        }
     }
 
     private func notificationTitle(
@@ -1457,6 +1691,20 @@ struct PulseIslandView: View {
         activeCriticalAlert = nil
         controller.dismissCriticalAlert()
         reconcilePreviewCriticalAlerts()
+    }
+
+    private func handleNotificationSuggestionPreviewRequest(
+        _ request: PulseIslandNotificationSuggestionPreviewRequest?
+    ) {
+        guard let request, handledPreviewNotificationRequestID != request.id else {
+            return
+        }
+
+        handledPreviewNotificationRequestID = request.id
+        activePreviewNotificationAlerts = request.alerts
+        selectedNotificationSuggestionID = request.alerts.first.map {
+            PulseNotificationSuggestion(alert: $0, isPreview: true).id
+        }
     }
 
     private func reconcilePreviewCriticalAlerts() {

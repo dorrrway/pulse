@@ -126,6 +126,9 @@ struct PulseApp: App {
                 .environment(\.pulseIslandPreviewCriticalAlerts) { alerts in
                     previewCriticalAlerts(alerts)
                 }
+                .environment(\.pulseIslandPreviewNotificationSuggestions) { alerts in
+                    previewNotificationSuggestions(alerts)
+                }
                 #endif
                 .pulsePreferredAppearance(store)
         }
@@ -144,6 +147,17 @@ struct PulseApp: App {
     private func previewCriticalAlerts(_ alerts: [PulseIslandCriticalAlert]) {
         presentIsland()
         islandPanelController.presentCriticalAlertPreview(alerts)
+    }
+
+    private func previewNotificationSuggestions(_ alerts: [PulseIslandCriticalAlert]) {
+        islandPanelController.wake(
+            module: .resourceMonitor,
+            store: store,
+            updateController: updateController,
+            pinAction: islandPinAction(),
+            isPinnedPanelPresented: pinnedPanelController.isPresented
+        )
+        islandPanelController.presentNotificationSuggestionPreview(alerts)
     }
     #endif
 

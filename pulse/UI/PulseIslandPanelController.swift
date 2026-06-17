@@ -626,6 +626,7 @@ final class PulseIslandPanelController {
     private(set) var screenRecordingState: PulseScreenRecordingState = .idle
     #if DEBUG
     private(set) var criticalAlertPreviewRequest: PulseIslandCriticalAlertPreviewRequest?
+    private(set) var notificationSuggestionPreviewRequest: PulseIslandNotificationSuggestionPreviewRequest?
     #endif
 
     @ObservationIgnored private var panel: NSPanel?
@@ -1033,6 +1034,14 @@ final class PulseIslandPanelController {
         }
 
         criticalAlertPreviewRequest = PulseIslandCriticalAlertPreviewRequest(alerts: alerts)
+    }
+
+    func presentNotificationSuggestionPreview(_ alerts: [PulseIslandCriticalAlert]) {
+        guard !alerts.isEmpty else {
+            return
+        }
+
+        notificationSuggestionPreviewRequest = PulseIslandNotificationSuggestionPreviewRequest(alerts: alerts)
     }
 
     func setScreenRecordingStateForTesting(_ state: PulseScreenRecordingState) {

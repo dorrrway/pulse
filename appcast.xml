@@ -3,6 +3,22 @@
     <channel>
         <title>Pulse</title>
         <item>
+            <title>2.5.0</title>
+            <pubDate>Wed, 17 Jun 2026 15:58:06 +0800</pubDate>
+            <sparkle:version>13</sparkle:version>
+            <sparkle:shortVersionString>2.5.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[# Pulse 2.5.0
+
+- Added a Bluetooth panel notice when system Bluetooth is off, with a handoff to Bluetooth Settings.
+- Added a dismissible notification suggestion queue between the island header and main panel for storage, power, thermal, memory pressure, and Bluetooth battery suggestions.
+- Added Uninstall and Clean Up to the Applications module with a regular confirmation window, local residual-file scan, permission guidance, and Trash-only cleanup.
+- Full-screen screenshots and recordings now choose a target display first, improving multi-display behavior while keeping window recording on the native macOS picker.
+- Screenshot editing now opens centered on the current screen and collapses the island preview before editing.
+]]></description>
+            <enclosure url="https://github.com/dorrrway/pulse/releases/download/v2.5.0/Pulse-2.5.0.dmg" length="4868940" type="application/octet-stream" sparkle:edSignature="O67NJ0CoXjH/W7wckrExge3UQnkoxNOEzXVLaTaUoyeIvk+agsfxt/H/rGw1f/PQXez+vpIL5HouN+mii8KpCg=="/>
+        </item>
+        <item>
             <title>2.4.0</title>
             <pubDate>Wed, 03 Jun 2026 14:13:25 +0800</pubDate>
             <sparkle:version>12</sparkle:version>

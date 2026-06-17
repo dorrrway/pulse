@@ -5,7 +5,7 @@ This file is for maintainers. Keep the public changelog in `README.md` and
 implementation context, product decisions, privacy boundaries, thresholds, and
 verification notes that would make the public changelog too noisy.
 
-## Unreleased
+## 2.5.0 - 2026-06-17
 
 ### Capture
 
@@ -32,6 +32,14 @@ verification notes that would make the public changelog too noisy.
   of rendering a black outer container plus a separate tinted inner card. The
   surface keeps a high-opacity dark mix for text contrast and uses the alert
   color as the visible background tone.
+- Notification suggestions now return every active, non-dismissed suggestion by
+  default, while the panel renders them as one horizontal queue: the selected
+  suggestion expands as the complete card in its original position, the other
+  suggestions collapse into full-height circular icons, and selection changes
+  animate linearly while opening the owning module.
+- DEBUG settings now include a fake notification-suggestion preview action. It
+  opens the island, injects all preview alert types into the suggestion panel,
+  and keeps those fake suggestions out of persisted dismissal preferences.
 
 ### Applications
 

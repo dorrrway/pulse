@@ -5,6 +5,7 @@ struct PulseSettingsView: View {
     @Environment(\.openURL) private var openURL
     #if DEBUG
     @Environment(\.pulseIslandPreviewCriticalAlerts) private var previewCriticalAlerts
+    @Environment(\.pulseIslandPreviewNotificationSuggestions) private var previewNotificationSuggestions
     #endif
     private let settingsControlHeight: CGFloat = 22
     private let websiteURL = URL(string: "https://timelikesilver.com/apps/pulse")
@@ -257,6 +258,20 @@ struct PulseSettingsView: View {
                                 }
                             }
                         }
+
+                        Divider()
+                            .padding(.vertical, 2)
+
+                        HStack(spacing: 8) {
+                            Text("Notification Preview")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+
+                            Button(notificationPreviewAllTitle(strings: strings)) {
+                                previewNotificationSuggestions(PulseIslandCriticalAlert.previewCases)
+                            }
+                            .controlSize(.small)
+                        }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -358,7 +373,7 @@ private extension PulseSettingsView {
 
     var settingsWindowHeight: CGFloat {
         #if DEBUG
-        return 822
+        return 860
         #else
         return 736
         #endif
@@ -392,6 +407,15 @@ private extension PulseSettingsView {
             return "All"
         case .chinese:
             return "全部"
+        }
+    }
+
+    func notificationPreviewAllTitle(strings: PulseStrings) -> String {
+        switch strings.language {
+        case .english:
+            return "Show all fake notifications"
+        case .chinese:
+            return "显示全部假通知"
         }
     }
     #endif
